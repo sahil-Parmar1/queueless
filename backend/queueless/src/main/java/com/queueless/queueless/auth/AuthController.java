@@ -1,0 +1,31 @@
+package com.queueless.queueless.auth;
+
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.queueless.queueless.auth.dto.OfficeRegisterRequest;
+import com.queueless.queueless.user.User;
+
+@RestController
+@RequestMapping("/api/auth")
+public class AuthController {
+
+    private final AuthService authService;
+
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
+
+    @PostMapping("/office/register")
+    public ResponseEntity<User> registerOffice(
+            @RequestBody OfficeRegisterRequest request) {
+
+        User user = authService.registerOffice(request);
+
+        return ResponseEntity.ok(user);
+    }
+}
