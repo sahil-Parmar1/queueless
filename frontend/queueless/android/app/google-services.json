@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "1048114398072",
+    "project_id": "queueless-2cbfd",
+    "storage_bucket": "queueless-2cbfd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1048114398072:android:7df228b3e7656954a87e8d",
+        "android_client_info": {
+          "package_name": "com.example.queueless"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1048114398072-n514u7t8t0dgm5ae6nm4393bbijqj5e1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCoMuDSeS1OuVwFRguixf19EcN25eVI7Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1048114398072-n514u7t8t0dgm5ae6nm4393bbijqj5e1.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1048114398072-ih5cnqlhge7kr6ik1e5uk37cnt26u5bj.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.queueless"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
