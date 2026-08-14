@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.queueless.queueless.auth.dto.CustomerGoogleLoginRequest;
 import com.queueless.queueless.auth.dto.LoginRequest;
 import com.queueless.queueless.auth.dto.OfficeRegisterRequest;
 import com.queueless.queueless.user.User;
@@ -19,6 +20,17 @@ public class AuthController {
 
     public AuthController(AuthService authService) {
         this.authService = authService;
+    }
+
+    @PostMapping("/customer/google")
+    public ResponseEntity<?> customerGoogleLogin(
+            @RequestBody CustomerGoogleLoginRequest request) {
+
+        String token = authService.loginCustomerWithGoogle(request);
+
+        return ResponseEntity.ok(
+                java.util.Map.of("token", token)
+        );
     }
 
     @PostMapping("/office/register")

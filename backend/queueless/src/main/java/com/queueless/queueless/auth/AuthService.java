@@ -1,8 +1,11 @@
 package com.queueless.queueless.auth;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.stereotype.Service;
 
+import com.queueless.queueless.auth.dto.CustomerGoogleLoginRequest;
 import com.queueless.queueless.auth.dto.LoginRequest;
 import com.queueless.queueless.auth.dto.OfficeRegisterRequest;
 import com.queueless.queueless.user.Role;
@@ -15,15 +18,18 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final JwtDecoder firebaseJwtDecoder;
 
     public AuthService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService) {
+            JwtService jwtService,
+            JwtDecoder firebaseJwtDecoder) {
 
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.firebaseJwtDecoder = firebaseJwtDecoder;
     }
 
     // =========================
@@ -83,5 +89,78 @@ public class AuthService {
 
         // Generate JWT
         return jwtService.generateToken(user);
+    }
+
+    // =========================
+    // CUSTOMER GOOGLE LOGIN
+    // =========================
+
+    public String loginCustomerWithGoogle(
+            CustomerGoogleLoginRequest request) {
+
+        try {
+
+            // Verify Firebase ID token without firebase-admin
+            Jwt decodedToken = firebaseJwtDecoder.decode(request.getIdToken());
+
+            String uid = decodedToken.getSubject();
+            String email = decodedToken.getClaimAsString("email");
+            String nameClaim = decodedToken.getClaimAsString("name");
+            String name = (nameClaim != null && !nameClaim.isBlank()) ? nameClaim : email;
+
+            if (email == null || email.isBlank()) {
+                throw new RuntimeException("Firebase token does not contain a valid email address");
+            }
+
+            // Find customer
+            User user = userRepository.findByEmail(email)
+                    .orElseGet(() -> {
+
+                        User newUser = new User();
+
+                        newUser.setName(name);
+                        newUser.setEmail(email);
+
+                        // Customer uses Google/Firebase,
+                        // so no normal password is required.
+                        newUser.setPassword(null);
+                        newUser.setGoogleId(uid);
+
+                        newUser.setRole(Role.CUSTOMER);
+                        newUser.setEnabled(true);
+
+                        return userRepository.save(newUser);
+                    });
+
+            if (user.getGoogleId() == null) {
+                user.setGoogleId(uid);
+                userRepository.save(user);
+            }
+
+            // Make sure this is a customer
+            if (user.getRole() != Role.CUSTOMER) {
+                throw new RuntimeException(
+                        "This email is not registered as a customer"
+                );
+            }
+
+            if (!user.getEnabled()) {
+                throw new RuntimeException(
+                        "Customer account is disabled"
+                );
+            }
+
+            // Generate your Queueless JWT
+            return jwtService.generateToken(user);
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            throw new RuntimeException(
+                    "Invalid Google authentication: " + e.getMessage(),
+                    e
+            );
+        }
     }
 }
