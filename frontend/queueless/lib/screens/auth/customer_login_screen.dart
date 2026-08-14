@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart'; // REQUIRED for kIsWeb
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // REQUIRED for signInWithPopup
 import 'package:http/http.dart' as http;
 import '../../services/google_auth_service.dart';
 
@@ -20,23 +22,34 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
     });
 
     try {
-      final userCredential = await _googleAuthService.signInWithGoogle();
+      UserCredential? userCredential;
+
+      if (kIsWeb) {
+        // 🌐 FLUTTER WEB: Use Firebase Web Popup
+        GoogleAuthProvider googleProvider = GoogleAuthProvider();
+        userCredential = await FirebaseAuth.instance.signInWithPopup(googleProvider);
+      } else {
+        // 📱 ANDROID / IOS: Use GoogleAuthService
+        userCredential = await _googleAuthService.signInWithGoogle();
+      }
 
       if (userCredential != null) {
         final user = userCredential.user;
-
         print("Customer logged into Firebase!");
 
-        // 1. Get fresh Firebase ID Token
+        // 1. Get Firebase ID token
         final idToken = await user?.getIdToken(true);
-        print("COPY THIS TOKEN TO POSTMAN: $idToken");
+        print("ID TOKEN: $idToken");
 
         if (idToken != null) {
-          // 2. Send Firebase ID token to Spring Boot backend
-          // Note: Use 'http://10.0.2.2:8080' for Android Emulator
-          // Use 'http://localhost:8080' for Web / iOS Simulator
+          // 2. Select host based on Web vs Android Emulator
+          final String backendUrl = kIsWeb
+              ? 'http://localhost:8080/api/auth/customer/google'
+              : 'http://10.0.2.2:8080/api/auth/customer/google';
+
+          // 3. Send token to Spring Boot backend
           final response = await http.post(
-            Uri.parse('http://10.0.2.2:8080/api/auth/customer/google'),
+            Uri.parse(backendUrl),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'idToken': idToken}),
           );
@@ -47,7 +60,6 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
 
             print("RECEIVED QUEUELESS JWT FROM BACKEND: $queuelessJwt");
 
-            // TODO: Save queuelessJwt to Flutter secure storage and navigate to Customer Home Screen
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Login successful!')),
