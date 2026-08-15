@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:queueless_office/screens/dashboad/OfficeDashboardScreen.dart';
+import 'package:queueless_office/screens/dashboad/office_onboarding_screen.dart';
 
 
 class OfficeAuthScreen extends StatefulWidget {
@@ -62,12 +63,21 @@ class _OfficeAuthScreenState extends State<OfficeAuthScreen> {
       );
 
       if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final String? token = data['token'];
+
+        if (token != null) {
+          const storage = FlutterSecureStorage();
+          await storage.write(key: 'jwt_token', value: token);
+        }
+
         if (mounted) {
-          _showSnackBar('Office registered successfully! Please login.', isError: false);
-          setState(() {
-            _selectedTabIndex = 1;
-            _loginEmailController.text = _regEmailController.text;
-          });
+          _showSnackBar('Office registered successfully! Please complete your office setup.', isError: false);
+          // Navigate straight to Onboarding to complete their profile & documents
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const OfficeOnboardingScreen()),
+          );
         }
       } else {
         final err = jsonDecode(response.body);
@@ -80,7 +90,6 @@ class _OfficeAuthScreenState extends State<OfficeAuthScreen> {
     }
   }
 
-  // LOGIN METHOD
   // LOGIN METHOD
   Future<void> _loginOffice() async {
     if (!_formKeyLogin.currentState!.validate()) return;

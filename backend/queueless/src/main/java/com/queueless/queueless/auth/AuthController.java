@@ -34,12 +34,12 @@ public class AuthController {
     }
 
     @PostMapping("/office/register")
-    public ResponseEntity<User> registerOffice(
+    public ResponseEntity<?> registerOffice(
             @RequestBody OfficeRegisterRequest request) {
 
-        User user = authService.registerOffice(request);
+        java.util.Map<String, Object> response = authService.registerOffice(request);
 
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/office/login")

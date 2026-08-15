@@ -36,7 +36,7 @@ public class AuthService {
     // OFFICE REGISTRATION
     // =========================
 
-    public User registerOffice(OfficeRegisterRequest request) {
+    public java.util.Map<String, Object> registerOffice(OfficeRegisterRequest request) {
 
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Email already registered");
@@ -55,8 +55,15 @@ public class AuthService {
         user.setRole(Role.OFFICE);
         user.setEnabled(true);
 
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        String token = jwtService.generateToken(saved);
+
+        return java.util.Map.of(
+                "token", token,
+                "user", saved
+        );
     }
+
 
 
     // =========================
