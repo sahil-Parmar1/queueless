@@ -37,11 +37,33 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
   final _tradeLicenseController = TextEditingController();
   String _salonType = 'Unisex';
 
+  // Other Controllers
+  final _otherBusinessTypeController = TextEditingController();
+  final _descriptionController = TextEditingController();
+
   // Files
   PlatformFile? _primaryDoc;
   PlatformFile? _secondaryDoc;
 
   bool _loading = false;
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _addressController.dispose();
+    _cityController.dispose();
+    _stateController.dispose();
+    _pincodeController.dispose();
+    _openingTimeController.dispose();
+    _closingTimeController.dispose();
+    _doctorNameController.dispose();
+    _specializationController.dispose();
+    _medRegNoController.dispose();
+    _tradeLicenseController.dispose();
+    _otherBusinessTypeController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
 
   String get _baseUrl => kIsWeb
       ? 'http://localhost:8080/api/office/onboarding'
@@ -100,6 +122,7 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
       request.fields['pincode'] = _pincodeController.text.trim();
       request.fields['openingTime'] = _openingTimeController.text.trim();
       request.fields['closingTime'] = _closingTimeController.text.trim();
+      request.fields['description'] = _descriptionController.text.trim();
 
       // Category Specific Fields
       if (_category == 'CLINIC') {
@@ -109,11 +132,14 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
       } else if (_category == 'SALON') {
         request.fields['salonType'] = _salonType;
         request.fields['tradeLicenseNumber'] = _tradeLicenseController.text.trim();
+      } else if (_category == 'OTHER') {
+        request.fields['specialization'] = _otherBusinessTypeController.text.trim();
+        request.fields['tradeLicenseNumber'] = _tradeLicenseController.text.trim();
       }
 
       // Attach Primary File
       if (kIsWeb || _primaryDoc!.path == null) {
-        final bytes = await _primaryDoc!.readAsBytes();
+        final bytes = await _primaryDoc!.xFile.readAsBytes();
         request.files.add(http.MultipartFile.fromBytes(
           'primaryDocument',
           bytes,
@@ -130,7 +156,7 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
       // Attach Secondary File (if picked)
       if (_secondaryDoc != null) {
         if (kIsWeb || _secondaryDoc!.path == null) {
-          final bytes = await _secondaryDoc!.readAsBytes();
+          final bytes = await _secondaryDoc!.xFile.readAsBytes();
           request.files.add(http.MultipartFile.fromBytes(
             'secondaryDocument',
             bytes,
@@ -160,7 +186,7 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(
-              builder: (context) => const OfficeDashboardScreen(), // Replace with your dashboard widget
+              builder: (context) => const OfficeDashboardScreen(),
             ),
                 (route) => false,
           );
@@ -204,12 +230,14 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Category Selector
+              // Category Selector (Clinic, Salon, Other)
               Row(
                 children: [
-                  _categoryChip('CLINIC', 'Clinic / Hospital', Icons.local_hospital_outlined),
-                  const SizedBox(width: 12),
-                  _categoryChip('SALON', 'Salon / Spa', Icons.content_cut_outlined),
+                  _categoryChip('CLINIC', 'Clinic', Icons.local_hospital_outlined),
+                  const SizedBox(width: 8),
+                  _categoryChip('SALON', 'Salon', Icons.content_cut_outlined),
+                  const SizedBox(width: 8),
+                  _categoryChip('OTHER', 'Other', Icons.business_outlined),
                 ],
               ),
               const SizedBox(height: 24),
@@ -234,6 +262,12 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
                       .toList(),
                   onChanged: (v) => setState(() => _salonType = v!),
                 ),
+              ] else if (_category == 'OTHER') ...[
+                const Text('Business Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                _inputField('Business Type / Industry', _otherBusinessTypeController, 'e.g. Bank, Government Office, Consulting, Gym'),
+                _inputField('License / Registration No. (Optional)', _tradeLicenseController, 'e.g. REG-12345, GSTIN', isRequired: false),
+                _inputField('Business Description (Optional)', _descriptionController, 'Brief description of services', isRequired: false),
               ],
 
               const SizedBox(height: 24),
@@ -255,13 +289,21 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
 
               // Document Upload Pickers
               _documentPickerCard(
-                title: _category == 'CLINIC' ? '1. Clinic Registration Certificate (Required)' : '1. Trade / Business License (Required)',
+                title: _category == 'CLINIC'
+                    ? '1. Clinic Registration Certificate (Required)'
+                    : _category == 'SALON'
+                        ? '1. Trade / Business License (Required)'
+                        : '1. Business Registration / Govt ID (Required)',
                 file: _primaryDoc,
                 onPick: () => _pickFile(true),
               ),
               const SizedBox(height: 12),
               _documentPickerCard(
-                title: _category == 'CLINIC' ? '2. Doctor Degree / ID (Optional)' : '2. Owner ID Proof / GST (Optional)',
+                title: _category == 'CLINIC'
+                    ? '2. Doctor Degree / ID (Optional)'
+                    : _category == 'SALON'
+                        ? '2. Owner ID Proof / GST (Optional)'
+                        : '2. Additional Document / ID Proof (Optional)',
                 file: _secondaryDoc,
                 onPick: () => _pickFile(false),
               ),
@@ -313,7 +355,13 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
     );
   }
 
-  Widget _inputField(String label, TextEditingController controller, String hint, {TextInputType keyboardType = TextInputType.text}) {
+  Widget _inputField(
+    String label,
+    TextEditingController controller,
+    String hint, {
+    TextInputType keyboardType = TextInputType.text,
+    bool isRequired = true,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
@@ -324,7 +372,10 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
           hintText: hint,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         ),
-        validator: (v) => v == null || v.isEmpty ? 'Please enter $label' : null,
+        validator: (v) {
+          if (!isRequired) return null;
+          return (v == null || v.isEmpty) ? 'Please enter $label' : null;
+        },
       ),
     );
   }

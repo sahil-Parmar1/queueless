@@ -85,6 +85,9 @@ public class OfficeProfileController {
         } else if (category == OfficeCategory.SALON) {
             profile.setSalonType(salonType);
             profile.setTradeLicenseNumber(tradeLicenseNumber);
+        } else if (category == OfficeCategory.OTHER) {
+            profile.setSpecialization(specialization);
+            profile.setTradeLicenseNumber(tradeLicenseNumber);
         }
 
         // Save Primary Document
@@ -92,7 +95,11 @@ public class OfficeProfileController {
             String fileUrl = fileStorageService.saveFile(primaryDocument);
             OfficeDocument doc = new OfficeDocument();
             doc.setOfficeProfile(profile);
-            doc.setDocumentType(category == OfficeCategory.CLINIC ? "CLINIC_REGISTRATION" : "TRADE_LICENSE");
+            String docType = "BUSINESS_DOCUMENT";
+            if (category == OfficeCategory.CLINIC) docType = "CLINIC_REGISTRATION";
+            else if (category == OfficeCategory.SALON) docType = "TRADE_LICENSE";
+            else if (category == OfficeCategory.OTHER) docType = "BUSINESS_REGISTRATION";
+            doc.setDocumentType(docType);
             doc.setOriginalFileName(primaryDocument.getOriginalFilename());
             doc.setFileUrl(fileUrl);
             doc.setContentType(primaryDocument.getContentType());
@@ -105,7 +112,11 @@ public class OfficeProfileController {
             String fileUrl = fileStorageService.saveFile(secondaryDocument);
             OfficeDocument doc = new OfficeDocument();
             doc.setOfficeProfile(profile);
-            doc.setDocumentType(category == OfficeCategory.CLINIC ? "DOCTOR_DEGREE" : "OWNER_ID_PROOF");
+            String docType = "ID_PROOF";
+            if (category == OfficeCategory.CLINIC) docType = "DOCTOR_DEGREE";
+            else if (category == OfficeCategory.SALON) docType = "OWNER_ID_PROOF";
+            else if (category == OfficeCategory.OTHER) docType = "OWNER_ID_PROOF";
+            doc.setDocumentType(docType);
             doc.setOriginalFileName(secondaryDocument.getOriginalFilename());
             doc.setFileUrl(fileUrl);
             doc.setContentType(secondaryDocument.getContentType());
