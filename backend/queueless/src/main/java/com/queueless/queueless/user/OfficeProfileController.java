@@ -4,6 +4,7 @@ import java.util.Map;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -27,6 +28,34 @@ public class OfficeProfileController {
         this.profileRepository = profileRepository;
         this.userRepository = userRepository;
         this.fileStorageService = fileStorageService;
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<?> getOfficeProfile(Authentication authentication) {
+        User user;
+        if (authentication.getPrincipal() instanceof User u) {
+            user = u;
+        } else {
+            String email = authentication.getName();
+            user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found: " + email));
+        }
+
+        OfficeProfile profile = profileRepository.findByUserId(user.getId())
+                .orElse(null);
+
+        if (profile == null) {
+            return ResponseEntity.ok(Map.of(
+                    "hasProfile", false,
+                    "user", user
+            ));
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "hasProfile", true,
+                "user", user,
+                "profile", profile
+        ));
     }
 
     @PostMapping(value = "/onboarding", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
