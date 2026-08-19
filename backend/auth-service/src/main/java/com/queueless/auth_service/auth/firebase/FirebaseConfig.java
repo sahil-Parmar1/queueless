@@ -1,7 +1,7 @@
 package com.queueless.auth_service.auth.firebase;
 
+import java.util.Arrays;
 import java.util.List;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,55 +13,67 @@ import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
-import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
 @Configuration
 public class FirebaseConfig {
 
-    @Value("${firebase.project.id:queueless-2cbfd}")
-    private String firebaseProjectId;
+    // Reads both project IDs: "queueless-2cbfd,queueless-office"
+    @Value("${firebase.project.ids:queueless-2cbfd,queueless-office}")
+    private String allowedProjectIds;
 
     @Bean
     public JwtDecoder firebaseJwtDecoder() {
-        String firebaseIssuer = "https://securetoken.google.com/" + firebaseProjectId;
+        List<String> projectList = Arrays.stream(allowedProjectIds.split(","))
+                .map(String::trim)
+                .toList();
+
         String firebaseJwkSetUri = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
         String googleOAuthJwkSetUri = "https://www.googleapis.com/oauth2/v3/certs";
 
         // 1. Decoder for Firebase Auth ID Tokens
         NimbusJwtDecoder firebaseDecoder = NimbusJwtDecoder.withJwkSetUri(firebaseJwkSetUri).build();
-        OAuth2TokenValidator<Jwt> withFirebaseIssuer = JwtValidators.createDefaultWithIssuer(firebaseIssuer);
-        OAuth2TokenValidator<Jwt> withAudience = new OAuth2TokenValidator<Jwt>() {
+
+        // Custom Multi-Project Validator (checks if issuer & audience match ANY allowed project)
+        OAuth2TokenValidator<Jwt> multiProjectValidator = new OAuth2TokenValidator<Jwt>() {
             @Override
             public OAuth2TokenValidatorResult validate(Jwt jwt) {
+                String issuer = jwt.getIssuer() != null ? jwt.getIssuer().toString() : "";
                 List<String> audience = jwt.getAudience();
-                if (audience != null && audience.contains(firebaseProjectId)) {
+
+                boolean validProject = projectList.stream().anyMatch(projectId -> {
+                    String expectedIssuer = "https://securetoken.google.com/" + projectId;
+                    boolean matchesIssuer = issuer.equals(expectedIssuer);
+                    boolean matchesAudience = audience != null && audience.contains(projectId);
+                    return matchesIssuer && matchesAudience;
+                });
+
+                if (validProject) {
                     return OAuth2TokenValidatorResult.success();
                 }
+
                 return OAuth2TokenValidatorResult.failure(
-                        new OAuth2Error("invalid_token", "The aud claim does not match Firebase Project ID", null)
+                        new OAuth2Error("invalid_token", "Token audience/issuer does not match any allowed Firebase Project ID", null)
                 );
             }
         };
-        firebaseDecoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(withFirebaseIssuer, withAudience));
 
-        // 2. Decoder for Direct Google Sign-In OAuth ID Tokens
+        firebaseDecoder.setJwtValidator(multiProjectValidator);
+
+        // 2. Decoder for Direct Google Sign-In OAuth ID Tokens (fallback)
         NimbusJwtDecoder googleOAuthDecoder = NimbusJwtDecoder.withJwkSetUri(googleOAuthJwkSetUri).build();
 
         return new JwtDecoder() {
             @Override
             public Jwt decode(String token) throws JwtException {
                 try {
-                    // Try verifying as Firebase ID Token first
                     return firebaseDecoder.decode(token);
                 } catch (Exception e1) {
                     try {
-                        // Fallback: Try verifying as Direct Google Sign-In ID Token
                         return googleOAuthDecoder.decode(token);
                     } catch (Exception e2) {
                         throw new BadJwtException(
-                                "Invalid token signature: The token signature could not be verified with Google's public keys. " +
-                                "Ensure you are passing a valid Firebase ID Token or Google Sign-In ID Token.", e1);
+                                "Invalid token signature: The token could not be verified with Google/Firebase keys.", e1);
                     }
                 }
             }

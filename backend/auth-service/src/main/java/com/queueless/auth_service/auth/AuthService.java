@@ -168,4 +168,80 @@ public class AuthService {
             );
         }
     }
+
+    // =========================
+    // OFFICE GOOGLE LOGIN
+    // =========================
+
+    public java.util.Map<String, Object> loginOfficeWithGoogle(
+            CustomerGoogleLoginRequest request) {
+
+        try {
+
+            // Verify Firebase ID token without firebase-admin
+            Jwt decodedToken = firebaseJwtDecoder.decode(request.getIdToken());
+
+            String uid = decodedToken.getSubject();
+            String email = decodedToken.getClaimAsString("email");
+            String nameClaim = decodedToken.getClaimAsString("name");
+            String name = (nameClaim != null && !nameClaim.isBlank()) ? nameClaim : email;
+
+            if (email == null || email.isBlank()) {
+                throw new RuntimeException("Firebase token does not contain a valid email address");
+            }
+
+            // Find or create Office user
+            User user = userRepository.findByEmail(email)
+                    .orElseGet(() -> {
+
+                        User newUser = new User();
+
+                        newUser.setName(name);
+                        newUser.setEmail(email);
+                        newUser.setPassword(null);
+                        newUser.setGoogleId(uid);
+
+                        newUser.setRole(Role.OFFICE);
+                        newUser.setEnabled(true);
+
+                        return userRepository.save(newUser);
+                    });
+
+            if (user.getGoogleId() == null) {
+                user.setGoogleId(uid);
+                userRepository.save(user);
+            }
+
+            // Make sure this is an OFFICE account
+            if (user.getRole() != Role.OFFICE) {
+                throw new RuntimeException(
+                        "This email is not registered as an office account"
+                );
+            }
+
+            if (!user.getEnabled()) {
+                throw new RuntimeException(
+                        "Office account is disabled"
+                );
+            }
+
+            // Generate your Queueless JWT
+            String token = jwtService.generateToken(user);
+
+            return java.util.Map.of(
+                    "token", token,
+                    "user", user
+            );
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            throw new RuntimeException(
+                    "Invalid Google authentication: " + e.getMessage(),
+                    e
+            );
+        }
+    }
 }
+

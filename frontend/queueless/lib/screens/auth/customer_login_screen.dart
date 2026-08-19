@@ -25,11 +25,11 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
       UserCredential? userCredential;
 
       if (kIsWeb) {
-        // 🌐 FLUTTER WEB: Use Firebase Web Popup
+
         GoogleAuthProvider googleProvider = GoogleAuthProvider();
         userCredential = await FirebaseAuth.instance.signInWithPopup(googleProvider);
       } else {
-        // 📱 ANDROID / IOS: Use GoogleAuthService
+
         userCredential = await _googleAuthService.signInWithGoogle();
       }
 
@@ -37,17 +37,17 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
         final user = userCredential.user;
         print("Customer logged into Firebase!");
 
-        // 1. Get Firebase ID token
+
         final idToken = await user?.getIdToken(true);
         print("ID TOKEN: $idToken");
 
         if (idToken != null) {
-          // 2. Select host based on Web vs Android Emulator
+
           final String backendUrl = kIsWeb
               ? 'http://localhost:8080/api/auth/customer/google'
               : 'http://10.0.2.2:8080/api/auth/customer/google';
 
-          // 3. Send token to Spring Boot backend
+
           final response = await http.post(
             Uri.parse(backendUrl),
             headers: {'Content-Type': 'application/json'},
@@ -62,16 +62,77 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
 
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Login successful!')),
+                const SnackBar(
+                  content: Row(
+                    children: [
+                      Icon(Icons.check_circle_outline, color: Colors.white),
+                      SizedBox(width: 10),
+                      Text('Login successful!'),
+                    ],
+                  ),
+                  backgroundColor: Colors.green,
+                  behavior: SnackBarBehavior.floating,
+                ),
               );
             }
           } else {
-            print("Backend error: ${response.body}");
+
+            String errorMessage = 'Login failed. Please try again.';
+            try {
+              final errData = jsonDecode(response.body);
+              if (errData['message'] != null && errData['message'].toString().isNotEmpty) {
+                errorMessage = errData['message'].toString();
+              }
+            } catch (_) {
+              errorMessage = response.body;
+            }
+
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.white),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(errorMessage)),
+                    ],
+                  ),
+                  backgroundColor: Colors.red,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to retrieve Google ID Token'),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
           }
         }
       }
     } catch (e) {
       print("Login error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 10),
+                Expanded(child: Text('Google Sign-In Error: $e')),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {

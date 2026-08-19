@@ -31,6 +31,15 @@ public class AuthController {
         );
     }
 
+    @PostMapping("/office/google")
+    public ResponseEntity<?> officeGoogleLogin(
+            @RequestBody CustomerGoogleLoginRequest request) {
+
+        java.util.Map<String, Object> response = authService.loginOfficeWithGoogle(request);
+
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/office/register")
     public ResponseEntity<?> registerOffice(
             @RequestBody OfficeRegisterRequest request) {

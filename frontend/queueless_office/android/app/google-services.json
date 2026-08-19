@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "482456100266",
+    "project_id": "queueless-office",
+    "storage_bucket": "queueless-office.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:482456100266:android:2fea4ea9dc811cdbb19fd3",
+        "android_client_info": {
+          "package_name": "com.example.queueless_office"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "482456100266-674c9upphmqaalf5nbkn6j5o635sivvo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.queueless_office",
+            "certificate_hash": "7865f97069ac8fd4ed268a95b964020031ec1d64"
+          }
+        },
+        {
+          "client_id": "482456100266-ed0q51tec5f5p4es05c0f1ul65nh0p1d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.queueless_office",
+            "certificate_hash": "b73796020cec9d765bb7ae1eb6a883d757cef22d"
+          }
+        },
+        {
+          "client_id": "482456100266-2q92jo7ankqvdhrfmpcrnfvg1k6ou6r9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-neiwASjDNbXYDGEHJ4WE5WPN9UEjei8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "482456100266-2q92jo7ankqvdhrfmpcrnfvg1k6ou6r9.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "482456100266-gts2c5fg1j1ipt13tg44r7up4e1ll6l6.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.queuelessOffice"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
