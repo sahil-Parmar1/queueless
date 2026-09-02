@@ -26,11 +26,9 @@ public class AuthController {
     public ResponseEntity<?> customerGoogleLogin(
             @RequestBody CustomerGoogleLoginRequest request) {
 
-        String token = authService.loginCustomerWithGoogle(request);
+        java.util.Map<String, Object> response = authService.loginCustomerWithGoogleDetailed(request);
 
-        return ResponseEntity.ok(
-                java.util.Map.of("token", token)
-        );
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/office/register")

@@ -121,7 +121,7 @@ public class GatewayProxyController {
     private String resolveTargetServiceUrl(String uri) {
         if (uri.startsWith("/api/auth/") || uri.startsWith("/api/test/")) {
             return authServiceUrl;
-        } else if (uri.startsWith("/api/office/") || uri.startsWith("/api/offices/")) {
+        } else if (uri.startsWith("/api/office/") || uri.startsWith("/api/offices/") || uri.startsWith("/api/queue/")) {
             return officeServiceUrl;
         }
         return null;

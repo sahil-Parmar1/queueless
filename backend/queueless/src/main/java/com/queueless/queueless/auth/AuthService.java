@@ -102,11 +102,10 @@ public class AuthService {
     // CUSTOMER GOOGLE LOGIN
     // =========================
 
-    public String loginCustomerWithGoogle(
+    public java.util.Map<String, Object> loginCustomerWithGoogleDetailed(
             CustomerGoogleLoginRequest request) {
 
         try {
-
             // Verify Firebase ID token without firebase-admin
             Jwt decodedToken = firebaseJwtDecoder.decode(request.getIdToken());
 
@@ -119,55 +118,63 @@ public class AuthService {
                 throw new RuntimeException("Firebase token does not contain a valid email address");
             }
 
-            // Find customer
+            boolean isNew = !userRepository.existsByEmail(email);
+
+            // Find or create customer automatically in database
             User user = userRepository.findByEmail(email)
                     .orElseGet(() -> {
-
                         User newUser = new User();
-
                         newUser.setName(name);
                         newUser.setEmail(email);
-
-                        // Customer uses Google/Firebase,
-                        // so no normal password is required.
                         newUser.setPassword(null);
                         newUser.setGoogleId(uid);
-
                         newUser.setRole(Role.CUSTOMER);
                         newUser.setEnabled(true);
-
                         return userRepository.save(newUser);
                     });
 
+            boolean updated = false;
             if (user.getGoogleId() == null) {
                 user.setGoogleId(uid);
-                userRepository.save(user);
+                updated = true;
             }
 
-            // Make sure this is a customer
             if (user.getRole() != Role.CUSTOMER) {
-                throw new RuntimeException(
-                        "This email is not registered as a customer"
-                );
+                user.setRole(Role.CUSTOMER);
+                updated = true;
             }
 
             if (!user.getEnabled()) {
-                throw new RuntimeException(
-                        "Customer account is disabled"
-                );
+                user.setEnabled(true);
+                updated = true;
+            }
+
+            if (updated) {
+                user = userRepository.save(user);
             }
 
             // Generate your Queueless JWT
-            return jwtService.generateToken(user);
+            String token = jwtService.generateToken(user);
+
+            return java.util.Map.of(
+                    "token", token,
+                    "user", user,
+                    "isNewUser", isNew
+            );
 
         } catch (Exception e) {
-
             e.printStackTrace();
-
             throw new RuntimeException(
                     "Invalid Google authentication: " + e.getMessage(),
                     e
             );
         }
+    }
+
+    public String loginCustomerWithGoogle(
+            CustomerGoogleLoginRequest request) {
+
+        java.util.Map<String, Object> result = loginCustomerWithGoogleDetailed(request);
+        return (String) result.get("token");
     }
 }

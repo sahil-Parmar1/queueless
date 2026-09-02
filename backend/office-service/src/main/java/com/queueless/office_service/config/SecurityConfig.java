@@ -38,7 +38,10 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/error",
-                    "/"
+                    "/",
+                    "/api/offices/**",
+                    "/api/queue/**",
+                    "/uploads/**"
                 ).permitAll()
                 .anyRequest().authenticated()
             )

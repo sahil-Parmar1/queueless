@@ -21,6 +21,8 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
   Map<String, dynamic>? _userData;
   Map<String, dynamic>? _profileData;
   List<dynamic> _documents = [];
+  Map<String, dynamic>? _liveQueueData;
+  bool _queueActionLoading = false;
 
   // For Approved state tab switching: 0 -> Queue Dashboard, 1 -> Office Profile Details
   int _approvedSelectedTab = 0;
@@ -28,6 +30,10 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
   String get _baseUrl => kIsWeb
       ? 'http://localhost:8080/api/office/profile'
       : 'http://10.0.2.2:8080/api/office/profile';
+
+  String get _apiBaseUrl => kIsWeb
+      ? 'http://localhost:8080/api'
+      : 'http://10.0.2.2:8080/api';
 
   @override
   void initState() {
@@ -67,6 +73,7 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
             }
             _loading = false;
           });
+          _fetchLiveQueue();
         }
       } else if (response.statusCode == 401 || response.statusCode == 403) {
         await _logout();
@@ -84,6 +91,194 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
         });
       }
     }
+  }
+
+  Future<void> _fetchLiveQueue() async {
+    final officeId = _profileData?['id'];
+    if (officeId == null) return;
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.get(
+        Uri.parse('$_apiBaseUrl/queue/office/$officeId/live'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching live queue: $e');
+    }
+  }
+
+  Future<void> _handleCallNext() async {
+    final officeId = _profileData?['id'];
+    if (officeId == null) return;
+    setState(() => _queueActionLoading = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.post(
+        Uri.parse('$_apiBaseUrl/queue/office/$officeId/call-next'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+            _queueActionLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['activeToken'] != null
+                  ? 'Calling Token #${data['activeToken']}'
+                  : 'No waiting customers in queue.'),
+              backgroundColor: const Color(0xFF10B981),
+            ),
+          );
+        }
+      } else {
+        if (mounted) setState(() => _queueActionLoading = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _queueActionLoading = false);
+    }
+  }
+
+  Future<void> _handleCompleteService() async {
+    final officeId = _profileData?['id'];
+    if (officeId == null) return;
+    setState(() => _queueActionLoading = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.post(
+        Uri.parse('$_apiBaseUrl/queue/office/$officeId/complete'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+            _queueActionLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Customer marked as Completed!'),
+              backgroundColor: Color(0xFF3B82F6),
+            ),
+          );
+        }
+      } else {
+        if (mounted) setState(() => _queueActionLoading = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _queueActionLoading = false);
+    }
+  }
+
+  Future<void> _handleSkipToken() async {
+    final officeId = _profileData?['id'];
+    if (officeId == null) return;
+    setState(() => _queueActionLoading = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.post(
+        Uri.parse('$_apiBaseUrl/queue/office/$officeId/skip'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+            _queueActionLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Token marked as Skipped.')),
+          );
+        }
+      } else {
+        if (mounted) setState(() => _queueActionLoading = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _queueActionLoading = false);
+    }
+  }
+
+  void _showOfficeQrDialog() {
+    final officeName = _userData?['name'] ?? 'Office';
+    final officeId = _profileData?['id'] ?? '---';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.qr_code_2_rounded, color: Color(0xFF4F46E5)),
+            SizedBox(width: 10),
+            Text('Reception QR Stand', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                children: [
+                  const Icon(Icons.qr_code_scanner_rounded, size: 100, color: Color(0xFF4F46E5)),
+                  const SizedBox(height: 12),
+                  Text(
+                    officeName,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Office ID: #$officeId',
+                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Print and place this QR Code at your entrance. Walk-in customers scanning this with QueueLess will instantly join your queue.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.4),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _logout() async {
@@ -260,9 +455,19 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
   Widget _buildApprovedDashboardView() {
     final officeName = _userData?['name'] ?? 'Office';
     final category = _profileData?['category'] ?? 'OFFICE';
+    final activeToken = _liveQueueData?['activeToken'];
+    final waitingCount = _liveQueueData?['waitingCount'] ?? 0;
+    final completedCount = _liveQueueData?['completedCount'] ?? 0;
+    final avgWait = _liveQueueData?['avgWaitTimeMinutes'] ?? 12;
+    final activeDetails = _liveQueueData?['activeTokenDetails'];
+    final custName = activeDetails != null ? (activeDetails['customerName'] ?? 'Customer') : 'No Active Customer';
+    final custPhone = activeDetails != null ? (activeDetails['customerPhone'] ?? '') : '';
 
     return RefreshIndicator(
-      onRefresh: _fetchProfile,
+      onRefresh: () async {
+        await _fetchProfile();
+        await _fetchLiveQueue();
+      },
       color: const Color(0xFF4F46E5),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -343,6 +548,18 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                     'Operating Hours: ${_profileData?['openingTime'] ?? '09:00 AM'} - ${_profileData?['closingTime'] ?? '08:00 PM'}',
                     style: const TextStyle(color: Colors.white70, fontSize: 13),
                   ),
+                  const SizedBox(height: 14),
+                  ElevatedButton.icon(
+                    onPressed: _showOfficeQrDialog,
+                    icon: const Icon(Icons.qr_code_2_rounded, size: 18),
+                    label: const Text('View Desk QR Stand'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF4F46E5),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      elevation: 0,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -356,17 +573,17 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _buildMetricCard('Serving Token', '#12', Icons.play_circle_fill_rounded, const Color(0xFF10B981))),
+                Expanded(child: _buildMetricCard('Serving Token', activeToken != null ? '#$activeToken' : 'None', Icons.play_circle_fill_rounded, const Color(0xFF10B981))),
                 const SizedBox(width: 12),
-                Expanded(child: _buildMetricCard('Waiting in Queue', '8', Icons.people_alt_rounded, const Color(0xFFF59E0B))),
+                Expanded(child: _buildMetricCard('Waiting in Queue', '$waitingCount', Icons.people_alt_rounded, const Color(0xFFF59E0B))),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _buildMetricCard('Total Served', '45', Icons.check_circle_rounded, const Color(0xFF3B82F6))),
+                Expanded(child: _buildMetricCard('Total Served', '$completedCount', Icons.check_circle_rounded, const Color(0xFF3B82F6))),
                 const SizedBox(width: 12),
-                Expanded(child: _buildMetricCard('Avg. Wait Time', '12 min', Icons.timer_rounded, const Color(0xFF8B5CF6))),
+                Expanded(child: _buildMetricCard('Avg. Wait Time', '$avgWait min', Icons.timer_rounded, const Color(0xFF8B5CF6))),
               ],
             ),
             const SizedBox(height: 24),
@@ -399,16 +616,19 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                       color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Column(
+                    child: Column(
                       children: [
-                        Text('CURRENT TOKEN', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
-                        SizedBox(height: 6),
+                        const Text('CURRENT TOKEN', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
+                        const SizedBox(height: 6),
                         Text(
-                          'A-012',
-                          style: TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Color(0xFF4F46E5), letterSpacing: 1),
+                          activeToken != null ? '$activeToken' : '---',
+                          style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Color(0xFF4F46E5), letterSpacing: 1),
                         ),
-                        SizedBox(height: 4),
-                        Text('Customer: John Doe (+91 9876543210)', style: TextStyle(fontSize: 13, color: Color(0xFF334155))),
+                        const SizedBox(height: 4),
+                        Text(
+                          activeToken != null ? 'Customer: $custName ${custPhone.isNotEmpty ? '($custPhone)' : ''}' : 'No active token currently being served',
+                          style: const TextStyle(fontSize: 13, color: Color(0xFF334155)),
+                        ),
                       ],
                     ),
                   ),
@@ -417,11 +637,7 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Token A-012 marked as Hold/Skipped')),
-                            );
-                          },
+                          onPressed: _queueActionLoading ? null : _handleSkipToken,
                           icon: const Icon(Icons.pause_circle_outline, size: 18),
                           label: const Text('Hold / Skip'),
                           style: OutlinedButton.styleFrom(
@@ -431,14 +647,24 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _queueActionLoading ? null : _handleCompleteService,
+                          icon: const Icon(Icons.check_circle_outline, size: 18),
+                          label: const Text('Complete'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF10B981),
+                            side: const BorderSide(color: Color(0xFFA7F3D0)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Calling next token: A-013')),
-                            );
-                          },
+                          onPressed: _queueActionLoading ? null : _handleCallNext,
                           icon: const Icon(Icons.skip_next_rounded, size: 20),
                           label: const Text('Call Next'),
                           style: ElevatedButton.styleFrom(

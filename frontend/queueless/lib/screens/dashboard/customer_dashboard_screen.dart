@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../services/customer_auth_service.dart';
+import '../../services/office_service.dart';
 import '../auth/customer_login_screen.dart';
+import '../search/office_search_screen.dart';
+import '../queue/active_token_screen.dart';
+import '../history/token_history_screen.dart';
 
 class CustomerDashboardScreen extends StatefulWidget {
   final Map<String, dynamic>? user;
@@ -15,8 +19,11 @@ typedef CustomerHomeScreen = CustomerDashboardScreen;
 
 class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
   final CustomerAuthService _authService = CustomerAuthService();
+  final OfficeService _officeService = OfficeService();
   Map<String, dynamic>? _currentUser;
+  Map<String, dynamic>? _activeTokenData;
   bool _loading = true;
+  bool _fetchingToken = false;
 
   @override
   void initState() {
@@ -35,6 +42,18 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
       setState(() {
         _currentUser = user;
         _loading = false;
+      });
+    }
+    _loadActiveToken();
+  }
+
+  Future<void> _loadActiveToken() async {
+    setState(() => _fetchingToken = true);
+    final token = await _officeService.getMyActiveToken();
+    if (mounted) {
+      setState(() {
+        _activeTokenData = token;
+        _fetchingToken = false;
       });
     }
   }
@@ -246,25 +265,38 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
                         const SizedBox(height: 24),
 
                         // Search Bar
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
-                                blurRadius: 10,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: const TextField(
-                            decoration: InputDecoration(
-                              hintText: 'Search offices, clinics, salons, banks...',
-                              hintStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
-                              prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF64748B)),
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                        InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const OfficeSearchScreen()),
+                            ).then((_) => _loadActiveToken());
+                          },
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.search_rounded, color: Color(0xFF64748B)),
+                                SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Search offices, clinics, salons, banks...',
+                                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -288,7 +320,12 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
                                 title: 'Scan QR Code',
                                 subtitle: 'Instant check-in',
                                 color: const Color(0xFF4F46E5),
-                                onTap: () {},
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const OfficeSearchScreen()),
+                                  ).then((_) => _loadActiveToken());
+                                },
                               ),
                             ),
                             const SizedBox(width: 14),
@@ -298,7 +335,12 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
                                 title: 'Nearby Places',
                                 subtitle: 'View live queues',
                                 color: const Color(0xFF059669),
-                                onTap: () {},
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const OfficeSearchScreen()),
+                                  ).then((_) => _loadActiveToken());
+                                },
                               ),
                             ),
                           ],
@@ -310,9 +352,14 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
                               child: _buildActionCard(
                                 icon: Icons.confirmation_number_rounded,
                                 title: 'My Tokens',
-                                subtitle: 'Active & past',
+                                subtitle: 'Active pass',
                                 color: const Color(0xFFD97706),
-                                onTap: () {},
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const ActiveTokenScreen()),
+                                  ).then((_) => _loadActiveToken());
+                                },
                               ),
                             ),
                             const SizedBox(width: 14),
@@ -322,7 +369,12 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
                                 title: 'Queue History',
                                 subtitle: 'Completed visits',
                                 color: const Color(0xFF7C3AED),
-                                onTap: () {},
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const TokenHistoryScreen()),
+                                  );
+                                },
                               ),
                             ),
                           ],
@@ -330,76 +382,30 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
                         const SizedBox(height: 28),
 
                         // Active / Live Queue Status Card
-                        const Text(
-                          'Live Queue Status',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF0F172A),
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Live Queue Status',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            if (_fetchingToken)
+                              const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4F46E5)),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.03),
-                                blurRadius: 15,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFECFDF5),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: const Row(
-                                      children: [
-                                        CircleAvatar(radius: 4, backgroundColor: Color(0xFF10B981)),
-                                        SizedBox(width: 6),
-                                        Text(
-                                          'No Active Token',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Color(0xFF059669),
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFF94A3B8)),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              const Text(
-                                'You are not currently in any queue.',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF1E293B),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              const Text(
-                                'Scan a QR code at an organization or browse nearby businesses to join a virtual queue.',
-                                style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                              ),
-                            ],
-                          ),
-                        ),
+
+                        _activeTokenData != null
+                            ? _buildActiveTokenDashboardCard()
+                            : _buildNoActiveTokenDashboardCard(),
                       ],
                     ),
                   ),
@@ -463,6 +469,217 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildActiveTokenDashboardCard() {
+    final tokenNumber = _activeTokenData?['tokenNumber'] ?? '---';
+    final officeName = _activeTokenData?['officeName'] ?? 'Office';
+    final category = _activeTokenData?['category'] ?? 'OFFICE';
+    final peopleAhead = _activeTokenData?['peopleAhead'] ?? 0;
+    final currentlyServing = _activeTokenData?['currentlyServing'] ?? 'None';
+    final status = _activeTokenData?['status'] ?? 'WAITING';
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFC7D2FE), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4F46E5).withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEF2FF),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    const CircleAvatar(radius: 4, backgroundColor: Color(0xFF4F46E5)),
+                    const SizedBox(width: 6),
+                    Text(
+                      status == 'CALLED' ? 'TURN READY' : 'ACTIVE QUEUE PASS',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF4F46E5),
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                category,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    officeName,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    peopleAhead == 0
+                        ? '🎉 Next in line!'
+                        : '$peopleAhead person${peopleAhead == 1 ? '' : 's'} ahead • Now #$currentlyServing',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: peopleAhead == 0 ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                      fontWeight: peopleAhead == 0 ? FontWeight.bold : FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4F46E5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  tokenNumber,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ActiveTokenScreen(initialTokenData: _activeTokenData),
+                  ),
+                ).then((_) => _loadActiveToken());
+              },
+              icon: const Icon(Icons.qr_code_rounded, size: 18),
+              label: const Text('View Live Token & Tracking'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4F46E5),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoActiveTokenDashboardCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  children: [
+                    CircleAvatar(radius: 4, backgroundColor: Color(0xFF10B981)),
+                    SizedBox(width: 6),
+                    Text(
+                      'No Active Token',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF059669),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFF94A3B8)),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'You are not currently in any queue.',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Scan a QR code or browse nearby businesses to get a live digital token.',
+            style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+          ),
+          const SizedBox(height: 14),
+          OutlinedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const OfficeSearchScreen()),
+              ).then((_) => _loadActiveToken());
+            },
+            icon: const Icon(Icons.search_rounded, size: 16),
+            label: const Text('Browse Nearby Places'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF4F46E5),
+              side: const BorderSide(color: Color(0xFFC7D2FE)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
       ),
     );
   }
