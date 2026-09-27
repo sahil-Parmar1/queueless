@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:queueless_office/screens/auth/office_auth_screen.dart';
@@ -466,6 +467,7 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
   Widget _buildApprovedDashboardView() {
     final officeName = _userData?['name'] ?? 'Office';
     final category = _profileData?['category'] ?? 'OFFICE';
+    final officeId = (_profileData?['officeId'] ?? _userData?['officeId'] ?? '').toString();
     final activeToken = _liveQueueData?['activeToken'];
     final waitingCount = _liveQueueData?['waitingCount'] ?? 0;
     final completedCount = _liveQueueData?['completedCount'] ?? 0;
@@ -559,6 +561,37 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                     'Operating Hours: ${_profileData?['openingTime'] ?? '09:00 AM'} - ${_profileData?['closingTime'] ?? '08:00 PM'}',
                     style: const TextStyle(color: Colors.white70, fontSize: 13),
                   ),
+                  if (officeId.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.vpn_key_outlined, color: Colors.white, size: 14),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Office ID: $officeId',
+                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: officeId));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Office ID copied to clipboard! Share with your staff.')),
+                              );
+                            },
+                            child: const Icon(Icons.copy_rounded, color: Colors.white, size: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 14),
                   ElevatedButton.icon(
                     onPressed: _showOfficeQrDialog,
@@ -1003,9 +1036,28 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                   ],
                 ),
               ),
-              Text(
-                'ID: #${_profileData?['id'] ?? '---'}',
-                style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _profileData?['officeId'] != null 
+                        ? 'Office Code: ${_profileData!['officeId']}'
+                        : 'ID: #${_profileData?['id'] ?? '---'}',
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                  ),
+                  if (_profileData?['officeId'] != null) ...[
+                    const SizedBox(width: 6),
+                    InkWell(
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: _profileData!['officeId'].toString()));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Office ID copied to clipboard!')),
+                        );
+                      },
+                      child: const Icon(Icons.copy, size: 14, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),

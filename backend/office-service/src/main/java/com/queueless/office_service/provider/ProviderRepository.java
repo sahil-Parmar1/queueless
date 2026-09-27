@@ -16,4 +16,10 @@ public interface ProviderRepository extends JpaRepository<Provider, Long> {
     Optional<Provider> findByIdAndOfficeId(Long id, Long officeId);
 
     boolean existsByOfficeIdAndNameIgnoreCase(Long officeId, String name);
+
+    Optional<Provider> findByOfficeIdAndUsernameIgnoreCase(Long officeId, String username);
+
+    boolean existsByOfficeIdAndUsernameIgnoreCase(Long officeId, String username);
+
+    Optional<Provider> findByOfficeOfficeIdAndUsernameIgnoreCase(String officeId, String username);
 }

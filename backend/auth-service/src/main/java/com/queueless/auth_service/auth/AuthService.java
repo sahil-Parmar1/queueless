@@ -160,6 +160,7 @@ public class AuthService {
         );
 
         user.setRole(Role.OFFICE);
+        user.setOfficeId(generateUniqueOfficeId());
         user.setEnabled(true);
 
         User saved = userRepository.save(user);
@@ -197,6 +198,11 @@ public class AuthService {
                 user.getPassword())) {
 
             throw new RuntimeException("Invalid email or password");
+        }
+
+        if (user.getOfficeId() == null) {
+            user.setOfficeId(generateUniqueOfficeId());
+            user = userRepository.save(user);
         }
 
         // Generate JWT
@@ -316,6 +322,7 @@ public class AuthService {
                         newUser.setGoogleId(uid);
 
                         newUser.setRole(Role.OFFICE);
+                        newUser.setOfficeId(generateUniqueOfficeId());
                         newUser.setEnabled(true);
 
                         return userRepository.save(newUser);
@@ -324,6 +331,11 @@ public class AuthService {
             if (user.getGoogleId() == null) {
                 user.setGoogleId(uid);
                 userRepository.save(user);
+            }
+
+            if (user.getRole() == Role.OFFICE && user.getOfficeId() == null) {
+                user.setOfficeId(generateUniqueOfficeId());
+                user = userRepository.save(user);
             }
 
             // Make sure this is an OFFICE account
@@ -356,6 +368,20 @@ public class AuthService {
                     e
             );
         }
+    }
+
+    public String generateUniqueOfficeId() {
+        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        java.security.SecureRandom random = new java.security.SecureRandom();
+        String id;
+        do {
+            StringBuilder sb = new StringBuilder("OFF-");
+            for (int i = 0; i < 6; i++) {
+                sb.append(chars.charAt(random.nextInt(chars.length())));
+            }
+            id = sb.toString();
+        } while (userRepository.existsByOfficeId(id));
+        return id;
     }
 }
 

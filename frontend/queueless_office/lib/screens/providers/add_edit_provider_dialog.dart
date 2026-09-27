@@ -36,12 +36,15 @@ class _AddEditProviderDialogState extends State<AddEditProviderDialog> {
   final _storage = const FlutterSecureStorage();
 
   late TextEditingController _nameController;
+  late TextEditingController _usernameController;
+  late TextEditingController _passwordController;
   late TextEditingController _designationController;
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
 
   bool _active = true;
   bool _saving = false;
+  bool _obscurePassword = true;
   String? _errorMessage;
 
   final List<_DayScheduleEntry> _days = [
@@ -64,6 +67,8 @@ class _AddEditProviderDialogState extends State<AddEditProviderDialog> {
     final p = widget.provider;
 
     _nameController = TextEditingController(text: p?['name'] ?? '');
+    _usernameController = TextEditingController(text: p?['username'] ?? '');
+    _passwordController = TextEditingController();
     _designationController = TextEditingController(text: p?['designation'] ?? '');
     _phoneController = TextEditingController(text: p?['contactNumber'] ?? '');
     _emailController = TextEditingController(text: p?['email'] ?? '');
@@ -92,6 +97,8 @@ class _AddEditProviderDialogState extends State<AddEditProviderDialog> {
   @override
   void dispose() {
     _nameController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
     _designationController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
@@ -205,6 +212,9 @@ class _AddEditProviderDialogState extends State<AddEditProviderDialog> {
 
       final payload = {
         'name': _nameController.text.trim(),
+        'username': _usernameController.text.trim().toLowerCase(),
+        if (!isEditing || _passwordController.text.trim().isNotEmpty)
+          'password': _passwordController.text.trim(),
         'designation': _designationController.text.trim().isEmpty ? null : _designationController.text.trim(),
         'contactNumber': _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
         'email': _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
@@ -439,6 +449,70 @@ class _AddEditProviderDialogState extends State<AddEditProviderDialog> {
                           ],
                         ),
                       ],
+                      const SizedBox(height: 14),
+
+                      // Provider Portal Login Credentials
+                      const Text(
+                        'PROVIDER PORTAL CREDENTIALS',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF64748B),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Username
+                      TextFormField(
+                        controller: _usernameController,
+                        decoration: _inputDecoration(
+                          label: 'Username *',
+                          hint: 'e.g. dr.robert, desk.sarah',
+                          icon: Icons.alternate_email_rounded,
+                        ),
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) {
+                            return 'Please enter a provider username';
+                          }
+                          if (val.trim().length < 3) {
+                            return 'Username must be at least 3 characters';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Password
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        decoration: _inputDecoration(
+                          label: widget.provider != null
+                              ? 'Password (Leave blank to keep unchanged)'
+                              : 'Password *',
+                          hint: widget.provider != null ? '••••••••' : 'Min. 4 characters',
+                          icon: Icons.lock_outline_rounded,
+                        ).copyWith(
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                              size: 18,
+                              color: const Color(0xFF94A3B8),
+                            ),
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ),
+                        ),
+                        validator: (val) {
+                          if (widget.provider == null && (val == null || val.trim().isEmpty)) {
+                            return 'Please set a password for this provider';
+                          }
+                          if (val != null && val.trim().isNotEmpty && val.trim().length < 4) {
+                            return 'Password must be at least 4 characters';
+                          }
+                          return null;
+                        },
+                      ),
                       const SizedBox(height: 14),
 
                       // Active Status Toggle

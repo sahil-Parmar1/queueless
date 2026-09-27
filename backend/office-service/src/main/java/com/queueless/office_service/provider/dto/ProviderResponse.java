@@ -18,8 +18,10 @@ public class ProviderResponse {
 
     private Long id;
     private Long officeId;
+    private String officeCode;
     private String officeName;
     private String name;
+    private String username;
     private String designation;
     private String contactNumber;
     private String email;
@@ -36,11 +38,13 @@ public class ProviderResponse {
         res.setId(provider.getId());
         if (provider.getOffice() != null) {
             res.setOfficeId(provider.getOffice().getId());
+            res.setOfficeCode(provider.getOffice().getOfficeId());
             if (provider.getOffice().getUser() != null) {
                 res.setOfficeName(provider.getOffice().getUser().getName());
             }
         }
         res.setName(provider.getName());
+        res.setUsername(provider.getUsername());
         res.setDesignation(provider.getDesignation());
         res.setContactNumber(provider.getContactNumber());
         res.setEmail(provider.getEmail());
@@ -107,6 +111,14 @@ public class ProviderResponse {
         this.officeId = officeId;
     }
 
+    public String getOfficeCode() {
+        return officeCode;
+    }
+
+    public void setOfficeCode(String officeCode) {
+        this.officeCode = officeCode;
+    }
+
     public String getOfficeName() {
         return officeName;
     }
@@ -121,6 +133,14 @@ public class ProviderResponse {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
     }
 
     public String getDesignation() {

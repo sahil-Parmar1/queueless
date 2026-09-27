@@ -39,6 +39,9 @@ public class User {
     @Column(nullable = false)
     private Role role;
 
+    @Column(name = "office_id", unique = true)
+    private String officeId;
+
     @Column(nullable = false)
     private Boolean enabled = true;
 
@@ -107,6 +110,14 @@ public class User {
 
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public String getOfficeId() {
+        return officeId;
+    }
+
+    public void setOfficeId(String officeId) {
+        this.officeId = officeId;
     }
 
     public Boolean getEnabled() {

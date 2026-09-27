@@ -41,8 +41,13 @@ public class SecurityConfig {
                     "/",
                     "/api/offices/**",
                     "/api/queue/**",
-                    "/uploads/**"
+                    "/uploads/**",
+                    "/api/office/providers/login",
+                    "/api/office/provider/login",
+                    "/api/provider/login"
                 ).permitAll()
+                .requestMatchers("/api/provider/**").hasRole("PROVIDER")
+                .requestMatchers("/api/office/**").hasRole("OFFICE")
                 .anyRequest().authenticated()
             )
 

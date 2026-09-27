@@ -42,20 +42,32 @@ public class OfficeProfileController {
                     .orElseThrow(() -> new RuntimeException("User not found: " + email));
         }
 
+        if (user.getRole() == Role.OFFICE && user.getOfficeId() == null) {
+            user.setOfficeId(generateUniqueOfficeId());
+            user = userRepository.save(user);
+        }
+
         OfficeProfile profile = profileRepository.findByUserId(user.getId())
                 .orElse(null);
+
+        if (profile != null && profile.getOfficeId() == null && user.getOfficeId() != null) {
+            profile.setOfficeId(user.getOfficeId());
+            profile = profileRepository.save(profile);
+        }
 
         if (profile == null) {
             return ResponseEntity.ok(Map.of(
                     "hasProfile", false,
-                    "user", user
+                    "user", user,
+                    "officeId", user.getOfficeId() != null ? user.getOfficeId() : ""
             ));
         }
 
         return ResponseEntity.ok(Map.of(
                     "hasProfile", true,
                     "user", user,
-                    "profile", profile
+                    "profile", profile,
+                    "officeId", profile.getOfficeId() != null ? profile.getOfficeId() : (user.getOfficeId() != null ? user.getOfficeId() : "")
         ));
     }
 
@@ -94,10 +106,18 @@ public class OfficeProfileController {
                     .orElseThrow(() -> new RuntimeException("User not found: " + email));
         }
 
+        if (user.getRole() == Role.OFFICE && user.getOfficeId() == null) {
+            user.setOfficeId(generateUniqueOfficeId());
+            user = userRepository.save(user);
+        }
+
         OfficeProfile profile = profileRepository.findByUserId(user.getId())
                 .orElse(new OfficeProfile());
 
         profile.setUser(user);
+        if (profile.getOfficeId() == null && user.getOfficeId() != null) {
+            profile.setOfficeId(user.getOfficeId());
+        }
         profile.setCategory(category);
         profile.setPhone(phone);
         profile.setAddress(address);
@@ -160,5 +180,19 @@ public class OfficeProfileController {
                 "profileId", saved.getId(),
                 "status", saved.getVerificationStatus()
         ));
+    }
+
+    private String generateUniqueOfficeId() {
+        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        java.security.SecureRandom random = new java.security.SecureRandom();
+        String id;
+        do {
+            StringBuilder sb = new StringBuilder("OFF-");
+            for (int i = 0; i < 6; i++) {
+                sb.append(chars.charAt(random.nextInt(chars.length())));
+            }
+            id = sb.toString();
+        } while (userRepository.existsByOfficeId(id) || profileRepository.existsByOfficeId(id));
+        return id;
     }
 }

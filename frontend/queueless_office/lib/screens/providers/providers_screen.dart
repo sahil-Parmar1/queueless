@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:queueless_office/screens/providers/add_edit_provider_dialog.dart';
@@ -276,6 +277,7 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
     final totalCount = _providers.length;
     final activeCount = _providers.where((p) => p['active'] == true).length;
     final availableNowCount = _providers.where((p) => p['availableNow'] == true).length;
+    final officeId = (widget.officeProfile?['officeId'] ?? widget.officeProfile?['user']?['officeId'] ?? '').toString();
 
     return RefreshIndicator(
       onRefresh: _fetchProviders,
@@ -345,6 +347,50 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
                 ),
               ],
             ),
+
+            // Office ID sharing banner
+            if (officeId.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEF2FF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFC7D2FE)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.vpn_key_outlined, color: Color(0xFF4F46E5), size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'OFFICE ID (FOR PROVIDER LOGIN)',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF4338CA)),
+                          ),
+                          Text(
+                            officeId,
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF1E1B4B), letterSpacing: 0.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy_rounded, size: 18, color: Color(0xFF4F46E5)),
+                      tooltip: 'Copy Office ID',
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: officeId));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Office ID copied to clipboard!')),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
 
             // Provider Cards List or Empty State
@@ -410,6 +456,7 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
     final int id = p['id'];
     final String name = p['name'] ?? 'Provider';
     final String? designation = p['designation'];
+    final String? username = p['username'];
     final String? contactNumber = p['contactNumber'];
     final String? email = p['email'];
     final bool active = p['active'] ?? false;
@@ -537,6 +584,24 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
                             color: Color(0xFF4F46E5),
                             fontWeight: FontWeight.w600,
                           ),
+                        ),
+                      ],
+                      if (username != null && username.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.alternate_email_rounded, size: 12, color: Color(0xFF64748B)),
+                            const SizedBox(width: 2),
+                            Text(
+                              username,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                       if (contactNumber != null || email != null) ...[

@@ -29,6 +29,9 @@ public class OfficeProfile {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
+    @Column(name = "office_id", unique = true)
+    private String officeId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OfficeCategory category;
@@ -64,6 +67,11 @@ public class OfficeProfile {
     // Getters and Setters...
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public String getOfficeId() {
+        if (officeId != null) return officeId;
+        return user != null ? user.getOfficeId() : null;
+    }
+    public void setOfficeId(String officeId) { this.officeId = officeId; }
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
     public OfficeCategory getCategory() { return category; }

@@ -9,9 +9,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.queueless.office_service.auth.JwtService;
+import com.queueless.office_service.provider.dto.ProviderLoginRequest;
 import com.queueless.office_service.provider.dto.ProviderRequest;
 import com.queueless.office_service.provider.dto.ProviderResponse;
 import com.queueless.office_service.provider.dto.ProviderScheduleDto;
@@ -28,16 +31,22 @@ public class ProviderService {
     private final ProviderScheduleRepository scheduleRepository;
     private final OfficeProfileRepository officeProfileRepository;
     private final QueueTokenRepository tokenRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     public ProviderService(
             ProviderRepository providerRepository,
             ProviderScheduleRepository scheduleRepository,
             OfficeProfileRepository officeProfileRepository,
-            QueueTokenRepository tokenRepository) {
+            QueueTokenRepository tokenRepository,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService) {
         this.providerRepository = providerRepository;
         this.scheduleRepository = scheduleRepository;
         this.officeProfileRepository = officeProfileRepository;
         this.tokenRepository = tokenRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     /**
@@ -70,7 +79,7 @@ public class ProviderService {
     }
 
     /**
-     * Create a new provider with working schedules for an office.
+     * Create a new provider with working schedules and credentials for an office.
      */
     public ProviderResponse createProvider(Long officeId, ProviderRequest request) {
         OfficeProfile office = officeProfileRepository.findById(officeId)
@@ -78,9 +87,25 @@ public class ProviderService {
 
         validateProviderRequest(request);
 
+        // Validate and set username
+        if (request.getUsername() == null || request.getUsername().trim().isBlank()) {
+            throw new IllegalArgumentException("Provider username is required");
+        }
+        String username = request.getUsername().trim().toLowerCase();
+        if (providerRepository.existsByOfficeIdAndUsernameIgnoreCase(officeId, username)) {
+            throw new IllegalArgumentException("Username '" + username + "' is already taken in your office");
+        }
+
+        // Validate and encode password
+        if (request.getPassword() == null || request.getPassword().trim().length() < 4) {
+            throw new IllegalArgumentException("Provider password is required (minimum 4 characters)");
+        }
+
         Provider provider = new Provider();
         provider.setOffice(office);
         provider.setName(request.getName().trim());
+        provider.setUsername(username);
+        provider.setPassword(passwordEncoder.encode(request.getPassword().trim()));
         provider.setDesignation(request.getDesignation() != null ? request.getDesignation().trim() : null);
         provider.setContactNumber(request.getContactNumber() != null ? request.getContactNumber().trim() : null);
         provider.setEmail(request.getEmail() != null ? request.getEmail().trim() : null);
@@ -93,13 +118,30 @@ public class ProviderService {
     }
 
     /**
-     * Update an existing provider and their schedules.
+     * Update an existing provider and their schedules/credentials.
      */
     public ProviderResponse updateProvider(Long officeId, Long providerId, ProviderRequest request) {
         Provider provider = getProviderOwnedByOffice(officeId, providerId);
         validateProviderRequest(request);
 
         provider.setName(request.getName().trim());
+
+        if (request.getUsername() != null && !request.getUsername().trim().isBlank()) {
+            String newUsername = request.getUsername().trim().toLowerCase();
+            if (!newUsername.equalsIgnoreCase(provider.getUsername()) &&
+                    providerRepository.existsByOfficeIdAndUsernameIgnoreCase(officeId, newUsername)) {
+                throw new IllegalArgumentException("Username '" + newUsername + "' is already taken in your office");
+            }
+            provider.setUsername(newUsername);
+        }
+
+        if (request.getPassword() != null && !request.getPassword().trim().isBlank()) {
+            if (request.getPassword().trim().length() < 4) {
+                throw new IllegalArgumentException("Password must be at least 4 characters");
+            }
+            provider.setPassword(passwordEncoder.encode(request.getPassword().trim()));
+        }
+
         provider.setDesignation(request.getDesignation() != null ? request.getDesignation().trim() : null);
         provider.setContactNumber(request.getContactNumber() != null ? request.getContactNumber().trim() : null);
         provider.setEmail(request.getEmail() != null ? request.getEmail().trim() : null);
@@ -114,6 +156,64 @@ public class ProviderService {
 
         Provider saved = providerRepository.save(provider);
         return ProviderResponse.fromEntity(saved);
+    }
+
+    /**
+     * Authenticate provider with office ID, username, and password.
+     */
+    public java.util.Map<String, Object> loginProvider(ProviderLoginRequest request) {
+        if (request.getOfficeId() == null || request.getOfficeId().trim().isBlank()
+                || request.getUsername() == null || request.getUsername().trim().isBlank()
+                || request.getPassword() == null || request.getPassword().trim().isBlank()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Office ID, username, and password are required");
+        }
+
+        String officeCode = request.getOfficeId().trim().toUpperCase();
+        String username = request.getUsername().trim().toLowerCase();
+
+        // 1. Find office by officeId
+        OfficeProfile office = officeProfileRepository.findByOfficeId(officeCode)
+                .or(() -> officeProfileRepository.findByUserOfficeId(officeCode))
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.UNAUTHORIZED, "Invalid Office ID or credentials"));
+
+        // 2. Find provider belonging to this office
+        Provider provider = providerRepository.findByOfficeIdAndUsernameIgnoreCase(office.getId(), username)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.UNAUTHORIZED, "Invalid Office ID or credentials"));
+
+        // 3. Verify active status
+        if (!Boolean.TRUE.equals(provider.getActive())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "Provider account is deactivated. Please contact your office administrator.");
+        }
+
+        // 4. Verify password
+        if (provider.getPassword() == null || !passwordEncoder.matches(request.getPassword().trim(), provider.getPassword())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.UNAUTHORIZED, "Invalid Office ID or credentials");
+        }
+
+        // 5. Generate JWT token
+        String token = jwtService.generateProviderToken(provider, office.getOfficeId());
+
+        return java.util.Map.of(
+                "token", token,
+                "role", "PROVIDER",
+                "provider", ProviderResponse.fromEntity(provider)
+        );
+    }
+
+    /**
+     * Get details of currently authenticated provider.
+     */
+    @Transactional(readOnly = true)
+    public ProviderResponse getCurrentProviderDetails(Long providerId) {
+        Provider provider = providerRepository.findById(providerId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Provider not found"));
+        return ProviderResponse.fromEntity(provider);
     }
 
     /**

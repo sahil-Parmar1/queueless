@@ -25,10 +25,16 @@ public class JwtService {
 
     public String generateToken(User user) {
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(user.getEmail())
                 .claim("userId", user.getId())
-                .claim("role", user.getRole().name())
+                .claim("role", user.getRole().name());
+
+        if (user.getOfficeId() != null) {
+            builder.claim("officeId", user.getOfficeId());
+        }
+
+        return builder
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expirationTime))
                 .signWith(key)

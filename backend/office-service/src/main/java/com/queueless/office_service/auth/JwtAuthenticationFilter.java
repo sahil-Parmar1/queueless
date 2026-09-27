@@ -9,6 +9,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.queueless.office_service.provider.Provider;
+import com.queueless.office_service.provider.ProviderRepository;
 import com.queueless.office_service.user.User;
 import com.queueless.office_service.user.UserRepository;
 
@@ -23,12 +25,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final ProviderRepository providerRepository;
 
     public JwtAuthenticationFilter(
             JwtService jwtService,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            ProviderRepository providerRepository) {
         this.jwtService = jwtService;
         this.userRepository = userRepository;
+        this.providerRepository = providerRepository;
     }
 
     @Override
@@ -55,37 +60,64 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             if (jwtService.isTokenValid(token)) {
-                String email = jwtService.extractEmail(token);
                 Claims claims = jwtService.extractAllClaims(token);
                 String roleStr = claims.get("role", String.class);
 
-                User user = userRepository.findByEmail(email).orElse(null);
+                if ("PROVIDER".equalsIgnoreCase(roleStr)) {
+                    Object pIdObj = claims.get("providerId");
+                    Long providerId = null;
+                    if (pIdObj instanceof Number num) {
+                        providerId = num.longValue();
+                    } else if (pIdObj instanceof String str) {
+                        providerId = Long.parseLong(str);
+                    }
 
-                if (user != null && user.getEnabled()) {
-                    SimpleGrantedAuthority authority =
-                            new SimpleGrantedAuthority("ROLE_" + user.getRole().name());
+                    if (providerId != null) {
+                        Provider provider = providerRepository.findById(providerId).orElse(null);
+                        if (provider != null && Boolean.TRUE.equals(provider.getActive())) {
+                            SimpleGrantedAuthority authority =
+                                    new SimpleGrantedAuthority("ROLE_PROVIDER");
 
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    user,
-                                    null,
-                                    List.of(authority)
-                            );
+                            UsernamePasswordAuthenticationToken authentication =
+                                    new UsernamePasswordAuthenticationToken(
+                                            provider,
+                                            null,
+                                            List.of(authority)
+                                    );
 
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                } else if (email != null && roleStr != null) {
-                    // Fallback using JWT claims directly
-                    SimpleGrantedAuthority authority =
-                            new SimpleGrantedAuthority("ROLE_" + roleStr);
+                            SecurityContextHolder.getContext().setAuthentication(authentication);
+                        }
+                    }
+                } else {
+                    String email = jwtService.extractEmail(token);
+                    User user = userRepository.findByEmail(email).orElse(null);
 
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    email,
-                                    null,
-                                    List.of(authority)
-                            );
+                    if (user != null && user.getEnabled()) {
+                        SimpleGrantedAuthority authority =
+                                new SimpleGrantedAuthority("ROLE_" + user.getRole().name());
 
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                        user,
+                                        null,
+                                        List.of(authority)
+                                );
+
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    } else if (email != null && roleStr != null) {
+                        // Fallback using JWT claims directly
+                        SimpleGrantedAuthority authority =
+                                new SimpleGrantedAuthority("ROLE_" + roleStr);
+
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                        email,
+                                        null,
+                                        List.of(authority)
+                                );
+
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
                 }
             }
         } catch (Exception e) {

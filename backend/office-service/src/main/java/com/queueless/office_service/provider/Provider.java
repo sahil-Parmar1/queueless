@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.queueless.office_service.user.OfficeProfile;
 
 import jakarta.persistence.CascadeType;
@@ -20,9 +21,12 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 @Entity
-@Table(name = "providers")
+@Table(name = "providers", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_office_provider_username", columnNames = {"office_profile_id", "username"})
+})
 public class Provider {
 
     @Id
@@ -36,6 +40,12 @@ public class Provider {
 
     @Column(nullable = false)
     private String name;
+
+    @Column(length = 100)
+    private String username;
+
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String password;
 
     private String designation; // e.g. "Senior Doctor", "Hair Stylist", "Loan Specialist"
 
@@ -151,5 +161,21 @@ public class Provider {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:queueless_office/screens/auth/provider_login_screen.dart';
 import 'package:queueless_office/screens/dashboad/OfficeDashboardScreen.dart';
 import 'package:queueless_office/services/google_auth_service.dart';
 
@@ -54,6 +55,7 @@ class _OfficeAuthScreenState extends State<OfficeAuthScreen> {
 
             // Store token securely
             await _storage.write(key: 'jwt_token', value: token);
+            await _storage.write(key: 'user_role', value: 'OFFICE');
 
             if (mounted) {
               _showSnackBar('Welcome to Office Portal!', isError: false);
@@ -210,6 +212,56 @@ class _OfficeAuthScreenState extends State<OfficeAuthScreen> {
                                       ),
                                     ],
                                   ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // OR Divider
+                        Row(
+                          children: [
+                            const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              child: Text(
+                                'OR',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF94A3B8),
+                                ),
+                              ),
+                            ),
+                            const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Provider Login Button
+                        SizedBox(
+                          height: 52,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const ProviderLoginScreen()),
+                              );
+                            },
+                            icon: const Icon(Icons.badge_outlined, size: 20),
+                            label: const Text(
+                              'Staff / Provider Login',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0284C7),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 24),

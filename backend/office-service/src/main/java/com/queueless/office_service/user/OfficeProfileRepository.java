@@ -15,6 +15,12 @@ public interface OfficeProfileRepository extends JpaRepository<OfficeProfile, Lo
 
     Optional<OfficeProfile> findByUserEmail(String email);
 
+    Optional<OfficeProfile> findByOfficeId(String officeId);
+
+    Optional<OfficeProfile> findByUserOfficeId(String officeId);
+
+    boolean existsByOfficeId(String officeId);
+
     List<OfficeProfile> findByVerificationStatus(VerificationStatus status);
 
     List<OfficeProfile> findByCategory(OfficeCategory category);
