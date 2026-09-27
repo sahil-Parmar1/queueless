@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.queueless.office_service.provider.ProviderService;
 import com.queueless.office_service.queue.QueueTokenRepository;
 import com.queueless.office_service.queue.TokenStatus;
 
@@ -23,12 +24,15 @@ public class PublicOfficeController {
 
     private final OfficeProfileRepository profileRepository;
     private final QueueTokenRepository tokenRepository;
+    private final ProviderService providerService;
 
     public PublicOfficeController(
             OfficeProfileRepository profileRepository,
-            QueueTokenRepository tokenRepository) {
+            QueueTokenRepository tokenRepository,
+            ProviderService providerService) {
         this.profileRepository = profileRepository;
         this.tokenRepository = tokenRepository;
+        this.providerService = providerService;
     }
 
     /**
@@ -87,6 +91,14 @@ public class PublicOfficeController {
         details.put("medicalRegistrationNumber", p.getMedicalRegistrationNumber());
 
         return ResponseEntity.ok(details);
+    }
+
+    /**
+     * Get active providers and their availability for an office.
+     */
+    @GetMapping("/{id}/providers")
+    public ResponseEntity<?> getOfficeProviders(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(providerService.getPublicActiveOfficeProviders(id));
     }
 
     /**

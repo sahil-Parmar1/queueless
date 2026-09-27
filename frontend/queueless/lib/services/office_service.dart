@@ -123,9 +123,27 @@ class OfficeService {
     }
   }
 
+  /// Get active providers for an office
+  Future<List<dynamic>> getOfficeProviders(int officeId) async {
+    try {
+      final uri = Uri.parse('$_baseUrl/offices/$officeId/providers');
+      final headers = await _getHeaders();
+      final response = await http.get(uri, headers: headers);
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as List<dynamic>;
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching office providers: $e');
+      return [];
+    }
+  }
+
   /// Book a digital queue token
   Future<Map<String, dynamic>> bookToken({
     required int officeId,
+    int? providerId,
     required String customerName,
     String? customerPhone,
     String? customerEmail,
@@ -134,12 +152,15 @@ class OfficeService {
       final uri = Uri.parse('$_baseUrl/queue/tokens/book');
       final headers = await _getHeaders();
 
-      final body = {
+      final Map<String, dynamic> body = {
         'officeId': officeId,
         'customerName': customerName,
         'customerPhone': customerPhone,
         'customerEmail': customerEmail,
       };
+      if (providerId != null) {
+        body['providerId'] = providerId;
+      }
 
       final response = await http.post(
         uri,
@@ -153,9 +174,18 @@ class OfficeService {
           'data': jsonDecode(response.body),
         };
       } else {
+        String msg = 'Booking failed with status ${response.statusCode}';
+        try {
+          final errBody = jsonDecode(response.body);
+          if (errBody['error'] != null) {
+            msg = errBody['error'];
+          } else if (errBody['message'] != null) {
+            msg = errBody['message'];
+          }
+        } catch (_) {}
         return {
           'success': false,
-          'errorMessage': 'Booking failed with status ${response.statusCode}',
+          'errorMessage': msg,
         };
       }
     } catch (e) {

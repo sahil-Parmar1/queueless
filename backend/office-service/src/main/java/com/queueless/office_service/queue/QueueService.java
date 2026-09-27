@@ -11,6 +11,9 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.queueless.office_service.provider.Provider;
+import com.queueless.office_service.provider.ProviderRepository;
+import com.queueless.office_service.provider.ProviderService;
 import com.queueless.office_service.user.OfficeProfile;
 import com.queueless.office_service.user.OfficeProfileRepository;
 
@@ -20,18 +23,24 @@ public class QueueService {
 
     private final QueueTokenRepository tokenRepository;
     private final OfficeProfileRepository officeProfileRepository;
+    private final ProviderRepository providerRepository;
+    private final ProviderService providerService;
 
     private static final int DEFAULT_SERVICE_TIME_MINUTES = 12;
 
     public QueueService(
             QueueTokenRepository tokenRepository,
-            OfficeProfileRepository officeProfileRepository) {
+            OfficeProfileRepository officeProfileRepository,
+            ProviderRepository providerRepository,
+            ProviderService providerService) {
         this.tokenRepository = tokenRepository;
         this.officeProfileRepository = officeProfileRepository;
+        this.providerRepository = providerRepository;
+        this.providerService = providerService;
     }
 
     /**
-     * Book a new token for an office.
+     * Book a new token for an office without specific provider.
      */
     public Map<String, Object> bookToken(
             Long officeId,
@@ -39,9 +48,32 @@ public class QueueService {
             String customerName,
             String customerPhone,
             String customerEmail) {
+        return bookToken(officeId, null, customerId, customerName, customerPhone, customerEmail);
+    }
+
+    /**
+     * Book a new token for an office with optional provider assignment and availability validation.
+     */
+    public Map<String, Object> bookToken(
+            Long officeId,
+            Long providerId,
+            Long customerId,
+            String customerName,
+            String customerPhone,
+            String customerEmail) {
 
         OfficeProfile office = officeProfileRepository.findById(officeId)
                 .orElseThrow(() -> new RuntimeException("Office not found with id: " + officeId));
+
+        Provider provider = null;
+        if (providerId != null) {
+            provider = providerRepository.findByIdAndOfficeId(providerId, officeId)
+                    .orElseThrow(() -> new IllegalArgumentException("Provider not found or does not belong to this office"));
+
+            if (!providerService.isProviderAvailableNow(provider)) {
+                throw new IllegalStateException("Provider is currently unavailable");
+            }
+        }
 
         LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
         Integer maxSeq = tokenRepository.findMaxSequenceNumberToday(officeId, startOfDay);
@@ -58,6 +90,7 @@ public class QueueService {
 
         QueueToken token = new QueueToken();
         token.setOffice(office);
+        token.setProvider(provider);
         token.setSequenceNumber(nextSeq);
         token.setTokenNumber(tokenNumber);
         token.setCustomerId(customerId);
@@ -80,6 +113,11 @@ public class QueueService {
         response.put("officeName", office.getUser() != null ? office.getUser().getName() : "Office");
         response.put("category", office.getCategory() != null ? office.getCategory().name() : "OFFICE");
         response.put("status", saved.getStatus().name());
+        if (provider != null) {
+            response.put("providerId", provider.getId());
+            response.put("providerName", provider.getName());
+            response.put("providerDesignation", provider.getDesignation());
+        }
 
         return response;
     }

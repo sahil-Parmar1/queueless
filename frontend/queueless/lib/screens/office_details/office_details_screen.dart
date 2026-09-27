@@ -21,6 +21,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
 
   Map<String, dynamic>? _officeDetails;
   Map<String, dynamic>? _liveQueue;
+  List<dynamic> _providers = [];
 
   @override
   void initState() {
@@ -33,20 +34,23 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
 
     final details = await _officeService.getOfficeDetails(widget.officeId);
     final queue = await _officeService.getLiveQueue(widget.officeId);
+    final providers = await _officeService.getOfficeProviders(widget.officeId);
 
     if (mounted) {
       setState(() {
         _officeDetails = details;
         _liveQueue = queue;
+        _providers = providers;
         _loading = false;
       });
     }
   }
 
-  Future<void> _showBookingSheet() async {
+  Future<void> _showBookingSheet([int? preselectedProviderId]) async {
     final user = await _officeService.getCurrentUser();
     final nameController = TextEditingController(text: user?['name'] ?? '');
     final phoneController = TextEditingController();
+    int? selectedProviderId = preselectedProviderId;
 
     if (!mounted) return;
 
@@ -58,103 +62,153 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-            top: 24,
-            left: 24,
-            right: 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                top: 24,
+                left: 24,
+                right: 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'Confirm Queue Token',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Confirm Queue Token',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                        onPressed: () => Navigator.pop(context, false),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 20),
-                    onPressed: () => Navigator.pop(context, false),
+                  const SizedBox(height: 8),
+                  Text(
+                    'You will receive a live digital token for ${_officeDetails?['name'] ?? 'this office'}.',
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Provider Selection (if office has providers configured)
+                  if (_providers.isNotEmpty) ...[
+                    const Text('Select Doctor / Provider', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<int?>(
+                      initialValue: selectedProviderId,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.badge_outlined, size: 20),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                      ),
+                      items: [
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('Any Available Staff / Doctor', style: TextStyle(fontSize: 14)),
+                        ),
+                        ..._providers.map((p) {
+                          final name = p['name'] ?? 'Provider';
+                          final desig = p['designation'] != null ? ' (${p['designation']})' : '';
+                          return DropdownMenuItem<int?>(
+                            value: p['id'] as int?,
+                            child: Text(
+                              '$name$desig',
+                              style: const TextStyle(fontSize: 14),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }),
+                      ],
+                      onChanged: (val) {
+                        setModalState(() {
+                          selectedProviderId = val;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
+                  // Name Field
+                  const Text('Full Name', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      hintText: 'Enter your name',
+                      prefixIcon: const Icon(Icons.person_outline, size: 20),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Phone Field
+                  const Text('Phone Number (Optional)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      hintText: '+91 9876543210',
+                      prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  ElevatedButton(
+                    onPressed: () {
+                      if (nameController.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please enter your name')),
+                        );
+                        return;
+                      }
+                      Navigator.pop(context, true);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4F46E5),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 0,
+                    ),
+                    child: const Text('Get My Token Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                'You will receive a live digital token for ${_officeDetails?['name'] ?? 'this office'}.',
-                style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-              ),
-              const SizedBox(height: 20),
-
-              // Name Field
-              const Text('Full Name', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
-              const SizedBox(height: 6),
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  hintText: 'Enter your name',
-                  prefixIcon: const Icon(Icons.person_outline, size: 20),
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Phone Field
-              const Text('Phone Number (Optional)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
-              const SizedBox(height: 6),
-              TextField(
-                controller: phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  hintText: '+91 9876543210',
-                  prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              ElevatedButton(
-                onPressed: () {
-                  if (nameController.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please enter your name')),
-                    );
-                    return;
-                  }
-                  Navigator.pop(context, true);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4F46E5),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  elevation: 0,
-                ),
-                child: const Text('Get My Token Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -164,6 +218,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
 
       final result = await _officeService.bookToken(
         officeId: widget.officeId,
+        providerId: selectedProviderId,
         customerName: nameController.text.trim(),
         customerPhone: phoneController.text.trim().isNotEmpty ? phoneController.text.trim() : null,
         customerEmail: user?['email'],
@@ -426,6 +481,17 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
             ),
             const SizedBox(height: 20),
 
+            // Providers & Staff Section
+            if (_providers.isNotEmpty) ...[
+              const Text(
+                'Available Doctors & Staff',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              ),
+              const SizedBox(height: 12),
+              ..._providers.map((p) => _buildProviderCard(p)),
+              const SizedBox(height: 20),
+            ],
+
             // Category Details
             if (category == 'CLINIC' || doctorName != null) ...[
               _buildSectionCard(
@@ -521,6 +587,78 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                   ],
                 ),
               )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProviderCard(Map<String, dynamic> p) {
+    final int? id = p['id'] as int?;
+    final name = p['name'] ?? 'Provider';
+    final desig = p['designation'] ?? 'Specialist';
+    final bool availableNow = p['availableNow'] ?? false;
+    final todayHours = p['todayWorkingHours'] ?? 'Today: Off';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.person_outline_rounded, color: Color(0xFF4F46E5), size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A))),
+                const SizedBox(height: 2),
+                Text(desig, style: const TextStyle(fontSize: 12, color: Color(0xFF4F46E5), fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(todayHours, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+              ],
+            ),
+          ),
+          InkWell(
+            onTap: () => _showBookingSheet(id),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: availableNow ? const Color(0xFF10B981).withValues(alpha: 0.1) : const Color(0xFF94A3B8).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    availableNow ? 'Book' : 'Off duty',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: availableNow ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                    ),
+                  ),
+                  if (availableNow) ...[
+                    const SizedBox(width: 4),
+                    const Icon(Icons.arrow_forward_rounded, size: 12, color: Color(0xFF10B981)),
+                  ],
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

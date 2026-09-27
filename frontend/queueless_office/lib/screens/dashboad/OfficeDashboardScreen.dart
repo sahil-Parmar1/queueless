@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:queueless_office/screens/auth/office_auth_screen.dart';
 import 'package:queueless_office/screens/dashboad/office_onboarding_screen.dart';
+import 'package:queueless_office/screens/providers/providers_screen.dart';
 
 class OfficeDashboardScreen extends StatefulWidget {
   const OfficeDashboardScreen({super.key});
@@ -305,7 +306,11 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: Text(
-          isApproved ? 'Office Queue Dashboard' : 'Office Verification Status',
+          isApproved
+              ? (_approvedSelectedTab == 0
+                  ? 'Queue Operations'
+                  : (_approvedSelectedTab == 1 ? 'Staff & Providers' : 'Office Details'))
+              : 'Office Verification Status',
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
         ),
         backgroundColor: const Color(0xFF4F46E5),
@@ -335,6 +340,10 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                 BottomNavigationBarItem(
                   icon: Icon(Icons.dashboard_rounded),
                   label: 'Queue Ops',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.people_alt_rounded),
+                  label: 'Providers',
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.business_rounded),
@@ -436,10 +445,12 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
 
     final status = _profileData?['verificationStatus'] ?? 'PENDING';
 
-    // 1. APPROVED STATE: Show Queue Dashboard Screen (or Profile Tab if switched)
+    // 1. APPROVED STATE: Show Queue Dashboard Screen, Providers Screen, or Office Details Tab
     if (status == 'APPROVED') {
       if (_approvedSelectedTab == 0) {
         return _buildApprovedDashboardView();
+      } else if (_approvedSelectedTab == 1) {
+        return ProvidersScreen(officeProfile: _profileData);
       } else {
         return _buildDetailsOnlyView(status);
       }
@@ -682,16 +693,35 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Button to View Office Details
-            OutlinedButton.icon(
-              onPressed: () => setState(() => _approvedSelectedTab = 1),
-              icon: const Icon(Icons.info_outline_rounded),
-              label: const Text('View Full Office Details & Documents'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF4F46E5),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
+            // Quick Navigation Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => setState(() => _approvedSelectedTab = 1),
+                    icon: const Icon(Icons.people_alt_rounded),
+                    label: const Text('Manage Providers'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF4F46E5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => setState(() => _approvedSelectedTab = 2),
+                    icon: const Icon(Icons.info_outline_rounded),
+                    label: const Text('Office Details'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF64748B),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

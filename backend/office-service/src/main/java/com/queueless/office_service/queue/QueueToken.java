@@ -3,12 +3,14 @@ package com.queueless.office_service.queue;
 import java.time.LocalDateTime;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.queueless.office_service.provider.Provider;
 import com.queueless.office_service.user.OfficeProfile;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -35,6 +37,11 @@ public class QueueToken {
     @JoinColumn(name = "office_id", nullable = false)
     @JsonIgnoreProperties({"documents", "user"})
     private OfficeProfile office;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "provider_id", nullable = true)
+    @JsonIgnoreProperties({"office", "schedules", "hibernateLazyInitializer", "handler"})
+    private Provider provider;
 
     private Long customerId;
 
@@ -169,5 +176,13 @@ public class QueueToken {
 
     public void setCompletedAt(LocalDateTime completedAt) {
         this.completedAt = completedAt;
+    }
+
+    public Provider getProvider() {
+        return provider;
+    }
+
+    public void setProvider(Provider provider) {
+        this.provider = provider;
     }
 }

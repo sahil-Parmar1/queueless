@@ -33,6 +33,9 @@ public class QueueController {
             Authentication authentication) {
 
         Long officeId = Long.valueOf(body.get("officeId").toString());
+        Long providerId = body.get("providerId") != null && !body.get("providerId").toString().isBlank()
+                ? Long.valueOf(body.get("providerId").toString())
+                : null;
         String customerName = body.get("customerName") != null ? body.get("customerName").toString() : null;
         String customerPhone = body.get("customerPhone") != null ? body.get("customerPhone").toString() : null;
         String customerEmail = body.get("customerEmail") != null ? body.get("customerEmail").toString() : null;
@@ -46,11 +49,17 @@ public class QueueController {
             if (customerEmail == null || customerEmail.isBlank()) customerEmail = authentication.getName();
         }
 
-        Map<String, Object> result = queueService.bookToken(
-                officeId, customerId, customerName, customerPhone, customerEmail
-        );
-
-        return ResponseEntity.ok(result);
+        try {
+            Map<String, Object> result = queueService.bookToken(
+                    officeId, providerId, customerId, customerName, customerPhone, customerEmail
+            );
+            return ResponseEntity.ok(result);
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", e.getMessage(),
+                    "message", e.getMessage()
+            ));
+        }
     }
 
     /**

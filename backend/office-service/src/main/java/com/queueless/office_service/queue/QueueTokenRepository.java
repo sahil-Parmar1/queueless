@@ -39,4 +39,12 @@ public interface QueueTokenRepository extends JpaRepository<QueueToken, Long> {
     List<QueueToken> findByOfficeIdAndBookedAtBetweenOrderBySequenceNumberAsc(Long officeId, LocalDateTime start, LocalDateTime end);
 
     List<QueueToken> findByOfficeIdOrderByBookedAtDesc(Long officeId);
+
+    long countByProviderIdAndStatusIn(Long providerId, List<TokenStatus> statuses);
+
+    List<QueueToken> findByProviderIdAndStatusIn(Long providerId, List<TokenStatus> statuses);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE QueueToken t SET t.provider = null WHERE t.provider.id = :providerId")
+    void detachProvider(@Param("providerId") Long providerId);
 }
