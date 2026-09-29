@@ -1079,7 +1079,7 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
 
     if (category == 'CLINIC') {
       items = [
-        _buildInfoRow(Icons.person_outline, 'Doctor / Specialist', _profileData?['doctorName'] ?? 'N/A'),
+        _buildInfoRow(Icons.person_outline, 'Clinic Name', _profileData?['doctorName'] ?? 'N/A'),
         _buildInfoRow(Icons.medical_services_outlined, 'Specialization', _profileData?['specialization'] ?? 'General'),
         _buildInfoRow(Icons.badge_outlined, 'Medical Reg. No.', _profileData?['medicalRegistrationNumber'] ?? 'N/A'),
       ];

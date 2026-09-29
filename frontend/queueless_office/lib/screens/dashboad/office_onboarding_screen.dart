@@ -244,9 +244,9 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
 
               // Dynamic Category-Specific Form Section
               if (_category == 'CLINIC') ...[
-                const Text('Clinic & Doctor Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const Text('Clinic Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                _inputField('Doctor Name', _doctorNameController, 'Dr. John Doe'),
+                _inputField('Clinic Name', _doctorNameController, 'Dr. John Doe'),
                 _inputField('Specialization', _specializationController, 'e.g. Dentistry, Cardiology'),
                 _inputField('Medical Registration No.', _medRegNoController, 'e.g. MED-12345'),
               ] else if (_category == 'SALON') ...[
