@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:queueless/screens/auth/customer_login_screen.dart';
 import 'package:queueless/screens/dashboard/customer_dashboard_screen.dart';
 import 'package:queueless/services/customer_auth_service.dart';
+import 'package:queueless/services/queue_notification_service.dart';
 
 import 'firebase_options.dart';
 
@@ -13,6 +14,8 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  await QueueNotificationService().initialize();
+
   runApp(const MyApp());
 }
 
@@ -22,6 +25,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: QueueNotificationService.navigatorKey,
       title: 'QueueLess - Smart Queue Management',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
