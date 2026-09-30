@@ -309,11 +309,21 @@ public class QueueService {
         QueueToken token = activeList.get(0);
         Long officeId = token.getOffice().getId();
 
-        Long peopleAhead = tokenRepository.countTokensAheadOf(officeId, token.getSequenceNumber());
-        QueueToken serving = tokenRepository.findFirstByOfficeIdAndStatusInOrderBySequenceNumberAsc(
-                officeId,
-                List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
-        ).orElse(null);
+        Long peopleAhead;
+        QueueToken serving;
+        if (token.getProvider() != null) {
+            peopleAhead = tokenRepository.countTokensAheadOfProvider(token.getProvider().getId(), token.getSequenceNumber());
+            serving = tokenRepository.findFirstByProviderIdAndStatusInOrderBySequenceNumberAsc(
+                    token.getProvider().getId(),
+                    List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
+            ).orElse(null);
+        } else {
+            peopleAhead = tokenRepository.countTokensAheadOf(officeId, token.getSequenceNumber());
+            serving = tokenRepository.findFirstByOfficeIdAndStatusInOrderBySequenceNumberAsc(
+                    officeId,
+                    List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
+            ).orElse(null);
+        }
 
         Map<String, Object> result = new HashMap<>();
         result.put("hasActiveToken", true);
@@ -321,16 +331,168 @@ public class QueueService {
         result.put("tokenNumber", token.getTokenNumber());
         result.put("sequenceNumber", token.getSequenceNumber());
         result.put("status", token.getStatus().name());
-        result.put("peopleAhead", peopleAhead);
-        result.put("estimatedWaitMinutes", peopleAhead * DEFAULT_SERVICE_TIME_MINUTES);
+        result.put("peopleAhead", peopleAhead != null ? peopleAhead : 0L);
+        result.put("estimatedWaitMinutes", (peopleAhead != null ? peopleAhead : 0L) * DEFAULT_SERVICE_TIME_MINUTES);
         result.put("currentlyServing", serving != null ? serving.getTokenNumber() : "None");
         result.put("officeId", officeId);
         result.put("officeName", token.getOffice().getUser() != null ? token.getOffice().getUser().getName() : "Office");
         result.put("category", token.getOffice().getCategory() != null ? token.getOffice().getCategory().name() : "OFFICE");
         result.put("address", token.getOffice().getAddress());
         result.put("city", token.getOffice().getCity());
+        if (token.getProvider() != null) {
+            result.put("providerId", token.getProvider().getId());
+            result.put("providerName", token.getProvider().getName());
+            result.put("providerDesignation", token.getProvider().getDesignation());
+        }
 
         return result;
+    }
+
+    /**
+     * Get live queue metrics and token list for a specific provider.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getProviderLiveQueue(Long providerId) {
+        Provider provider = providerRepository.findById(providerId)
+                .orElseThrow(() -> new IllegalArgumentException("Provider not found: " + providerId));
+
+        // Active serving/called token for this provider
+        QueueToken activeToken = tokenRepository
+                .findFirstByProviderIdAndStatusInOrderBySequenceNumberAsc(
+                        providerId,
+                        List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
+                ).orElse(null);
+
+        // Waiting tokens assigned to this provider
+        List<QueueToken> waitingTokens = tokenRepository
+                .findByProviderIdAndStatusInOrderBySequenceNumberAsc(providerId, List.of(TokenStatus.WAITING));
+
+        LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
+        LocalDateTime endOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MAX);
+        List<QueueToken> todayTokens = tokenRepository.findByProviderIdAndBookedAtBetweenOrderBySequenceNumberAsc(
+                providerId, startOfDay, endOfDay
+        );
+
+        long completedCount = todayTokens.stream()
+                .filter(t -> t.getStatus() == TokenStatus.COMPLETED)
+                .count();
+
+        long skippedCount = todayTokens.stream()
+                .filter(t -> t.getStatus() == TokenStatus.SKIPPED)
+                .count();
+
+        List<Map<String, Object>> waitingTokenList = new ArrayList<>();
+        for (int i = 0; i < waitingTokens.size(); i++) {
+            QueueToken t = waitingTokens.get(i);
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", t.getId());
+            item.put("tokenNumber", t.getTokenNumber());
+            item.put("customerName", t.getCustomerName());
+            item.put("customerPhone", t.getCustomerPhone() != null ? t.getCustomerPhone() : "");
+            item.put("sequenceNumber", t.getSequenceNumber());
+            item.put("status", t.getStatus().name());
+            item.put("estimatedWaitMinutes", t.getEstimatedWaitMinutes());
+            item.put("position", i + 1);
+            item.put("bookedAt", t.getBookedAt() != null ? t.getBookedAt().toString() : "");
+            waitingTokenList.add(item);
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("providerId", provider.getId());
+        response.put("providerName", provider.getName());
+        response.put("activeToken", activeToken != null ? activeToken.getTokenNumber() : null);
+        response.put("activeTokenDetails", activeToken != null ? Map.of(
+                "id", activeToken.getId(),
+                "tokenNumber", activeToken.getTokenNumber(),
+                "customerName", activeToken.getCustomerName(),
+                "customerPhone", activeToken.getCustomerPhone() != null ? activeToken.getCustomerPhone() : "",
+                "status", activeToken.getStatus().name(),
+                "sequenceNumber", activeToken.getSequenceNumber(),
+                "calledAt", activeToken.getCalledAt() != null ? activeToken.getCalledAt().toString() : ""
+        ) : null);
+        response.put("waitingCount", waitingTokens.size());
+        response.put("completedCount", completedCount);
+        response.put("skippedCount", skippedCount);
+        response.put("waitingTokens", waitingTokenList);
+        response.put("todayTotalTokens", todayTokens.size());
+
+        return response;
+    }
+
+    /**
+     * Provider calls the next waiting customer assigned to them.
+     */
+    public Map<String, Object> providerCallNext(Long providerId) {
+        // Complete current active token if one exists
+        tokenRepository.findFirstByProviderIdAndStatusInOrderBySequenceNumberAsc(
+                providerId,
+                List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
+        ).ifPresent(curr -> {
+            curr.setStatus(TokenStatus.COMPLETED);
+            curr.setCompletedAt(LocalDateTime.now());
+            tokenRepository.save(curr);
+        });
+
+        // Find first waiting token assigned to this provider
+        QueueToken nextToken = tokenRepository
+                .findFirstByProviderIdAndStatusOrderBySequenceNumberAsc(providerId, TokenStatus.WAITING)
+                .orElse(null);
+
+        if (nextToken != null) {
+            nextToken.setStatus(TokenStatus.CALLED);
+            nextToken.setCalledAt(LocalDateTime.now());
+            tokenRepository.save(nextToken);
+        }
+
+        return getProviderLiveQueue(providerId);
+    }
+
+    /**
+     * Provider marks a called token as IN_SERVICE.
+     */
+    public Map<String, Object> providerServeToken(Long providerId, Long tokenId) {
+        QueueToken token = tokenRepository.findById(tokenId)
+                .orElseThrow(() -> new IllegalArgumentException("Token not found: " + tokenId));
+
+        if (token.getProvider() == null || !token.getProvider().getId().equals(providerId)) {
+            throw new IllegalArgumentException("Token is not assigned to this provider");
+        }
+
+        token.setStatus(TokenStatus.IN_SERVICE);
+        tokenRepository.save(token);
+
+        return getProviderLiveQueue(providerId);
+    }
+
+    /**
+     * Provider marks their current active token as COMPLETED.
+     */
+    public Map<String, Object> providerCompleteCurrent(Long providerId) {
+        tokenRepository.findFirstByProviderIdAndStatusInOrderBySequenceNumberAsc(
+                providerId,
+                List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
+        ).ifPresent(curr -> {
+            curr.setStatus(TokenStatus.COMPLETED);
+            curr.setCompletedAt(LocalDateTime.now());
+            tokenRepository.save(curr);
+        });
+
+        return getProviderLiveQueue(providerId);
+    }
+
+    /**
+     * Provider skips/holds their current active token.
+     */
+    public Map<String, Object> providerSkipCurrent(Long providerId) {
+        tokenRepository.findFirstByProviderIdAndStatusInOrderBySequenceNumberAsc(
+                providerId,
+                List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
+        ).ifPresent(curr -> {
+            curr.setStatus(TokenStatus.SKIPPED);
+            tokenRepository.save(curr);
+        });
+
+        return getProviderLiveQueue(providerId);
     }
 
     /**

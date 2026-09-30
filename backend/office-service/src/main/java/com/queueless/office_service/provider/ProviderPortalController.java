@@ -11,14 +11,17 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.queueless.office_service.provider.dto.ProviderLoginRequest;
 import com.queueless.office_service.provider.dto.ProviderResponse;
+import com.queueless.office_service.queue.QueueService;
 
 @RestController
 public class ProviderPortalController {
 
     private final ProviderService providerService;
+    private final QueueService queueService;
 
-    public ProviderPortalController(ProviderService providerService) {
+    public ProviderPortalController(ProviderService providerService, QueueService queueService) {
         this.providerService = providerService;
+        this.queueService = queueService;
     }
 
     @PostMapping({"/api/provider/login", "/api/office/provider/login", "/api/office/providers/login"})
@@ -56,5 +59,51 @@ public class ProviderPortalController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
         }
+    }
+
+    @GetMapping("/api/provider/queue/live")
+    public ResponseEntity<?> getProviderLiveQueue(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof Provider provider)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized provider access"));
+        }
+        return ResponseEntity.ok(queueService.getProviderLiveQueue(provider.getId()));
+    }
+
+    @PostMapping("/api/provider/queue/call-next")
+    public ResponseEntity<?> providerCallNext(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof Provider provider)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized provider access"));
+        }
+        return ResponseEntity.ok(queueService.providerCallNext(provider.getId()));
+    }
+
+    @PostMapping("/api/provider/queue/tokens/{id}/serve")
+    public ResponseEntity<?> providerServeToken(
+            @org.springframework.web.bind.annotation.PathVariable("id") Long id,
+            Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof Provider provider)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized provider access"));
+        }
+        try {
+            return ResponseEntity.ok(queueService.providerServeToken(provider.getId(), id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/api/provider/queue/complete")
+    public ResponseEntity<?> providerCompleteCurrent(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof Provider provider)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized provider access"));
+        }
+        return ResponseEntity.ok(queueService.providerCompleteCurrent(provider.getId()));
+    }
+
+    @PostMapping("/api/provider/queue/skip")
+    public ResponseEntity<?> providerSkipCurrent(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof Provider provider)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized provider access"));
+        }
+        return ResponseEntity.ok(queueService.providerSkipCurrent(provider.getId()));
     }
 }

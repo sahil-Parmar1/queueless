@@ -53,4 +53,15 @@ public interface QueueTokenRepository extends JpaRepository<QueueToken, Long> {
 
     @Query("SELECT COUNT(t) FROM QueueToken t WHERE t.provider.id = :providerId AND t.bookedAt >= :startOfDay AND t.bookedAt <= :endOfDay AND t.status != 'CANCELLED'")
     long countValidTokensTodayByProvider(@Param("providerId") Long providerId, @Param("startOfDay") LocalDateTime startOfDay, @Param("endOfDay") LocalDateTime endOfDay);
+
+    Optional<QueueToken> findFirstByProviderIdAndStatusInOrderBySequenceNumberAsc(Long providerId, List<TokenStatus> statuses);
+
+    Optional<QueueToken> findFirstByProviderIdAndStatusOrderBySequenceNumberAsc(Long providerId, TokenStatus status);
+
+    List<QueueToken> findByProviderIdAndStatusInOrderBySequenceNumberAsc(Long providerId, List<TokenStatus> statuses);
+
+    List<QueueToken> findByProviderIdAndBookedAtBetweenOrderBySequenceNumberAsc(Long providerId, LocalDateTime start, LocalDateTime end);
+
+    @Query("SELECT COUNT(t) FROM QueueToken t WHERE t.provider.id = :providerId AND t.status = 'WAITING' AND t.sequenceNumber < :sequenceNumber")
+    Long countTokensAheadOfProvider(@Param("providerId") Long providerId, @Param("sequenceNumber") Integer sequenceNumber);
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +25,11 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   bool _savingLimit = false;
   final TextEditingController _providerLimitController = TextEditingController();
 
+  // Provider Live Queue state
+  Map<String, dynamic>? _liveQueueData;
+  Timer? _liveQueueTimer;
+  bool _queueActionLoading = false;
+
   String get _backendUrl => kIsWeb
       ? 'http://localhost:8080/api/provider/me'
       : 'http://10.0.2.2:8080/api/provider/me';
@@ -32,16 +38,224 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
       ? 'http://localhost:8080/api/provider/settings/queue'
       : 'http://10.0.2.2:8080/api/provider/settings/queue';
 
+  String get _providerQueueLiveUrl => kIsWeb
+      ? 'http://localhost:8080/api/provider/queue/live'
+      : 'http://10.0.2.2:8080/api/provider/queue/live';
+
+  String get _providerQueueCallNextUrl => kIsWeb
+      ? 'http://localhost:8080/api/provider/queue/call-next'
+      : 'http://10.0.2.2:8080/api/provider/queue/call-next';
+
+  String _providerQueueServeUrl(dynamic id) => kIsWeb
+      ? 'http://localhost:8080/api/provider/queue/tokens/$id/serve'
+      : 'http://10.0.2.2:8080/api/provider/queue/tokens/$id/serve';
+
+  String get _providerQueueCompleteUrl => kIsWeb
+      ? 'http://localhost:8080/api/provider/queue/complete'
+      : 'http://10.0.2.2:8080/api/provider/queue/complete';
+
+  String get _providerQueueSkipUrl => kIsWeb
+      ? 'http://localhost:8080/api/provider/queue/skip'
+      : 'http://10.0.2.2:8080/api/provider/queue/skip';
+
   @override
   void initState() {
     super.initState();
     _loadProviderProfile();
+    _startQueuePolling();
   }
 
   @override
   void dispose() {
     _providerLimitController.dispose();
+    _liveQueueTimer?.cancel();
     super.dispose();
+  }
+
+  void _startQueuePolling() {
+    _liveQueueTimer?.cancel();
+    _liveQueueTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (mounted) {
+        _fetchLiveQueue(silent: true);
+      }
+    });
+  }
+
+  Future<void> _fetchLiveQueue({bool silent = false}) async {
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      if (token == null) return;
+      final response = await http.get(
+        Uri.parse(_providerQueueLiveUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+          });
+        }
+      }
+    } catch (e) {
+      if (!silent) debugPrint('Error fetching live queue: $e');
+    }
+  }
+
+  Future<void> _callNextCustomer() async {
+    setState(() => _queueActionLoading = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.post(
+        Uri.parse(_providerQueueCallNextUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+            _queueActionLoading = false;
+          });
+          final activeToken = data['activeToken'];
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(activeToken != null ? 'Called next token #$activeToken!' : 'No waiting tokens in line.'),
+              backgroundColor: const Color(0xFF10B981),
+            ),
+          );
+        }
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _queueActionLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to call next token: $e'), backgroundColor: const Color(0xFFEF4444)),
+        );
+      }
+    }
+  }
+
+  Future<void> _serveToken(dynamic tokenId) async {
+    setState(() => _queueActionLoading = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.post(
+        Uri.parse(_providerQueueServeUrl(tokenId)),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+            _queueActionLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Token is now IN SERVICE! Customer notified.'),
+              backgroundColor: Color(0xFF10B981),
+            ),
+          );
+        }
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _queueActionLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to serve token: $e'), backgroundColor: const Color(0xFFEF4444)),
+        );
+      }
+    }
+  }
+
+  Future<void> _completeToken() async {
+    setState(() => _queueActionLoading = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.post(
+        Uri.parse(_providerQueueCompleteUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+            _queueActionLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Token completed successfully!'),
+              backgroundColor: Color(0xFF10B981),
+            ),
+          );
+        }
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _queueActionLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to complete token: $e'), backgroundColor: const Color(0xFFEF4444)),
+        );
+      }
+    }
+  }
+
+  Future<void> _skipToken() async {
+    setState(() => _queueActionLoading = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.post(
+        Uri.parse(_providerQueueSkipUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+            _queueActionLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Token marked as skipped/hold.'),
+              backgroundColor: Color(0xFFF59E0B),
+            ),
+          );
+        }
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _queueActionLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to skip token: $e'), backgroundColor: const Color(0xFFEF4444)),
+        );
+      }
+    }
   }
 
   Future<void> _loadQueueSettings() async {
@@ -181,6 +395,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
             await _storage.write(key: 'office_id', value: _officeId!);
           }
           await _loadQueueSettings();
+          await _fetchLiveQueue(silent: true);
         } else if (response.statusCode == 401 || response.statusCode == 403) {
           _handleLogout(forced: true, message: 'Session expired or account deactivated.');
           return;
@@ -317,6 +532,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
               onRefresh: () async {
                 await _loadProviderProfile();
                 await _loadQueueSettings();
+                await _fetchLiveQueue();
               },
               color: const Color(0xFF0284C7),
               child: SingleChildScrollView(
@@ -486,6 +702,10 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 20),
+
+                        // Section: Live Queue Counter & Management
+                        _buildLiveQueueSection(),
                         const SizedBox(height: 20),
 
                         // Section: Daily Token & Queue Limit (TASK 2)
@@ -920,6 +1140,463 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
             'Cannot exceed office maximum of $officeMax tokens. Sum of all providers cannot exceed office limit.',
             style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), height: 1.3),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLiveQueueSection() {
+    final activeToken = _liveQueueData?['activeToken']?.toString();
+    final activeDetails = _liveQueueData?['activeTokenDetails'] as Map<String, dynamic>?;
+    final int waitingCount = (_liveQueueData?['waitingCount'] is int)
+        ? _liveQueueData!['waitingCount']
+        : int.tryParse('${_liveQueueData?['waitingCount']}') ?? 0;
+    final int completedCount = (_liveQueueData?['completedCount'] is int)
+        ? _liveQueueData!['completedCount']
+        : int.tryParse('${_liveQueueData?['completedCount']}') ?? 0;
+    final waitingTokens = (_liveQueueData?['waitingTokens'] as List<dynamic>?) ?? [];
+
+    final activeStatus = (activeDetails?['status'] ?? 'CALLED').toString().toUpperCase();
+    final isServing = activeStatus == 'IN_SERVICE';
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0284C7).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.people_alt_rounded, color: Color(0xFF0284C7), size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Live Queue Counter',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.circle, color: Color(0xFF10B981), size: 8),
+                        SizedBox(width: 4),
+                        Text(
+                          'LIVE',
+                          style: TextStyle(color: Color(0xFF059669), fontSize: 10, fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    icon: const Icon(Icons.sync_rounded, color: Color(0xFF64748B), size: 20),
+                    tooltip: 'Refresh Queue',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => _fetchLiveQueue(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // 3 Metric Tiles
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    children: [
+                      const Text('Serving Now', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      Text(
+                        activeToken != null ? '#$activeToken' : '--',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0284C7)),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(width: 1, height: 28, color: const Color(0xFFCBD5E1)),
+                Expanded(
+                  child: Column(
+                    children: [
+                      const Text('Waiting in Line', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$waitingCount',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFFF59E0B)),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(width: 1, height: 28, color: const Color(0xFFCBD5E1)),
+                Expanded(
+                  child: Column(
+                    children: [
+                      const Text('Done Today', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$completedCount',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Currently Active Token Panel
+          if (activeToken != null && activeDetails != null) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isServing ? const Color(0xFFF0FDF4) : const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isServing ? const Color(0xFF86EFAC) : const Color(0xFF93C5FD),
+                  width: 1.5,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isServing ? 'NOW IN SERVICE' : 'CALLED TO COUNTER',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                          color: isServing ? const Color(0xFF15803D) : const Color(0xFF1D4ED8),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: isServing ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          activeStatus,
+                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Text(
+                        '#$activeToken',
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w900,
+                          color: isServing ? const Color(0xFF15803D) : const Color(0xFF1E40AF),
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.person_outline_rounded, size: 16, color: Color(0xFF475569)),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    activeDetails['customerName'] ?? 'Customer',
+                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (activeDetails['customerPhone'] != null && activeDetails['customerPhone'].toString().isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.phone_outlined, size: 14, color: Color(0xFF64748B)),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      activeDetails['customerPhone'].toString(),
+                                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(height: 1, color: Color(0xFFCBD5E1)),
+                  const SizedBox(height: 14),
+
+                  // Actions wrap
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (!isServing) ...[
+                        ElevatedButton.icon(
+                          onPressed: _queueActionLoading ? null : () => _serveToken(activeDetails['id']),
+                          icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                          label: const Text('Start Serving'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ],
+                      ElevatedButton.icon(
+                        onPressed: _queueActionLoading ? null : _completeToken,
+                        icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+                        label: const Text('Complete'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0284C7),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _queueActionLoading ? null : _skipToken,
+                        icon: const Icon(Icons.pause_circle_outline_rounded, size: 18, color: Color(0xFFF59E0B)),
+                        label: const Text('Skip / Hold', style: TextStyle(color: Color(0xFFD97706))),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFFFCD34D)),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      if (waitingCount > 0) ...[
+                        OutlinedButton.icon(
+                          onPressed: _queueActionLoading ? null : _callNextCustomer,
+                          icon: const Icon(Icons.skip_next_rounded, size: 18, color: Color(0xFF4F46E5)),
+                          label: const Text('Call Next', style: TextStyle(color: Color(0xFF4F46E5))),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFC7D2FE)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            // Idle State: No Active Token
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                children: [
+                  const Icon(Icons.chair_outlined, size: 36, color: Color(0xFF94A3B8)),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'No Customer Currently at Counter',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    waitingCount > 0
+                        ? '$waitingCount customer${waitingCount == 1 ? '' : 's'} waiting in line.'
+                        : 'No customers currently in your queue.',
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: (_queueActionLoading || waitingCount == 0) ? null : _callNextCustomer,
+                      icon: _queueActionLoading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.campaign_rounded, size: 20),
+                      label: Text(
+                        waitingCount > 0 ? 'Call Next Customer' : 'No Waiting Customers',
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0284C7),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // Upcoming Waiting Tokens List
+          if (waitingTokens.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Upcoming Customers ($waitingCount)',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                ),
+                Text(
+                  'Auto-updates live',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: waitingTokens.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (ctx, index) {
+                final item = waitingTokens[index] as Map<String, dynamic>;
+                final tokenNum = item['tokenNumber'] ?? '---';
+                final custName = item['customerName'] ?? 'Customer';
+                final position = item['position'] ?? (index + 1);
+                final waitEst = item['estimatedWaitMinutes'] ?? 0;
+
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0284C7).withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '#$position',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0284C7),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              tokenNum,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            Text(
+                              custName,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF64748B),
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (waitEst > 0) ...[
+                        Text(
+                          '~$waitEst m',
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      ElevatedButton(
+                        onPressed: _queueActionLoading ? null : () => _serveToken(item['id']),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFF0284C7),
+                          elevation: 0,
+                          side: const BorderSide(color: Color(0xFFBAE6FD)),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          visualDensity: VisualDensity.compact,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Text('Call', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
         ],
       ),
     );
