@@ -30,6 +30,10 @@ public class ProviderResponse {
     private boolean availableNow;
     private String todayWorkingHours;
     private String workingDaysSummary;
+    private Integer dailyMaxTokens;
+    private Long todayTokensCount;
+    private Long remainingCapacity;
+    private Boolean providerFull;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -49,6 +53,7 @@ public class ProviderResponse {
         res.setContactNumber(provider.getContactNumber());
         res.setEmail(provider.getEmail());
         res.setActive(provider.getActive());
+        res.setDailyMaxTokens(provider.getDailyMaxTokens());
         res.setCreatedAt(provider.getCreatedAt());
         res.setUpdatedAt(provider.getUpdatedAt());
 
@@ -221,5 +226,37 @@ public class ProviderResponse {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Integer getDailyMaxTokens() {
+        return dailyMaxTokens;
+    }
+
+    public void setDailyMaxTokens(Integer dailyMaxTokens) {
+        this.dailyMaxTokens = dailyMaxTokens;
+    }
+
+    public Long getTodayTokensCount() {
+        return todayTokensCount;
+    }
+
+    public void setTodayTokensCount(Long todayTokensCount) {
+        this.todayTokensCount = todayTokensCount;
+    }
+
+    public Long getRemainingCapacity() {
+        return remainingCapacity;
+    }
+
+    public void setRemainingCapacity(Long remainingCapacity) {
+        this.remainingCapacity = remainingCapacity;
+    }
+
+    public Boolean getProviderFull() {
+        return providerFull;
+    }
+
+    public void setProviderFull(Boolean providerFull) {
+        this.providerFull = providerFull;
     }
 }

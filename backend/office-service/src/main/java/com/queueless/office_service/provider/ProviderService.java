@@ -2,6 +2,7 @@ package com.queueless.office_service.provider;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -15,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.queueless.office_service.auth.JwtService;
 import com.queueless.office_service.provider.dto.ProviderLoginRequest;
+import com.queueless.office_service.provider.dto.ProviderQueueSettingsRequest;
+import com.queueless.office_service.provider.dto.ProviderQueueSettingsResponse;
 import com.queueless.office_service.provider.dto.ProviderRequest;
 import com.queueless.office_service.provider.dto.ProviderResponse;
 import com.queueless.office_service.provider.dto.ProviderScheduleDto;
@@ -22,6 +25,8 @@ import com.queueless.office_service.queue.QueueTokenRepository;
 import com.queueless.office_service.queue.TokenStatus;
 import com.queueless.office_service.user.OfficeProfile;
 import com.queueless.office_service.user.OfficeProfileRepository;
+import com.queueless.office_service.user.dto.OfficeQueueSettingsRequest;
+import com.queueless.office_service.user.dto.OfficeQueueSettingsResponse;
 
 @Service
 @Transactional
@@ -54,8 +59,16 @@ public class ProviderService {
      */
     @Transactional(readOnly = true)
     public List<ProviderResponse> getOfficeProviders(Long officeId) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+        long officeTokensToday = tokenRepository.countValidTokensTodayByOffice(officeId, startOfDay, endOfDay);
+        OfficeProfile office = officeProfileRepository.findById(officeId).orElse(null);
+        int officeDailyMax = office != null ? office.getDailyMaxTokens() : 60;
+        long officeRemaining = Math.max(0, officeDailyMax - officeTokensToday);
+
         return providerRepository.findByOfficeIdOrderByIdAsc(officeId).stream()
-                .map(ProviderResponse::fromEntity)
+                .map(p -> mapProviderResponseWithCapacity(p, startOfDay, endOfDay, officeRemaining))
                 .collect(Collectors.toList());
     }
 
@@ -64,9 +77,32 @@ public class ProviderService {
      */
     @Transactional(readOnly = true)
     public List<ProviderResponse> getPublicActiveOfficeProviders(Long officeId) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+        long officeTokensToday = tokenRepository.countValidTokensTodayByOffice(officeId, startOfDay, endOfDay);
+        OfficeProfile office = officeProfileRepository.findById(officeId).orElse(null);
+        int officeDailyMax = office != null ? office.getDailyMaxTokens() : 60;
+        long officeRemaining = Math.max(0, officeDailyMax - officeTokensToday);
+
         return providerRepository.findByOfficeIdAndActiveTrueOrderByIdAsc(officeId).stream()
-                .map(ProviderResponse::fromEntity)
+                .map(p -> mapProviderResponseWithCapacity(p, startOfDay, endOfDay, officeRemaining))
                 .collect(Collectors.toList());
+    }
+
+    private ProviderResponse mapProviderResponseWithCapacity(Provider p, LocalDateTime startOfDay, LocalDateTime endOfDay, long officeRemaining) {
+        ProviderResponse res = ProviderResponse.fromEntity(p);
+        long providerTodayTokens = tokenRepository.countValidTokensTodayByProvider(p.getId(), startOfDay, endOfDay);
+        res.setTodayTokensCount(providerTodayTokens);
+        if (p.getDailyMaxTokens() != null) {
+            long providerRemaining = Math.max(0, p.getDailyMaxTokens() - providerTodayTokens);
+            res.setRemainingCapacity(Math.min(providerRemaining, officeRemaining));
+            res.setProviderFull(providerTodayTokens >= p.getDailyMaxTokens() || officeRemaining == 0);
+        } else {
+            res.setRemainingCapacity(officeRemaining);
+            res.setProviderFull(officeRemaining == 0);
+        }
+        return res;
     }
 
     /**
@@ -111,6 +147,23 @@ public class ProviderService {
         provider.setEmail(request.getEmail() != null ? request.getEmail().trim() : null);
         provider.setActive(request.getActive() != null ? request.getActive() : true);
 
+        if (request.getDailyMaxTokens() != null) {
+            if (request.getDailyMaxTokens() <= 0) {
+                throw new IllegalArgumentException("Daily max tokens must be a positive integer greater than 0");
+            }
+            if (request.getDailyMaxTokens() > office.getDailyMaxTokens()) {
+                throw new IllegalArgumentException("Provider daily limit (" + request.getDailyMaxTokens()
+                        + ") cannot exceed office daily maximum of " + office.getDailyMaxTokens() + " tokens");
+            }
+            int currentSum = providerRepository.sumDailyMaxTokensByOfficeExcept(officeId, null);
+            if (currentSum + request.getDailyMaxTokens() > office.getDailyMaxTokens()) {
+                int available = Math.max(0, office.getDailyMaxTokens() - currentSum);
+                throw new IllegalArgumentException("Total provider limits cannot exceed office maximum limit of "
+                        + office.getDailyMaxTokens() + " tokens. Remaining available for allocation: " + available + " tokens.");
+            }
+            provider.setDailyMaxTokens(request.getDailyMaxTokens());
+        }
+
         applySchedules(provider, request.getSchedules());
 
         Provider saved = providerRepository.save(provider);
@@ -147,6 +200,24 @@ public class ProviderService {
         provider.setEmail(request.getEmail() != null ? request.getEmail().trim() : null);
         if (request.getActive() != null) {
             provider.setActive(request.getActive());
+        }
+
+        if (request.getDailyMaxTokens() != null) {
+            if (request.getDailyMaxTokens() <= 0) {
+                throw new IllegalArgumentException("Daily max tokens must be a positive integer greater than 0");
+            }
+            OfficeProfile office = provider.getOffice();
+            if (request.getDailyMaxTokens() > office.getDailyMaxTokens()) {
+                throw new IllegalArgumentException("Provider daily limit (" + request.getDailyMaxTokens()
+                        + ") cannot exceed office daily maximum of " + office.getDailyMaxTokens() + " tokens");
+            }
+            int otherSum = providerRepository.sumDailyMaxTokensByOfficeExcept(officeId, providerId);
+            if (otherSum + request.getDailyMaxTokens() > office.getDailyMaxTokens()) {
+                int available = Math.max(0, office.getDailyMaxTokens() - otherSum);
+                throw new IllegalArgumentException("Total provider limits cannot exceed office maximum limit of "
+                        + office.getDailyMaxTokens() + " tokens. Remaining available for allocation: " + available + " tokens.");
+            }
+            provider.setDailyMaxTokens(request.getDailyMaxTokens());
         }
 
         if (request.getSchedules() != null) {
@@ -317,5 +388,140 @@ public class ProviderService {
             list.add(ps);
         }
         provider.setSchedules(list);
+    }
+
+    /**
+     * Get queue settings and daily capacity metrics for authenticated provider.
+     */
+    @Transactional(readOnly = true)
+    public ProviderQueueSettingsResponse getProviderQueueSettings(Long providerId) {
+        Provider provider = providerRepository.findById(providerId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Provider not found"));
+
+        OfficeProfile office = provider.getOffice();
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+
+        long providerTodayTokens = tokenRepository.countValidTokensTodayByProvider(providerId, startOfDay, endOfDay);
+        long officeTodayTokens = tokenRepository.countValidTokensTodayByOffice(office.getId(), startOfDay, endOfDay);
+
+        int officeDailyMax = office.getDailyMaxTokens();
+        Integer providerDailyMax = provider.getDailyMaxTokens();
+        int effectiveProviderLimit = providerDailyMax != null ? providerDailyMax : officeDailyMax;
+
+        long providerRemaining = Math.max(0, effectiveProviderLimit - providerTodayTokens);
+        long officeRemaining = Math.max(0, officeDailyMax - officeTodayTokens);
+        long effectiveRemaining = Math.min(providerRemaining, officeRemaining);
+
+        boolean providerFull = providerDailyMax != null && providerTodayTokens >= providerDailyMax;
+        boolean officeFull = officeTodayTokens >= officeDailyMax;
+
+        return new ProviderQueueSettingsResponse(
+                provider.getId(),
+                provider.getName(),
+                provider.getUsername(),
+                office.getId(),
+                office.getOfficeId(),
+                officeDailyMax,
+                providerDailyMax,
+                providerTodayTokens,
+                officeTodayTokens,
+                providerRemaining,
+                officeRemaining,
+                effectiveRemaining,
+                providerFull,
+                officeFull
+        );
+    }
+
+    /**
+     * Update authenticated provider's daily queue limit.
+     */
+    public ProviderQueueSettingsResponse updateProviderQueueSettings(Long providerId, ProviderQueueSettingsRequest request) {
+        if (request.getDailyMaxTokens() == null || request.getDailyMaxTokens() <= 0) {
+            throw new IllegalArgumentException("Daily maximum token limit must be a positive integer greater than 0");
+        }
+
+        Provider provider = providerRepository.findById(providerId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Provider not found"));
+
+        OfficeProfile office = provider.getOffice();
+        int officeMax = office.getDailyMaxTokens();
+
+        if (request.getDailyMaxTokens() > officeMax) {
+            throw new IllegalArgumentException("Provider daily limit (" + request.getDailyMaxTokens()
+                    + ") cannot exceed office daily maximum of " + officeMax + " tokens");
+        }
+
+        int otherSum = providerRepository.sumDailyMaxTokensByOfficeExcept(office.getId(), providerId);
+        if (otherSum + request.getDailyMaxTokens() > officeMax) {
+            int available = Math.max(0, officeMax - otherSum);
+            throw new IllegalArgumentException("Total provider limits cannot exceed office maximum limit of "
+                    + officeMax + " tokens. Available allocation for this provider: " + available + " tokens.");
+        }
+
+        provider.setDailyMaxTokens(request.getDailyMaxTokens());
+        providerRepository.save(provider);
+
+        return getProviderQueueSettings(providerId);
+    }
+
+    /**
+     * Get queue settings and daily capacity metrics for office owner.
+     */
+    @Transactional(readOnly = true)
+    public OfficeQueueSettingsResponse getOfficeQueueSettings(Long officeId) {
+        OfficeProfile office = officeProfileRepository.findById(officeId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Office not found"));
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+
+        long todayTokens = tokenRepository.countValidTokensTodayByOffice(officeId, startOfDay, endOfDay);
+        int dailyMax = office.getDailyMaxTokens();
+        long remaining = Math.max(0, dailyMax - todayTokens);
+        int allocatedProviderLimits = providerRepository.sumDailyMaxTokensByOfficeExcept(officeId, null);
+        int unallocatedCapacity = Math.max(0, dailyMax - allocatedProviderLimits);
+        boolean isFull = todayTokens >= dailyMax;
+
+        return new OfficeQueueSettingsResponse(
+                office.getId(),
+                office.getOfficeId(),
+                dailyMax,
+                todayTokens,
+                remaining,
+                allocatedProviderLimits,
+                unallocatedCapacity,
+                isFull
+        );
+    }
+
+    /**
+     * Update daily maximum tokens for an office.
+     */
+    public OfficeQueueSettingsResponse updateOfficeQueueSettings(Long officeId, OfficeQueueSettingsRequest request) {
+        if (request.getDailyMaxTokens() == null || request.getDailyMaxTokens() <= 0) {
+            throw new IllegalArgumentException("Daily maximum token limit must be a positive integer greater than 0");
+        }
+
+        OfficeProfile office = officeProfileRepository.findById(officeId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Office not found"));
+
+        int allocatedProviderLimits = providerRepository.sumDailyMaxTokensByOfficeExcept(officeId, null);
+        if (request.getDailyMaxTokens() < allocatedProviderLimits) {
+            throw new IllegalArgumentException("Office daily limit cannot be less than total already allocated provider limits ("
+                    + allocatedProviderLimits + " tokens). Please adjust provider limits first.");
+        }
+
+        office.setDailyMaxTokens(request.getDailyMaxTokens());
+        officeProfileRepository.save(office);
+
+        return getOfficeQueueSettings(officeId);
     }
 }

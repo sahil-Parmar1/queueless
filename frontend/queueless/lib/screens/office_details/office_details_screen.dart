@@ -47,10 +47,31 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
   }
 
   Future<void> _showBookingSheet([int? preselectedProviderId]) async {
+    final dailyMaxTokens = _liveQueue?['dailyMaxTokens'] ?? 60;
+    final isOfficeFull = _liveQueue?['isOfficeFull'] == true;
+    if (isOfficeFull) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Office has reached its daily maximum limit of $dailyMaxTokens tokens. Queue is closed for today.'),
+          backgroundColor: const Color(0xFFEF4444),
+        ),
+      );
+      return;
+    }
+
     final user = await _officeService.getCurrentUser();
     final nameController = TextEditingController(text: user?['name'] ?? '');
     final phoneController = TextEditingController();
-    int? selectedProviderId = preselectedProviderId;
+
+    // Reset preselected provider if that provider is marked full or off duty
+    final preselectedProvider = _providers.firstWhere(
+      (p) => p['id'] == preselectedProviderId,
+      orElse: () => null,
+    );
+    int? selectedProviderId = (preselectedProvider != null &&
+            (preselectedProvider['providerFull'] == true || preselectedProvider['availableNow'] == false))
+        ? null
+        : preselectedProviderId;
 
     if (!mounted) return;
 
@@ -122,11 +143,26 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                         ..._providers.map((p) {
                           final name = p['name'] ?? 'Provider';
                           final desig = p['designation'] != null ? ' (${p['designation']})' : '';
+                          final isFull = p['providerFull'] == true;
+                          final isAvailable = p['availableNow'] == true;
+                          final bool canSelect = !isFull && isAvailable;
+                          String statusSuffix = '';
+                          if (!isAvailable) {
+                            statusSuffix = ' - Off duty';
+                          } else if (isFull) {
+                            statusSuffix = ' - Limit reached';
+                          } else if (p['dailyMaxTokens'] != null) {
+                            statusSuffix = ' (${p['remainingCapacity']} left)';
+                          }
                           return DropdownMenuItem<int?>(
                             value: p['id'] as int?,
+                            enabled: canSelect,
                             child: Text(
-                              '$name$desig',
-                              style: const TextStyle(fontSize: 14),
+                              '$name$desig$statusSuffix',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: canSelect ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+                              ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           );
@@ -289,6 +325,11 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
     final activeToken = _liveQueue?['activeToken'] ?? _officeDetails?['activeToken'];
     final estWait = waitingCount * 12;
 
+    final int dailyMaxTokens = _liveQueue?['dailyMaxTokens'] ?? 60;
+    final int todayTokensCount = _liveQueue?['todayTokensCount'] ?? 0;
+    final int remainingCapacity = _liveQueue?['remainingCapacity'] ?? (dailyMaxTokens - todayTokensCount);
+    final bool isOfficeFull = _liveQueue?['isOfficeFull'] == true || remainingCapacity <= 0;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -318,20 +359,22 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
         ),
         child: SafeArea(
           child: ElevatedButton.icon(
-            onPressed: _booking ? null : _showBookingSheet,
+            onPressed: (_booking || isOfficeFull) ? null : _showBookingSheet,
             icon: _booking
                 ? const SizedBox(
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
-                : const Icon(Icons.confirmation_number_rounded),
+                : Icon(isOfficeFull ? Icons.block_rounded : Icons.confirmation_number_rounded),
             label: Text(
-              _booking ? 'Booking...' : 'Join Queue / Book Token',
+              _booking
+                  ? 'Booking...'
+                  : (isOfficeFull ? 'Daily Limit Reached (Queue Closed)' : 'Join Queue / Book Token'),
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4F46E5),
+              backgroundColor: isOfficeFull ? const Color(0xFF94A3B8) : const Color(0xFF4F46E5),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -416,6 +459,36 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
             ),
             const SizedBox(height: 20),
 
+            // Office Full Warning Banner (TASK 1)
+            if (isOfficeFull) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFFCA5A5)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, color: Color(0xFFEF4444), size: 22),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'This office has reached its maximum daily limit of $dailyMaxTokens tokens. New queue tokens are blocked for today.',
+                        style: const TextStyle(
+                          color: Color(0xFF991B1B),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // Live Queue Status Box
             const Text(
               'Live Queue Overview',
@@ -427,7 +500,9 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(
+                  color: isOfficeFull ? const Color(0xFFFCA5A5) : const Color(0xFFE2E8F0),
+                ),
               ),
               child: Column(
                 children: [
@@ -473,6 +548,29 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                       Text(
                         'Estimated wait time: ~${estWait > 0 ? estWait : 5} minutes',
                         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Icon(
+                        isOfficeFull ? Icons.warning_amber_rounded : Icons.offline_pin_outlined,
+                        color: isOfficeFull ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          isOfficeFull
+                              ? 'Daily capacity reached ($todayTokensCount/$dailyMaxTokens tokens generated today)'
+                              : 'Daily capacity: $remainingCapacity of $dailyMaxTokens tokens remaining today',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isOfficeFull ? const Color(0xFFEF4444) : const Color(0xFF0F766E),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -598,6 +696,20 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
     final desig = p['designation'] ?? 'Specialist';
     final bool availableNow = p['availableNow'] ?? false;
     final todayHours = p['todayWorkingHours'] ?? 'Today: Off';
+    final bool isProviderFull = p['providerFull'] == true;
+    final int? dailyLimit = p['dailyMaxTokens'] as int?;
+    final remainingCapacity = p['remainingCapacity'];
+
+    String capacityText = '';
+    if (dailyLimit != null) {
+      if (isProviderFull) {
+        capacityText = 'Daily limit reached (Full)';
+      } else {
+        capacityText = 'Capacity: $remainingCapacity / $dailyLimit left today';
+      }
+    }
+
+    final bool canBook = availableNow && !isProviderFull;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -605,7 +717,9 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isProviderFull ? const Color(0xFFFCA5A5) : const Color(0xFFE2E8F0),
+        ),
       ),
       child: Row(
         children: [
@@ -628,30 +742,49 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                 Text(desig, style: const TextStyle(fontSize: 12, color: Color(0xFF4F46E5), fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
                 Text(todayHours, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                if (capacityText.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    capacityText,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isProviderFull ? const Color(0xFFEF4444) : const Color(0xFF0F766E),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           InkWell(
-            onTap: () => _showBookingSheet(id),
+            onTap: canBook ? () => _showBookingSheet(id) : null,
             borderRadius: BorderRadius.circular(8),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: availableNow ? const Color(0xFF10B981).withValues(alpha: 0.1) : const Color(0xFF94A3B8).withValues(alpha: 0.1),
+                color: canBook
+                    ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                    : (isProviderFull
+                        ? const Color(0xFFEF4444).withValues(alpha: 0.1)
+                        : const Color(0xFF94A3B8).withValues(alpha: 0.1)),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    availableNow ? 'Book' : 'Off duty',
+                    canBook
+                        ? 'Book'
+                        : (isProviderFull ? 'Full' : 'Off duty'),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: availableNow ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                      color: canBook
+                          ? const Color(0xFF10B981)
+                          : (isProviderFull ? const Color(0xFFEF4444) : const Color(0xFF64748B)),
                     ),
                   ),
-                  if (availableNow) ...[
+                  if (canBook) ...[
                     const SizedBox(width: 4),
                     const Icon(Icons.arrow_forward_rounded, size: 12, color: Color(0xFF10B981)),
                   ],

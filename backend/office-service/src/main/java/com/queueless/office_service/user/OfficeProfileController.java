@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,14 +22,17 @@ public class OfficeProfileController {
     private final OfficeProfileRepository profileRepository;
     private final UserRepository userRepository;
     private final FileStorageService fileStorageService;
+    private final com.queueless.office_service.provider.ProviderService providerService;
 
     public OfficeProfileController(
             OfficeProfileRepository profileRepository,
             UserRepository userRepository,
-            FileStorageService fileStorageService) {
+            FileStorageService fileStorageService,
+            com.queueless.office_service.provider.ProviderService providerService) {
         this.profileRepository = profileRepository;
         this.userRepository = userRepository;
         this.fileStorageService = fileStorageService;
+        this.providerService = providerService;
     }
 
     @GetMapping("/profile")
@@ -69,6 +73,40 @@ public class OfficeProfileController {
                     "profile", profile,
                     "officeId", profile.getOfficeId() != null ? profile.getOfficeId() : (user.getOfficeId() != null ? user.getOfficeId() : "")
         ));
+    }
+
+    @GetMapping("/settings/queue")
+    public ResponseEntity<?> getOfficeQueueSettings(Authentication authentication) {
+        User user = resolveAuthenticatedUser(authentication);
+        OfficeProfile profile = profileRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Office profile not found"));
+        return ResponseEntity.ok(providerService.getOfficeQueueSettings(profile.getId()));
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/settings/queue")
+    public ResponseEntity<?> updateOfficeQueueSettings(
+            @RequestBody com.queueless.office_service.user.dto.OfficeQueueSettingsRequest request,
+            Authentication authentication) {
+        User user = resolveAuthenticatedUser(authentication);
+        OfficeProfile profile = profileRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Office profile not found"));
+        try {
+            return ResponseEntity.ok(providerService.updateOfficeQueueSettings(profile.getId(), request));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
+        }
+    }
+
+    private User resolveAuthenticatedUser(Authentication authentication) {
+        if (authentication.getPrincipal() instanceof User u) {
+            return u;
+        }
+        String email = authentication.getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.UNAUTHORIZED, "User not found: " + email));
     }
 
     @PostMapping(value = "/onboarding", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

@@ -35,4 +35,26 @@ public class ProviderPortalController {
         ProviderResponse response = providerService.getCurrentProviderDetails(provider.getId());
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/api/provider/settings/queue")
+    public ResponseEntity<?> getQueueSettings(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof Provider provider)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized provider access"));
+        }
+        return ResponseEntity.ok(providerService.getProviderQueueSettings(provider.getId()));
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/api/provider/settings/queue")
+    public ResponseEntity<?> updateQueueSettings(
+            @RequestBody com.queueless.office_service.provider.dto.ProviderQueueSettingsRequest request,
+            Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof Provider provider)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized provider access"));
+        }
+        try {
+            return ResponseEntity.ok(providerService.updateProviderQueueSettings(provider.getId(), request));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
+        }
+    }
 }

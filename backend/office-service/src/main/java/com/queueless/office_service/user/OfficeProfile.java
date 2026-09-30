@@ -64,6 +64,9 @@ public class OfficeProfile {
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Column(name = "daily_max_tokens", nullable = false)
+    private Integer dailyMaxTokens = 60;
+
     // Getters and Setters...
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -108,4 +111,6 @@ public class OfficeProfile {
     public void setDocuments(List<OfficeDocument> documents) { this.documents = documents; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public Integer getDailyMaxTokens() { return dailyMaxTokens != null ? dailyMaxTokens : 60; }
+    public void setDailyMaxTokens(Integer dailyMaxTokens) { this.dailyMaxTokens = dailyMaxTokens; }
 }

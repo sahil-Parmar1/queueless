@@ -44,4 +44,7 @@ public interface OfficeProfileRepository extends JpaRepository<OfficeProfile, Lo
             @Param("city") String city,
             @Param("status") VerificationStatus status
     );
+
+    @Query(value = "SELECT * FROM office_profiles WHERE id = :id FOR UPDATE", nativeQuery = true)
+    Optional<OfficeProfile> findByIdForUpdate(@Param("id") Long id);
 }

@@ -32,6 +32,20 @@ public class QueueController {
             @RequestBody Map<String, Object> body,
             Authentication authentication) {
 
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).body(Map.of(
+                    "error", "Authentication required",
+                    "message", "You must be logged in to generate a queue token."
+            ));
+        }
+
+        if (body.get("officeId") == null || body.get("officeId").toString().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Office ID is required",
+                    "message", "Office ID is required"
+            ));
+        }
+
         Long officeId = Long.valueOf(body.get("officeId").toString());
         Long providerId = body.get("providerId") != null && !body.get("providerId").toString().isBlank()
                 ? Long.valueOf(body.get("providerId").toString())
@@ -41,11 +55,11 @@ public class QueueController {
         String customerEmail = body.get("customerEmail") != null ? body.get("customerEmail").toString() : null;
         Long customerId = null;
 
-        if (authentication != null && authentication.getPrincipal() instanceof User user) {
+        if (authentication.getPrincipal() instanceof User user) {
             customerId = user.getId();
             if (customerName == null || customerName.isBlank()) customerName = user.getName();
             if (customerEmail == null || customerEmail.isBlank()) customerEmail = user.getEmail();
-        } else if (authentication != null && authentication.getName() != null) {
+        } else if (authentication.getName() != null) {
             if (customerEmail == null || customerEmail.isBlank()) customerEmail = authentication.getName();
         }
 

@@ -56,6 +56,9 @@ public class Provider {
     @Column(nullable = false)
     private Boolean active = true;
 
+    @Column(name = "daily_max_tokens")
+    private Integer dailyMaxTokens;
+
     @OneToMany(mappedBy = "provider", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProviderSchedule> schedules = new ArrayList<>();
 
@@ -177,5 +180,13 @@ public class Provider {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public Integer getDailyMaxTokens() {
+        return dailyMaxTokens;
+    }
+
+    public void setDailyMaxTokens(Integer dailyMaxTokens) {
+        this.dailyMaxTokens = dailyMaxTokens;
     }
 }

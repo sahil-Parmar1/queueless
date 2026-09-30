@@ -62,9 +62,22 @@ public class QueueService {
             String customerPhone,
             String customerEmail) {
 
-        OfficeProfile office = officeProfileRepository.findById(officeId)
-                .orElseThrow(() -> new RuntimeException("Office not found with id: " + officeId));
+        // 1. Acquire pessimistic write lock on the office row to serialize all token generation requests for this office
+        OfficeProfile office = officeProfileRepository.findByIdForUpdate(officeId)
+                .orElseThrow(() -> new IllegalArgumentException("Office not found with id: " + officeId));
 
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+
+        // 2. Enforce Office Daily Maximum Token Limit
+        long officeTokensToday = tokenRepository.countValidTokensTodayByOffice(officeId, startOfDay, endOfDay);
+        int officeDailyMax = office.getDailyMaxTokens();
+        if (officeTokensToday >= officeDailyMax) {
+            throw new IllegalStateException("Office has reached its daily maximum limit of " + officeDailyMax + " tokens for today.");
+        }
+
+        // 3. Provider validation and Provider Daily Maximum Limit
         Provider provider = null;
         if (providerId != null) {
             provider = providerRepository.findByIdAndOfficeId(providerId, officeId)
@@ -73,9 +86,16 @@ public class QueueService {
             if (!providerService.isProviderAvailableNow(provider)) {
                 throw new IllegalStateException("Provider is currently unavailable");
             }
+
+            if (provider.getDailyMaxTokens() != null) {
+                long providerTokensToday = tokenRepository.countValidTokensTodayByProvider(providerId, startOfDay, endOfDay);
+                int providerDailyMax = provider.getDailyMaxTokens();
+                if (providerTokensToday >= providerDailyMax) {
+                    throw new IllegalStateException("Provider " + provider.getName() + " has reached their daily maximum limit of " + providerDailyMax + " tokens for today.");
+                }
+            }
         }
 
-        LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
         Integer maxSeq = tokenRepository.findMaxSequenceNumberToday(officeId, startOfDay);
         int nextSeq = (maxSeq == null ? 0 : maxSeq) + 1;
 
@@ -164,6 +184,11 @@ public class QueueService {
             ));
         }
 
+        int dailyMaxTokens = office.getDailyMaxTokens();
+        long todayTokensCount = tokenRepository.countValidTokensTodayByOffice(officeId, startOfDay, endOfDay);
+        long remainingCapacity = Math.max(0, dailyMaxTokens - todayTokensCount);
+        boolean isOfficeFull = todayTokensCount >= dailyMaxTokens;
+
         Map<String, Object> response = new HashMap<>();
         response.put("officeId", office.getId());
         response.put("officeName", office.getUser() != null ? office.getUser().getName() : "Office");
@@ -176,6 +201,10 @@ public class QueueService {
         response.put("nextTokens", nextTokens);
         response.put("openingTime", office.getOpeningTime());
         response.put("closingTime", office.getClosingTime());
+        response.put("dailyMaxTokens", dailyMaxTokens);
+        response.put("todayTokensCount", todayTokensCount);
+        response.put("remainingCapacity", remainingCapacity);
+        response.put("isOfficeFull", isOfficeFull);
 
         return response;
     }

@@ -19,14 +19,126 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   Map<String, dynamic>? _providerData;
   String? _officeId;
 
+  // Provider Queue Settings state
+  Map<String, dynamic>? _queueSettings;
+  bool _savingLimit = false;
+  final TextEditingController _providerLimitController = TextEditingController();
+
   String get _backendUrl => kIsWeb
       ? 'http://localhost:8080/api/provider/me'
       : 'http://10.0.2.2:8080/api/provider/me';
+
+  String get _queueSettingsUrl => kIsWeb
+      ? 'http://localhost:8080/api/provider/settings/queue'
+      : 'http://10.0.2.2:8080/api/provider/settings/queue';
 
   @override
   void initState() {
     super.initState();
     _loadProviderProfile();
+  }
+
+  @override
+  void dispose() {
+    _providerLimitController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadQueueSettings() async {
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      if (token == null) return;
+      final response = await http.get(
+        Uri.parse(_queueSettingsUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _queueSettings = data;
+            final limit = data['providerDailyMaxTokens'] ?? data['providerDailyMax'];
+            if (_providerLimitController.text.isEmpty && limit != null) {
+              _providerLimitController.text = limit.toString();
+            }
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading provider queue settings: $e');
+    }
+  }
+
+  Future<void> _updateProviderLimit() async {
+    final text = _providerLimitController.text.trim();
+    final parsed = int.tryParse(text);
+    if (parsed == null || parsed <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid positive integer limit.'),
+          backgroundColor: Color(0xFFEF4444),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _savingLimit = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.put(
+        Uri.parse(_queueSettingsUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'dailyMaxTokens': parsed}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final updatedLimit = data['providerDailyMaxTokens'] ?? data['providerDailyMax'] ?? parsed;
+        if (mounted) {
+          setState(() {
+            _queueSettings = data;
+            _providerLimitController.text = updatedLimit.toString();
+            _savingLimit = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Daily token limit updated to $updatedLimit tokens!'),
+              backgroundColor: const Color(0xFF10B981),
+            ),
+          );
+        }
+        await _loadProviderProfile();
+      } else {
+        String msg = 'Failed to update provider limit.';
+        try {
+          final err = jsonDecode(response.body);
+          if (err['message'] != null) {
+            msg = err['message'];
+          } else if (err['error'] != null) {
+            msg = err['error'];
+          }
+        } catch (_) {}
+        if (mounted) {
+          setState(() => _savingLimit = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(msg), backgroundColor: const Color(0xFFEF4444)),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _savingLimit = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Network error: $e'), backgroundColor: const Color(0xFFEF4444)),
+        );
+      }
+    }
   }
 
   Future<void> _loadProviderProfile() async {
@@ -68,6 +180,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           if (_officeId != null) {
             await _storage.write(key: 'office_id', value: _officeId!);
           }
+          await _loadQueueSettings();
         } else if (response.statusCode == 401 || response.statusCode == 403) {
           _handleLogout(forced: true, message: 'Session expired or account deactivated.');
           return;
@@ -201,7 +314,10 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
               child: CircularProgressIndicator(color: Color(0xFF0284C7)),
             )
           : RefreshIndicator(
-              onRefresh: _loadProviderProfile,
+              onRefresh: () async {
+                await _loadProviderProfile();
+                await _loadQueueSettings();
+              },
               color: const Color(0xFF0284C7),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -370,6 +486,10 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 20),
+
+                        // Section: Daily Token & Queue Limit (TASK 2)
+                        _buildQueueLimitCard(),
                         const SizedBox(height: 20),
 
                         // Section 1: Assigned Schedule & Availability
@@ -569,6 +689,239 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
         ),
       ],
+    );
+  }
+
+  Widget _buildQueueLimitCard() {
+    final officeMax = _queueSettings?['officeDailyMaxTokens'] ??
+        _queueSettings?['officeDailyMax'] ??
+        60;
+    final providerMax = _queueSettings?['providerDailyMaxTokens'] ??
+        _queueSettings?['providerDailyMax'] ??
+        _providerData?['dailyMaxTokens'];
+    final providerToday = _queueSettings?['providerTodayTokensCount'] ??
+        _queueSettings?['providerTodayTokens'] ??
+        0;
+    final officeToday = _queueSettings?['officeTodayTokensCount'] ??
+        _queueSettings?['officeTodayTokens'] ??
+        0;
+    final remaining = _queueSettings?['effectiveRemainingCapacity'] ??
+        _queueSettings?['effectiveRemaining'] ??
+        (providerMax != null ? (providerMax - providerToday) : (officeMax - officeToday));
+    final providerFull = _queueSettings?['providerFull'] ?? false;
+    final officeFull = _queueSettings?['officeFull'] ?? false;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: (providerFull || officeFull) ? const Color(0xFFFCA5A5) : const Color(0xFFE2E8F0),
+          width: (providerFull || officeFull) ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0284C7).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.confirmation_number_rounded, color: Color(0xFF0284C7), size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Queue & Token Limit',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (providerFull || officeFull)
+                      ? const Color(0xFFEF4444).withValues(alpha: 0.1)
+                      : const Color(0xFF10B981).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  providerFull
+                      ? 'Limit Reached'
+                      : (officeFull ? 'Office Full' : 'Available'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: (providerFull || officeFull) ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 14),
+
+          // Overview stats
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Your Daily Limit', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 2),
+                          Text(
+                            providerMax != null ? '$providerMax tokens' : 'Not set (Office max: $officeMax)',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(width: 1, height: 32, color: const Color(0xFFCBD5E1)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Your Tokens Today', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 2),
+                          Text(
+                            '$providerToday tokens',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0284C7)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Office Daily Max', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 2),
+                          Text(
+                            '$officeMax tokens',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(width: 1, height: 32, color: const Color(0xFFCBD5E1)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Your Remaining Today', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 2),
+                          Text(
+                            '$remaining tokens',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: (providerFull || officeFull) ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Edit Limit Field
+          const Text(
+            'Configure Your Daily Max Token Limit',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _providerLimitController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(
+                    hintText: 'e.g. 20',
+                    prefixIcon: const Icon(Icons.pin_outlined, size: 20),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed: _savingLimit ? null : _updateProviderLimit,
+                icon: _savingLimit
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.check_rounded, size: 18),
+                label: Text(_savingLimit ? 'Saving...' : 'Save Limit'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0284C7),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Cannot exceed office maximum of $officeMax tokens. Sum of all providers cannot exceed office limit.',
+            style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), height: 1.3),
+          ),
+        ],
+      ),
     );
   }
 }

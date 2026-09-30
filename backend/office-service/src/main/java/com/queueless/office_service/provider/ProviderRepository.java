@@ -22,4 +22,7 @@ public interface ProviderRepository extends JpaRepository<Provider, Long> {
     boolean existsByOfficeIdAndUsernameIgnoreCase(Long officeId, String username);
 
     Optional<Provider> findByOfficeOfficeIdAndUsernameIgnoreCase(String officeId, String username);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(p.dailyMaxTokens), 0) FROM Provider p WHERE p.office.id = :officeId AND p.active = true AND (:excludeProviderId IS NULL OR p.id != :excludeProviderId) AND p.dailyMaxTokens IS NOT NULL")
+    Integer sumDailyMaxTokensByOfficeExcept(@org.springframework.data.repository.query.Param("officeId") Long officeId, @org.springframework.data.repository.query.Param("excludeProviderId") Long excludeProviderId);
 }

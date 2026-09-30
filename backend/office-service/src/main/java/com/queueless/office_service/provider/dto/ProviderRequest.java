@@ -12,6 +12,7 @@ public class ProviderRequest {
     private String contactNumber;
     private String email;
     private Boolean active = true;
+    private Integer dailyMaxTokens;
     private List<ProviderScheduleDto> schedules = new ArrayList<>();
 
     public String getUsername() {
@@ -76,5 +77,13 @@ public class ProviderRequest {
 
     public void setSchedules(List<ProviderScheduleDto> schedules) {
         this.schedules = schedules;
+    }
+
+    public Integer getDailyMaxTokens() {
+        return dailyMaxTokens;
+    }
+
+    public void setDailyMaxTokens(Integer dailyMaxTokens) {
+        this.dailyMaxTokens = dailyMaxTokens;
     }
 }

@@ -47,4 +47,10 @@ public interface QueueTokenRepository extends JpaRepository<QueueToken, Long> {
     @org.springframework.data.jpa.repository.Modifying
     @Query("UPDATE QueueToken t SET t.provider = null WHERE t.provider.id = :providerId")
     void detachProvider(@Param("providerId") Long providerId);
+
+    @Query("SELECT COUNT(t) FROM QueueToken t WHERE t.office.id = :officeId AND t.bookedAt >= :startOfDay AND t.bookedAt <= :endOfDay AND t.status != 'CANCELLED'")
+    long countValidTokensTodayByOffice(@Param("officeId") Long officeId, @Param("startOfDay") LocalDateTime startOfDay, @Param("endOfDay") LocalDateTime endOfDay);
+
+    @Query("SELECT COUNT(t) FROM QueueToken t WHERE t.provider.id = :providerId AND t.bookedAt >= :startOfDay AND t.bookedAt <= :endOfDay AND t.status != 'CANCELLED'")
+    long countValidTokensTodayByProvider(@Param("providerId") Long providerId, @Param("startOfDay") LocalDateTime startOfDay, @Param("endOfDay") LocalDateTime endOfDay);
 }
