@@ -589,10 +589,21 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                         ),
                       ],
                       if (address.isNotEmpty || city.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          [address, city].where((e) => e.toString().isNotEmpty).join(', '),
-                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.location_on_outlined, color: Colors.white70, size: 13),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                [address, city].where((e) => e.toString().isNotEmpty).join(', '),
+                                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ],

@@ -24,9 +24,13 @@ class QueueNotificationService with WidgetsBindingObserver {
   bool _alertedTwoAhead = false;
   bool _alertedTurnArrived = false;
 
-  static const String _channelId = 'queueless_queue_alerts';
-  static const String _channelName = 'Queue & Turn Alerts';
-  static const String _channelDescription = 'Alerts when your turn is near or called in queue';
+  static const String _turnChannelId = 'queueless_turn_alerts_custom_sound';
+  static const String _turnChannelName = 'Customer Turn Arrived Alerts';
+  static const String _turnChannelDescription = 'Plays custom voice alert when your turn arrives in queue';
+
+  static const String _proximityChannelId = 'queueless_proximity_alerts_custom_sound';
+  static const String _proximityChannelName = 'Queue Proximity Alerts';
+  static const String _proximityChannelDescription = 'Plays voice alert when you are almost next in queue';
 
   /// Initialize the notification plugin, channel, permissions, and app lifecycle observer
   Future<void> initialize() async {
@@ -46,15 +50,28 @@ class QueueNotificationService with WidgetsBindingObserver {
       if (androidImpl != null) {
         await androidImpl.requestNotificationsPermission();
 
-        const androidChannel = AndroidNotificationChannel(
-          _channelId,
-          _channelName,
-          description: _channelDescription,
+        const turnChannel = AndroidNotificationChannel(
+          _turnChannelId,
+          _turnChannelName,
+          description: _turnChannelDescription,
           importance: Importance.max,
-          enableVibration: true,
+          sound: RawResourceAndroidNotificationSound('its_your_turn'),
           playSound: true,
+          enableVibration: true,
         );
-        await androidImpl.createNotificationChannel(androidChannel);
+
+        const proximityChannel = AndroidNotificationChannel(
+          _proximityChannelId,
+          _proximityChannelName,
+          description: _proximityChannelDescription,
+          importance: Importance.high,
+          sound: RawResourceAndroidNotificationSound('next_will_be_you'),
+          playSound: true,
+          enableVibration: true,
+        );
+
+        await androidImpl.createNotificationChannel(turnChannel);
+        await androidImpl.createNotificationChannel(proximityChannel);
       }
     } catch (e) {
       debugPrint('Local notifications initialization error (may run in fallback): $e');
@@ -212,20 +229,26 @@ class QueueNotificationService with WidgetsBindingObserver {
     bool urgent = false,
   }) async {
     try {
+      final channelId = urgent ? _turnChannelId : _proximityChannelId;
+      final channelName = urgent ? _turnChannelName : _proximityChannelName;
+      final channelDesc = urgent ? _turnChannelDescription : _proximityChannelDescription;
+      final soundName = urgent ? 'its_your_turn' : 'next_will_be_you';
+
       final androidDetails = AndroidNotificationDetails(
-        _channelId,
-        _channelName,
-        channelDescription: _channelDescription,
+        channelId,
+        channelName,
+        channelDescription: channelDesc,
         importance: urgent ? Importance.max : Importance.high,
         priority: urgent ? Priority.max : Priority.high,
+        sound: RawResourceAndroidNotificationSound(soundName),
+        playSound: true,
+        enableVibration: true,
         category: urgent ? AndroidNotificationCategory.call : AndroidNotificationCategory.reminder,
         visibility: NotificationVisibility.public,
-        enableVibration: true,
-        playSound: true,
         styleInformation: BigTextStyleInformation(
           body,
           contentTitle: title,
-          summaryText: 'QueueLess Live Update',
+          summaryText: 'QueueLess Live Notification',
         ),
       );
 
