@@ -61,6 +61,22 @@ public class ProviderPortalController {
         }
     }
 
+    @org.springframework.web.bind.annotation.PutMapping("/api/provider/duty-status")
+    public ResponseEntity<?> updateDutyStatus(
+            @RequestBody Map<String, Object> request,
+            Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof Provider provider)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized provider access"));
+        }
+        Object dutyVal = request.get("onDuty");
+        if (dutyVal == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Missing required field: onDuty"));
+        }
+        boolean onDuty = Boolean.parseBoolean(dutyVal.toString());
+        ProviderResponse response = providerService.updateDutyStatus(provider.getId(), onDuty);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/api/provider/queue/live")
     public ResponseEntity<?> getProviderLiveQueue(Authentication authentication) {
         if (authentication == null || !(authentication.getPrincipal() instanceof Provider provider)) {

@@ -56,6 +56,9 @@ public class Provider {
     @Column(nullable = false)
     private Boolean active = true;
 
+    @Column(name = "on_duty", nullable = false)
+    private Boolean onDuty = true;
+
     @Column(name = "daily_max_tokens")
     private Integer dailyMaxTokens;
 
@@ -78,6 +81,9 @@ public class Provider {
         }
         if (active == null) {
             active = true;
+        }
+        if (onDuty == null) {
+            onDuty = true;
         }
     }
 
@@ -188,5 +194,13 @@ public class Provider {
 
     public void setDailyMaxTokens(Integer dailyMaxTokens) {
         this.dailyMaxTokens = dailyMaxTokens;
+    }
+
+    public Boolean getOnDuty() {
+        return onDuty;
+    }
+
+    public void setOnDuty(Boolean onDuty) {
+        this.onDuty = onDuty;
     }
 }

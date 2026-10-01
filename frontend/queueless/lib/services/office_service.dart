@@ -174,6 +174,7 @@ class OfficeService {
           'data': jsonDecode(response.body),
         };
       } else {
+        bool isAuthError = response.statusCode == 401;
         String msg = 'Booking failed with status ${response.statusCode}';
         try {
           final errBody = jsonDecode(response.body);
@@ -183,8 +184,14 @@ class OfficeService {
             msg = errBody['message'];
           }
         } catch (_) {}
+        if (msg.toLowerCase().contains('authentication') ||
+            msg.toLowerCase().contains('logged in') ||
+            response.statusCode == 401) {
+          isAuthError = true;
+        }
         return {
           'success': false,
+          'isAuthError': isAuthError,
           'errorMessage': msg,
         };
       }

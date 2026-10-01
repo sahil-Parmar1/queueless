@@ -285,9 +285,42 @@ class CustomerAuthService {
     return null;
   }
 
+  bool isTokenExpired(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return true;
+
+      String payloadB64 = parts[1];
+      int padLen = (4 - (payloadB64.length % 4)) % 4;
+      payloadB64 += '=' * padLen;
+
+      final payloadStr = utf8.decode(base64Url.decode(payloadB64));
+      final Map<String, dynamic> payload = jsonDecode(payloadStr);
+
+      if (payload.containsKey('exp')) {
+        final exp = payload['exp'];
+        final int expSeconds = (exp is num) ? exp.toInt() : int.parse(exp.toString());
+        final expiryDate = DateTime.fromMillisecondsSinceEpoch(expSeconds * 1000);
+        return DateTime.now().isAfter(expiryDate.subtract(const Duration(seconds: 30)));
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error inspecting token expiration: $e');
+      return true;
+    }
+  }
+
   Future<bool> isLoggedIn() async {
     final token = await getToken();
-    return token != null && token.isNotEmpty;
+    if (token == null || token.trim().isEmpty) {
+      return false;
+    }
+    if (isTokenExpired(token)) {
+      debugPrint('Session expired: JWT token is expired. Clearing session.');
+      await logout();
+      return false;
+    }
+    return true;
   }
 
   Future<void> logout() async {

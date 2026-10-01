@@ -26,6 +26,7 @@ public class ProviderResponse {
     private String contactNumber;
     private String email;
     private Boolean active;
+    private Boolean onDuty;
     private List<ProviderScheduleDto> schedules = new ArrayList<>();
     private boolean availableNow;
     private String todayWorkingHours;
@@ -53,6 +54,7 @@ public class ProviderResponse {
         res.setContactNumber(provider.getContactNumber());
         res.setEmail(provider.getEmail());
         res.setActive(provider.getActive());
+        res.setOnDuty(provider.getOnDuty() != null ? provider.getOnDuty() : true);
         res.setDailyMaxTokens(provider.getDailyMaxTokens());
         res.setCreatedAt(provider.getCreatedAt());
         res.setUpdatedAt(provider.getUpdatedAt());
@@ -80,7 +82,7 @@ public class ProviderResponse {
 
         boolean isWorkingToday = todaySchedule != null;
         boolean withinHours = isWorkingToday && !now.isBefore(todaySchedule.getStartTime()) && !now.isAfter(todaySchedule.getEndTime());
-        res.setAvailableNow(Boolean.TRUE.equals(provider.getActive()) && withinHours);
+        res.setAvailableNow(Boolean.TRUE.equals(provider.getActive()) && Boolean.TRUE.equals(res.getOnDuty()) && withinHours);
 
         if (todaySchedule != null) {
             res.setTodayWorkingHours(todaySchedule.getStartTime().toString().substring(0, 5) + " - " + todaySchedule.getEndTime().toString().substring(0, 5));
@@ -258,5 +260,13 @@ public class ProviderResponse {
 
     public void setProviderFull(Boolean providerFull) {
         this.providerFull = providerFull;
+    }
+
+    public Boolean getOnDuty() {
+        return onDuty;
+    }
+
+    public void setOnDuty(Boolean onDuty) {
+        this.onDuty = onDuty;
     }
 }

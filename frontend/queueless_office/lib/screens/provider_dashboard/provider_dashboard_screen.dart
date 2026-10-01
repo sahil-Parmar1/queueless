@@ -20,6 +20,10 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   Map<String, dynamic>? _providerData;
   String? _officeId;
 
+  // Provider Duty Status state
+  bool _isOnDuty = true;
+  bool _togglingDuty = false;
+
   // Provider Queue Settings state
   Map<String, dynamic>? _queueSettings;
   bool _savingLimit = false;
@@ -33,6 +37,10 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   String get _backendUrl => kIsWeb
       ? 'http://localhost:8080/api/provider/me'
       : 'http://10.0.2.2:8080/api/provider/me';
+
+  String get _providerDutyStatusUrl => kIsWeb
+      ? 'http://localhost:8080/api/provider/duty-status'
+      : 'http://10.0.2.2:8080/api/provider/duty-status';
 
   String get _queueSettingsUrl => kIsWeb
       ? 'http://localhost:8080/api/provider/settings/queue'
@@ -370,6 +378,9 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
       if (cachedProvider != null) {
         try {
           _providerData = jsonDecode(cachedProvider);
+          if (_providerData?['onDuty'] != null) {
+            _isOnDuty = _providerData!['onDuty'] == true;
+          }
         } catch (_) {}
       }
 
@@ -386,6 +397,9 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           final data = jsonDecode(response.body);
           setState(() {
             _providerData = data;
+            if (data['onDuty'] != null) {
+              _isOnDuty = data['onDuty'] == true;
+            }
             if (data['officeCode'] != null) {
               _officeId = data['officeCode'];
             }
@@ -405,6 +419,72 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
       debugPrint('Error loading provider profile: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _updateDutyStatus(bool newStatus) async {
+    if (_togglingDuty) return;
+    setState(() {
+      _togglingDuty = true;
+      _isOnDuty = newStatus;
+    });
+
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.put(
+        Uri.parse(_providerDutyStatusUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'onDuty': newStatus}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final bool confirmedStatus = data['onDuty'] ?? newStatus;
+        if (mounted) {
+          setState(() {
+            _isOnDuty = confirmedStatus;
+            _providerData?['onDuty'] = confirmedStatus;
+            _togglingDuty = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(
+                    _isOnDuty ? Icons.check_circle_rounded : Icons.pause_circle_outline_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(_isOnDuty ? 'You are now ON DUTY' : 'You are now OFF DUTY'),
+                ],
+              ),
+              backgroundColor: _isOnDuty ? const Color(0xFF10B981) : const Color(0xFF64748B),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        throw Exception('Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isOnDuty = !newStatus; // revert on failure
+          _togglingDuty = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update duty status: $e'),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -475,49 +555,121 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        titleSpacing: 20,
+        titleSpacing: 12,
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: const Color(0xFF0284C7).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.badge_rounded, color: Color(0xFF0284C7), size: 22),
+              child: const Icon(Icons.badge_rounded, color: Color(0xFF0284C7), size: 20),
             ),
-            const SizedBox(width: 12),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Provider Portal',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Provider Portal',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
-                ),
-                Text(
-                  'Queueless Office Suite',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
-                ),
-              ],
+                  Text(
+                    'Queueless Suite',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
         actions: [
+          // ON DUTY / OFF DUTY Switch
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(right: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: _isOnDuty
+                    ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                    : const Color(0xFF64748B).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _isOnDuty ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                  width: 1.2,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _isOnDuty ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _isOnDuty ? 'ON DUTY' : 'OFF DUTY',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: _isOnDuty ? const Color(0xFF047857) : const Color(0xFF475569),
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  SizedBox(
+                    height: 22,
+                    width: 32,
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      child: Switch(
+                        value: _isOnDuty,
+                        activeThumbColor: const Color(0xFF10B981),
+                        activeTrackColor: const Color(0xFF10B981).withValues(alpha: 0.35),
+                        inactiveThumbColor: const Color(0xFF64748B),
+                        inactiveTrackColor: const Color(0xFFCBD5E1),
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        onChanged: _togglingDuty ? null : (val) => _updateDutyStatus(val),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B)),
+            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B), size: 19),
             tooltip: 'Refresh Profile',
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(),
+            visualDensity: VisualDensity.compact,
             onPressed: _loadProviderProfile,
           ),
+          const SizedBox(width: 2),
           IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
+            icon: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 19),
             tooltip: 'Sign Out',
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(),
+            visualDensity: VisualDensity.compact,
             onPressed: () => _handleLogout(),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),

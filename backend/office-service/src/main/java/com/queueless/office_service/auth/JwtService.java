@@ -22,7 +22,7 @@ public class JwtService {
     private final SecretKey key =
             Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
 
-    private final long expirationTime = 1000 * 60 * 60 * 24; // 24 hours
+    private final long expirationTime = 1000L * 60 * 60 * 24 * 30; // 30 days
 
     public String generateProviderToken(Provider provider, String officeId) {
         return Jwts.builder()

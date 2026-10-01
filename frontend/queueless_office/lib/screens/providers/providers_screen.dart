@@ -6,6 +6,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:queueless_office/screens/providers/add_edit_provider_dialog.dart';
 
+import 'package:queueless_office/services/provider_status_websocket_service.dart';
+
 class ProvidersScreen extends StatefulWidget {
   final Map<String, dynamic>? officeProfile;
 
@@ -22,6 +24,7 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
   String? _error;
   List<dynamic> _providers = [];
   final Map<int, bool> _togglingStatus = {};
+  ProviderStatusWebSocketService? _webSocketService;
 
   String get _apiBaseUrl => kIsWeb
       ? 'http://localhost:8080/api/office/providers'
@@ -31,6 +34,34 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
   void initState() {
     super.initState();
     _fetchProviders();
+    _initWebSocket();
+  }
+
+  @override
+  void dispose() {
+    _webSocketService?.dispose();
+    super.dispose();
+  }
+
+  void _initWebSocket() {
+    _webSocketService = ProviderStatusWebSocketService(
+      onStatusChange: (data) {
+        if (!mounted) return;
+        if (data['event'] == 'PROVIDER_STATUS_CHANGED') {
+          final dynamic pId = data['providerId'];
+          final bool onDuty = data['onDuty'] == true;
+          final bool availableNow = data['availableNow'] == true;
+          setState(() {
+            final idx = _providers.indexWhere((p) => p['id'] == pId);
+            if (idx != -1) {
+              _providers[idx]['onDuty'] = onDuty;
+              _providers[idx]['availableNow'] = availableNow;
+            }
+          });
+        }
+      },
+    );
+    _webSocketService?.connect();
   }
 
   Future<void> _fetchProviders() async {
@@ -460,6 +491,7 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
     final String? contactNumber = p['contactNumber'];
     final String? email = p['email'];
     final bool active = p['active'] ?? false;
+    final bool onDuty = p['onDuty'] ?? true;
     final bool availableNow = p['availableNow'] ?? false;
     final String todayWorkingHours = p['todayWorkingHours'] ?? 'Today: Off';
     final String workingDaysSummary = p['workingDaysSummary'] ?? 'No schedule';
@@ -533,15 +565,15 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
                             ),
                           ),
                           const SizedBox(width: 6),
-                          // Availability Status Chip
+                          // Availability Status Chip (Reflects ON DUTY / OFF DUTY live)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                             decoration: BoxDecoration(
-                              color: availableNow
-                                  ? const Color(0xFF10B981).withValues(alpha: 0.1)
-                                  : (active
-                                      ? const Color(0xFFF59E0B).withValues(alpha: 0.1)
-                                      : const Color(0xFF64748B).withValues(alpha: 0.1)),
+                              color: !active
+                                  ? const Color(0xFF64748B).withValues(alpha: 0.1)
+                                  : (!onDuty
+                                      ? const Color(0xFFF97316).withValues(alpha: 0.1)
+                                      : const Color(0xFF10B981).withValues(alpha: 0.1)),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Row(
@@ -552,20 +584,28 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
                                   height: 6,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: availableNow
-                                        ? const Color(0xFF10B981)
-                                        : (active ? const Color(0xFFF59E0B) : const Color(0xFF64748B)),
+                                    color: !active
+                                        ? const Color(0xFF64748B)
+                                        : (!onDuty
+                                            ? const Color(0xFFF97316)
+                                            : (availableNow ? const Color(0xFF10B981) : const Color(0xFFF59E0B))),
                                   ),
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  availableNow ? 'Available' : (active ? 'Off Hours' : 'Inactive'),
+                                  !active
+                                      ? 'Inactive'
+                                      : (!onDuty
+                                          ? 'OFF DUTY'
+                                          : (availableNow ? 'ON DUTY' : 'ON DUTY (Off Hours)')),
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
-                                    color: availableNow
-                                        ? const Color(0xFF10B981)
-                                        : (active ? const Color(0xFFD97706) : const Color(0xFF64748B)),
+                                    color: !active
+                                        ? const Color(0xFF64748B)
+                                        : (!onDuty
+                                            ? const Color(0xFFEA580C)
+                                            : (availableNow ? const Color(0xFF10B981) : const Color(0xFFD97706))),
                                   ),
                                 ),
                               ],

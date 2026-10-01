@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../services/customer_auth_service.dart';
 import '../../services/office_service.dart';
+import '../../services/provider_status_websocket_service.dart';
+import '../auth/customer_login_screen.dart';
 import '../queue/active_token_screen.dart';
 
 class OfficeDetailsScreen extends StatefulWidget {
@@ -22,11 +25,44 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
   Map<String, dynamic>? _officeDetails;
   Map<String, dynamic>? _liveQueue;
   List<dynamic> _providers = [];
+  ProviderStatusWebSocketService? _webSocketService;
 
   @override
   void initState() {
     super.initState();
     _loadDetails();
+    _initWebSocket();
+  }
+
+  @override
+  void dispose() {
+    _webSocketService?.dispose();
+    super.dispose();
+  }
+
+  void _initWebSocket() {
+    _webSocketService = ProviderStatusWebSocketService(
+      onStatusChange: (data) {
+        if (!mounted) return;
+        if (data['event'] == 'PROVIDER_STATUS_CHANGED') {
+          final dynamic pOfficeId = data['officeId'];
+          final dynamic pId = data['providerId'];
+          final bool onDuty = data['onDuty'] == true;
+          final bool availableNow = data['availableNow'] == true;
+
+          if (pOfficeId == widget.officeId || _providers.any((p) => p['id'] == pId)) {
+            setState(() {
+              final idx = _providers.indexWhere((p) => p['id'] == pId);
+              if (idx != -1) {
+                _providers[idx]['onDuty'] = onDuty;
+                _providers[idx]['availableNow'] = availableNow;
+              }
+            });
+          }
+        }
+      },
+    );
+    _webSocketService?.connect();
   }
 
   Future<void> _loadDetails() async {
@@ -46,7 +82,76 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
     }
   }
 
+  Future<void> _promptSignInDialog({required String title, required String message}) async {
+    final bool? goToLogin = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.lock_clock_outlined, color: Color(0xFF4F46E5), size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(fontSize: 14, color: Color(0xFF475569), height: 1.4),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4F46E5),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+            ),
+            child: const Text('Sign In Now'),
+          ),
+        ],
+      ),
+    );
+
+    if (goToLogin == true && mounted) {
+      await CustomerAuthService().logout();
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CustomerLoginScreen()),
+        );
+      }
+    }
+  }
+
   Future<void> _showBookingSheet([int? preselectedProviderId]) async {
+    final isAuth = await CustomerAuthService().isLoggedIn();
+    if (!isAuth) {
+      await _promptSignInDialog(
+        title: 'Sign In Required',
+        message: 'Your login session has expired or you are not signed in. Please sign in to join the queue and book a token.',
+      );
+      return;
+    }
+
     final dailyMaxTokens = _liveQueue?['dailyMaxTokens'] ?? 60;
     final isOfficeFull = _liveQueue?['isOfficeFull'] == true;
     if (isOfficeFull) {
@@ -69,7 +174,9 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
       orElse: () => null,
     );
     int? selectedProviderId = (preselectedProvider != null &&
-            (preselectedProvider['providerFull'] == true || preselectedProvider['availableNow'] == false))
+            (preselectedProvider['providerFull'] == true ||
+                preselectedProvider['availableNow'] == false ||
+                preselectedProvider['onDuty'] == false))
         ? null
         : preselectedProviderId;
 
@@ -144,11 +251,14 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                           final name = p['name'] ?? 'Provider';
                           final desig = p['designation'] != null ? ' (${p['designation']})' : '';
                           final isFull = p['providerFull'] == true;
-                          final isAvailable = p['availableNow'] == true;
+                          final isOnDuty = p['onDuty'] ?? true;
+                          final isAvailable = (p['availableNow'] == true) && isOnDuty;
                           final bool canSelect = !isFull && isAvailable;
                           String statusSuffix = '';
-                          if (!isAvailable) {
+                          if (!isOnDuty) {
                             statusSuffix = ' - Off duty';
+                          } else if (!isAvailable) {
+                            statusSuffix = ' - Off hours';
                           } else if (isFull) {
                             statusSuffix = ' - Limit reached';
                           } else if (p['dailyMaxTokens'] != null) {
@@ -280,12 +390,22 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
             ),
           );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['errorMessage'] ?? 'Failed to book token'),
-              backgroundColor: const Color(0xFFEF4444),
-            ),
-          );
+          final isAuthError = result['isAuthError'] == true ||
+              (result['errorMessage'] != null &&
+                  result['errorMessage'].toString().toLowerCase().contains('authentication'));
+          if (isAuthError) {
+            await _promptSignInDialog(
+              title: 'Session Expired',
+              message: 'Your login session has expired. Please sign in again to book your token.',
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(result['errorMessage'] ?? 'Failed to book token'),
+                backgroundColor: const Color(0xFFEF4444),
+              ),
+            );
+          }
         }
       }
     }
@@ -694,7 +814,8 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
     final int? id = p['id'] as int?;
     final name = p['name'] ?? 'Provider';
     final desig = p['designation'] ?? 'Specialist';
-    final bool availableNow = p['availableNow'] ?? false;
+    final bool onDuty = p['onDuty'] ?? true;
+    final bool availableNow = (p['availableNow'] ?? false) && onDuty;
     final todayHours = p['todayWorkingHours'] ?? 'Today: Off';
     final bool isProviderFull = p['providerFull'] == true;
     final int? dailyLimit = p['dailyMaxTokens'] as int?;
@@ -738,8 +859,44 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A))),
-                const SizedBox(height: 2),
-                Text(desig, style: const TextStyle(fontSize: 12, color: Color(0xFF4F46E5), fontWeight: FontWeight.w600)),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Text(desig, style: const TextStyle(fontSize: 12, color: Color(0xFF4F46E5), fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: onDuty
+                            ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                            : const Color(0xFF64748B).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 5,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: onDuty ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            onDuty ? 'ON DUTY' : 'OFF DUTY',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: onDuty ? const Color(0xFF047857) : const Color(0xFF475569),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 2),
                 Text(todayHours, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                 if (capacityText.isNotEmpty) ...[
@@ -775,7 +932,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                   Text(
                     canBook
                         ? 'Book'
-                        : (isProviderFull ? 'Full' : 'Off duty'),
+                        : (isProviderFull ? 'Full' : (!onDuty ? 'Off duty' : 'Off hours')),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,

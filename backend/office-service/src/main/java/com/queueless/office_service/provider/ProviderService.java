@@ -38,6 +38,7 @@ public class ProviderService {
     private final QueueTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final com.queueless.office_service.websocket.ProviderStatusWebSocketHandler webSocketHandler;
 
     public ProviderService(
             ProviderRepository providerRepository,
@@ -45,13 +46,15 @@ public class ProviderService {
             OfficeProfileRepository officeProfileRepository,
             QueueTokenRepository tokenRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService) {
+            JwtService jwtService,
+            com.queueless.office_service.websocket.ProviderStatusWebSocketHandler webSocketHandler) {
         this.providerRepository = providerRepository;
         this.scheduleRepository = scheduleRepository;
         this.officeProfileRepository = officeProfileRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.webSocketHandler = webSocketHandler;
     }
 
     /**
@@ -285,6 +288,39 @@ public class ProviderService {
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
                         org.springframework.http.HttpStatus.NOT_FOUND, "Provider not found"));
         return ProviderResponse.fromEntity(provider);
+    }
+
+    /**
+     * Update duty status for an authenticated provider and broadcast via WebSocket.
+     */
+    public ProviderResponse updateDutyStatus(Long providerId, boolean onDuty) {
+        Provider provider = providerRepository.findById(providerId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Provider not found"));
+
+        provider.setOnDuty(onDuty);
+        Provider saved = providerRepository.save(provider);
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+        Long officeId = saved.getOffice() != null ? saved.getOffice().getId() : null;
+        long officeTokensToday = officeId != null ? tokenRepository.countValidTokensTodayByOffice(officeId, startOfDay, endOfDay) : 0;
+        OfficeProfile office = officeId != null ? officeProfileRepository.findById(officeId).orElse(null) : null;
+        int officeDailyMax = office != null ? office.getDailyMaxTokens() : 60;
+        long officeRemaining = Math.max(0, officeDailyMax - officeTokensToday);
+
+        ProviderResponse response = mapProviderResponseWithCapacity(saved, startOfDay, endOfDay, officeRemaining);
+
+        // Broadcast real-time duty status change event to connected office and customer clients
+        webSocketHandler.broadcastProviderStatus(
+                officeId,
+                saved.getId(),
+                Boolean.TRUE.equals(saved.getOnDuty()),
+                response.isAvailableNow()
+        );
+
+        return response;
     }
 
     /**
