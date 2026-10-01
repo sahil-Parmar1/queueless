@@ -30,6 +30,9 @@ public class GatewayProxyController {
     @Value("${services.office.url:http://localhost:8082}")
     private String officeServiceUrl;
 
+    @Value("${services.customer.url:http://localhost:8083}")
+    private String customerServiceUrl;
+
     private static final Set<String> DISALLOWED_HEADERS = Set.of(
             "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
             "te", "trailer", "transfer-encoding", "upgrade", "host", "content-length",
@@ -121,7 +124,9 @@ public class GatewayProxyController {
     private String resolveTargetServiceUrl(String uri) {
         if (uri.startsWith("/api/auth/") || uri.startsWith("/api/test/")) {
             return authServiceUrl;
-        } else if (uri.startsWith("/api/office/") || uri.startsWith("/api/offices/") || uri.startsWith("/api/queue/") || uri.startsWith("/api/provider/")) {
+        } else if (uri.startsWith("/api/queue/") || uri.startsWith("/api/offices/")) {
+            return customerServiceUrl;
+        } else if (uri.startsWith("/api/office/") || uri.startsWith("/api/provider/")) {
             return officeServiceUrl;
         }
         return null;
