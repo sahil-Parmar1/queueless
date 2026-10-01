@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +27,11 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
   Map<String, dynamic>? _liveQueueData;
   bool _queueActionLoading = false;
 
+  // Office Duty/Open Status state
+  bool _isOpen = true;
+  bool _togglingOpen = false;
+  Timer? _liveQueuePollingTimer;
+
   // Queue Settings state
   Map<String, dynamic>? _officeQueueSettings;
   bool _savingSettings = false;
@@ -51,7 +57,17 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
   @override
   void dispose() {
     _dailyLimitController.dispose();
+    _liveQueuePollingTimer?.cancel();
     super.dispose();
+  }
+
+  void _startQueuePolling() {
+    _liveQueuePollingTimer?.cancel();
+    _liveQueuePollingTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (mounted && _profileData != null) {
+        _fetchLiveQueue(silent: true);
+      }
+    });
   }
 
   Future<void> _fetchQueueSettings() async {
@@ -176,13 +192,19 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
           setState(() {
             _userData = data['user'];
             _profileData = data['profile'];
-            if (_profileData != null && _profileData!['documents'] != null) {
-              _documents = _profileData!['documents'];
+            if (_profileData != null) {
+              if (_profileData!['documents'] != null) {
+                _documents = _profileData!['documents'];
+              }
+              if (_profileData!['isOpen'] != null) {
+                _isOpen = _profileData!['isOpen'] == true;
+              }
             }
             _loading = false;
           });
           _fetchLiveQueue();
           _fetchQueueSettings();
+          _startQueuePolling();
         }
       } else if (response.statusCode == 401 || response.statusCode == 403) {
         await _logout();
@@ -202,7 +224,7 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
     }
   }
 
-  Future<void> _fetchLiveQueue() async {
+  Future<void> _fetchLiveQueue({bool silent = false}) async {
     final officeId = _profileData?['id'];
     if (officeId == null) return;
     try {
@@ -219,12 +241,310 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
         if (mounted) {
           setState(() {
             _liveQueueData = data;
+            if (data['isOpen'] != null) {
+              _isOpen = data['isOpen'] == true;
+            }
           });
         }
       }
     } catch (e) {
-      debugPrint('Error fetching live queue: $e');
+      if (!silent) debugPrint('Error fetching live queue: $e');
     }
+  }
+
+  Future<void> _updateOfficeOpenStatus(bool newStatus) async {
+    setState(() => _togglingOpen = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.put(
+        Uri.parse('$_apiBaseUrl/office/open-status'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'isOpen': newStatus}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _isOpen = data['isOpen'] == true;
+            _togglingOpen = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_isOpen
+                  ? 'Office is now OPEN for queue bookings.'
+                  : 'Office is now CLOSED. Customers cannot book new tokens.'),
+              backgroundColor: _isOpen ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          _fetchLiveQueue(silent: true);
+        }
+      } else {
+        throw Exception('Status ${response.statusCode}');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _togglingOpen = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update status: $e'), backgroundColor: const Color(0xFFEF4444)),
+        );
+      }
+    }
+  }
+
+  Future<void> _forwardTokenToProvider(dynamic tokenId, dynamic providerId, String providerName) async {
+    final officeId = _profileData?['id'];
+    if (officeId == null) return;
+    setState(() => _queueActionLoading = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.post(
+        Uri.parse('$_apiBaseUrl/queue/office/$officeId/tokens/$tokenId/forward'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'providerId': providerId}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+            _queueActionLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Token successfully forwarded to $providerName!'),
+              backgroundColor: const Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        String err = 'Failed to forward token';
+        try {
+          final errData = jsonDecode(response.body);
+          if (errData['message'] != null) err = errData['message'];
+        } catch (_) {}
+        throw Exception(err);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _queueActionLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Forward failed: $e'), backgroundColor: const Color(0xFFEF4444)),
+        );
+      }
+    }
+  }
+
+  Future<void> _serveTokenAtDesk(dynamic tokenId) async {
+    final officeId = _profileData?['id'];
+    if (officeId == null) return;
+    setState(() => _queueActionLoading = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.post(
+        Uri.parse('$_apiBaseUrl/queue/office/$officeId/tokens/$tokenId/serve'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+            _queueActionLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Token called to Active Desk Counter!'),
+              backgroundColor: Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        throw Exception('Status ${response.statusCode}');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _queueActionLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: const Color(0xFFEF4444)),
+        );
+      }
+    }
+  }
+
+  void _showForwardDialog(Map<String, dynamic> tokenItem) {
+    final availableProviders = (_liveQueueData?['availableProviders'] as List<dynamic>?) ?? [];
+    final tokenId = tokenItem['id'];
+    final tokenNumber = tokenItem['tokenNumber'] ?? '---';
+    final customerName = tokenItem['customerName'] ?? 'Customer';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.forward_to_inbox_rounded, color: Color(0xFF4F46E5), size: 22),
+                      ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Forward Token #$tokenNumber', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A))),
+                          Text('Customer: $customerName', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                        ],
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text('Select Available Staff / Doctor', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF334155))),
+              const SizedBox(height: 10),
+              if (availableProviders.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: const Center(
+                    child: Text('No active providers found in this office.\nPlease add providers in "Staff & Providers" tab.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: availableProviders.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, idx) {
+                      final p = availableProviders[idx] as Map<String, dynamic>;
+                      final pId = p['id'];
+                      final pName = p['name'] ?? 'Provider';
+                      final pDesig = p['designation'] ?? '';
+                      final onDuty = p['onDuty'] == true;
+                      final isFull = p['isFull'] == true;
+                      final remaining = p['remainingCapacity'] ?? 0;
+
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor: onDuty ? const Color(0xFF10B981).withValues(alpha: 0.15) : const Color(0xFF94A3B8).withValues(alpha: 0.15),
+                              child: Icon(Icons.person_rounded, size: 20, color: onDuty ? const Color(0xFF047857) : const Color(0xFF64748B)),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          pName,
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: onDuty ? const Color(0xFF10B981).withValues(alpha: 0.1) : const Color(0xFF64748B).withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          onDuty ? 'ON DUTY' : 'OFF DUTY',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            color: onDuty ? const Color(0xFF047857) : const Color(0xFF475569),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    pDesig.isNotEmpty ? pDesig : (onDuty ? 'Available ($remaining left)' : 'Off duty'),
+                                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            ElevatedButton(
+                              onPressed: _queueActionLoading
+                                  ? null
+                                  : () {
+                                      Navigator.pop(ctx);
+                                      _forwardTokenToProvider(tokenId, pId, pName);
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: onDuty ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              child: const Text('Assign', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _handleCallNext() async {
@@ -425,6 +745,63 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          if (isApproved)
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(right: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _isOpen
+                      ? const Color(0xFF10B981).withValues(alpha: 0.22)
+                      : const Color(0xFFEF4444).withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _isOpen ? const Color(0xFF34D399) : const Color(0xFFFCA5A5),
+                    width: 1.2,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _isOpen ? const Color(0xFF34D399) : const Color(0xFFEF4444),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _isOpen ? 'OPEN' : 'CLOSED',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    SizedBox(
+                      height: 22,
+                      width: 32,
+                      child: FittedBox(
+                        fit: BoxFit.contain,
+                        child: Switch(
+                          value: _isOpen,
+                          activeThumbColor: const Color(0xFF10B981),
+                          activeTrackColor: const Color(0xFF10B981).withValues(alpha: 0.45),
+                          inactiveThumbColor: const Color(0xFFEF4444),
+                          inactiveTrackColor: const Color(0xFFFCA5A5),
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          onChanged: _togglingOpen ? null : (val) => _updateOfficeOpenStatus(val),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh',
@@ -596,6 +973,10 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (!_isOpen) ...[
+              _buildClosedWarningBanner(),
+              const SizedBox(height: 16),
+            ],
             // Welcome Header Card
             Container(
               padding: const EdgeInsets.all(20),
@@ -834,6 +1215,14 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
             ),
             const SizedBox(height: 20),
 
+            // Section: Unassigned Tokens to Forward
+            _buildUnassignedQueueSection(),
+            const SizedBox(height: 20),
+
+            // Section: All Waiting Tokens in Line
+            _buildAllWaitingTokensSection(),
+            const SizedBox(height: 20),
+
             // Office Daily Token Limit Settings Card (TASK 1)
             _buildQueueSettingsCard(),
             const SizedBox(height: 20),
@@ -870,6 +1259,393 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildClosedWarningBanner() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF2F2),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFCA5A5), width: 1.2),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: Color(0xFFEF4444),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.lock_clock_rounded, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Office Queue is CLOSED',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF991B1B)),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Customers cannot book new queue tokens right now. Existing tokens in line can still be served.',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF7F1D1D)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: _togglingOpen ? null : () => _updateOfficeOpenStatus(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+            ),
+            child: const Text('Open Now', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUnassignedQueueSection() {
+    final unassignedTokens = (_liveQueueData?['unassignedTokens'] as List<dynamic>?) ?? [];
+    final unassignedCount = _liveQueueData?['unassignedCount'] ?? unassignedTokens.length;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: unassignedCount > 0 ? const Color(0xFFC7D2FE) : const Color(0xFFE2E8F0),
+          width: unassignedCount > 0 ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section Title
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.assignment_ind_rounded, color: Color(0xFF4F46E5), size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Tokens to Assign',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: unassignedCount > 0
+                      ? const Color(0xFF4F46E5).withValues(alpha: 0.1)
+                      : const Color(0xFF10B981).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  unassignedCount > 0 ? '$unassignedCount Unassigned' : 'All Assigned',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: unassignedCount > 0 ? const Color(0xFF4F46E5) : const Color(0xFF10B981),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Tokens booked with "Any Available Staff". Forward them to an on-duty provider or call them directly at the desk.',
+            style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.3),
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 14),
+
+          if (unassignedTokens.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              alignment: Alignment.center,
+              child: Column(
+                children: [
+                  Icon(Icons.check_circle_outline_rounded, size: 36, color: Colors.green[400]),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'No Unassigned Tokens',
+                    style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 14),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Every waiting customer has an assigned provider, or no one is in line.',
+                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                  ),
+                ],
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: unassignedTokens.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (ctx, idx) {
+                final item = unassignedTokens[idx] as Map<String, dynamic>;
+                final tokenId = item['id'];
+                final tokenNumber = item['tokenNumber'] ?? '---';
+                final custName = item['customerName'] ?? 'Customer';
+                final custPhone = (item['customerPhone'] ?? '').toString();
+                final position = item['position'] ?? (idx + 1);
+                final waitEst = item['estimatedWaitMinutes'] ?? 0;
+
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '#$position',
+                              style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF4F46E5), fontSize: 12),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      tokenNumber,
+                                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF0F172A)),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFEF3C7),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        'Unassigned',
+                                        style: TextStyle(color: Color(0xFFB45309), fontSize: 10, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  custPhone.isNotEmpty ? '$custName ($custPhone)' : custName,
+                                  style: const TextStyle(fontSize: 13, color: Color(0xFF475569), fontWeight: FontWeight.w500),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (waitEst > 0)
+                            Text(
+                              '~$waitEst min',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _queueActionLoading ? null : () => _serveTokenAtDesk(tokenId),
+                              icon: const Icon(Icons.campaign_rounded, size: 16),
+                              label: const Text('Call to Desk', style: TextStyle(fontSize: 12)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF4F46E5),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _queueActionLoading ? null : () => _showForwardDialog(item),
+                              icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
+                              label: const Text('Forward to Staff', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF4F46E5),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAllWaitingTokensSection() {
+    final waitingTokens = (_liveQueueData?['waitingTokens'] as List<dynamic>?) ?? [];
+    if (waitingTokens.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0284C7).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.people_alt_rounded, color: Color(0xFF0284C7), size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'All Waiting in Line (${waitingTokens.length})',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              const Text('Live', style: TextStyle(fontSize: 11, color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: waitingTokens.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (ctx, idx) {
+              final item = waitingTokens[idx] as Map<String, dynamic>;
+              final tokenNumber = item['tokenNumber'] ?? '---';
+              final custName = item['customerName'] ?? 'Customer';
+              final providerName = item['providerName'] ?? 'Unassigned';
+              final isUnassigned = item['providerId'] == null;
+              final position = item['position'] ?? (idx + 1);
+
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      '#$position',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF64748B)),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      tokenNumber,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        custName,
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF334155)),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: isUnassigned
+                            ? const Color(0xFFFEF3C7)
+                            : const Color(0xFF0284C7).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        isUnassigned ? 'Unassigned' : providerName,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isUnassigned ? const Color(0xFFB45309) : const Color(0xFF0284C7),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

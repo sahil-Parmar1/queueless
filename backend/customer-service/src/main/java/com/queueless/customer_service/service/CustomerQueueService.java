@@ -52,6 +52,10 @@ public class CustomerQueueService {
         OfficeProfile office = officeProfileRepository.findByIdForUpdate(officeId)
                 .orElseThrow(() -> new IllegalArgumentException("Office not found with id: " + officeId));
 
+        if (Boolean.FALSE.equals(office.getIsOpen())) {
+            throw new IllegalStateException("Office is currently closed. Cannot book token at this time.");
+        }
+
         LocalDate today = LocalDate.now();
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
@@ -246,6 +250,7 @@ public class CustomerQueueService {
         Map<String, Object> live = new HashMap<>();
         live.put("officeId", officeId);
         live.put("officeName", office.getUser() != null ? office.getUser().getName() : "Office");
+        live.put("isOpen", office.getIsOpen());
         live.put("waitingCount", waitingCount != null ? waitingCount : 0);
         live.put("activeToken", activeToken != null ? activeToken.getTokenNumber() : null);
         live.put("estimatedWaitMinutes", (waitingCount != null ? waitingCount : 0) * DEFAULT_SERVICE_TIME_MINUTES);

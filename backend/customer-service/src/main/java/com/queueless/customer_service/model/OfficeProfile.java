@@ -60,6 +60,9 @@ public class OfficeProfile {
     @Column(name = "daily_max_tokens", nullable = false)
     private Integer dailyMaxTokens = 60;
 
+    @Column(name = "is_open")
+    private Boolean isOpen = true;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getOfficeId() {
@@ -103,4 +106,6 @@ public class OfficeProfile {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public Integer getDailyMaxTokens() { return dailyMaxTokens; }
     public void setDailyMaxTokens(Integer dailyMaxTokens) { this.dailyMaxTokens = dailyMaxTokens; }
+    public Boolean getIsOpen() { return isOpen != null ? isOpen : true; }
+    public void setIsOpen(Boolean isOpen) { this.isOpen = isOpen; }
 }

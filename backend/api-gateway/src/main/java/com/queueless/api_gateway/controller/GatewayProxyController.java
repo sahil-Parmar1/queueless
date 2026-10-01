@@ -124,10 +124,12 @@ public class GatewayProxyController {
     private String resolveTargetServiceUrl(String uri) {
         if (uri.startsWith("/api/auth/") || uri.startsWith("/api/test/")) {
             return authServiceUrl;
-        } else if (uri.startsWith("/api/queue/") || uri.startsWith("/api/offices/")) {
-            return customerServiceUrl;
         } else if (uri.startsWith("/api/office/") || uri.startsWith("/api/provider/")) {
             return officeServiceUrl;
+        } else if (uri.startsWith("/api/queue/office/")) {
+            return officeServiceUrl;
+        } else if (uri.startsWith("/api/queue/") || uri.startsWith("/api/offices/")) {
+            return customerServiceUrl;
         }
         return null;
     }

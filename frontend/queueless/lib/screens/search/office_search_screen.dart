@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/office_service.dart';
+import '../../services/provider_status_websocket_service.dart';
 import '../office_details/office_details_screen.dart';
 
 class OfficeSearchScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
   final OfficeService _officeService = OfficeService();
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounceTimer;
+  ProviderStatusWebSocketService? _webSocketService;
 
   bool _loading = true;
   List<dynamic> _offices = [];
@@ -44,13 +46,35 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
       _selectedCategory = widget.initialCategory!;
     }
     _loadOffices();
+    _initWebSocket();
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
     _searchController.dispose();
+    _webSocketService?.dispose();
     super.dispose();
+  }
+
+  void _initWebSocket() {
+    _webSocketService = ProviderStatusWebSocketService(
+      onStatusChange: (data) {
+        if (!mounted) return;
+        if (data['event'] == 'OFFICE_STATUS_CHANGED') {
+          final dynamic oId = data['officeId'];
+          final bool isOpen = data['isOpen'] == true;
+          setState(() {
+            for (var office in _offices) {
+              if (office is Map && office['id'] == oId) {
+                office['isOpen'] = isOpen;
+              }
+            }
+          });
+        }
+      },
+    );
+    _webSocketService?.connect();
   }
 
   void _onSearchChanged(String value) {
@@ -222,6 +246,7 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
     final closingTime = office['closingTime'] ?? '08:00 PM';
     final waitingCount = office['waitingCount'] ?? 0;
     final activeToken = office['activeToken'];
+    final bool isOpen = office['isOpen'] != false;
 
     String subInfo = '';
     if (doctorName != null && doctorName.toString().isNotEmpty) {
@@ -239,7 +264,7 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
           MaterialPageRoute(
             builder: (context) => OfficeDetailsScreen(officeId: office['id']),
           ),
-        );
+        ).then((_) => _loadOffices());
       },
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -290,16 +315,34 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFECFDF5),
+                              color: isOpen ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
                               borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              'Open',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF059669),
+                              border: Border.all(
+                                color: isOpen ? const Color(0xFFA7F3D0) : const Color(0xFFFECACA),
+                                width: 0.8,
                               ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isOpen ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isOpen ? 'Open' : 'Closed',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: isOpen ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -342,19 +385,29 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEEF2FF),
+                    color: isOpen ? const Color(0xFFEEF2FF) : const Color(0xFFFEF2F2),
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isOpen ? const Color(0xFFC7D2FE) : const Color(0xFFFECACA),
+                      width: 0.8,
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.people_alt_rounded, size: 13, color: Color(0xFF4F46E5)),
+                      Icon(
+                        isOpen ? Icons.people_alt_rounded : Icons.lock_clock_rounded,
+                        size: 13,
+                        color: isOpen ? const Color(0xFF4F46E5) : const Color(0xFFDC2626),
+                      ),
                       const SizedBox(width: 4),
                       Text(
-                        '$waitingCount waiting ${activeToken != null ? "• Now #$activeToken" : ""}',
-                        style: const TextStyle(
+                        isOpen
+                            ? '$waitingCount waiting ${activeToken != null ? "• Now #$activeToken" : ""}'
+                            : 'Queue Closed',
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF4F46E5),
+                          color: isOpen ? const Color(0xFF4F46E5) : const Color(0xFFDC2626),
                           fontWeight: FontWeight.w700,
                         ),
                       ),

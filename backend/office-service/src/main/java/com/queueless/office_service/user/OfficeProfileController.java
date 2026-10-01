@@ -23,16 +23,19 @@ public class OfficeProfileController {
     private final UserRepository userRepository;
     private final FileStorageService fileStorageService;
     private final com.queueless.office_service.provider.ProviderService providerService;
+    private final com.queueless.office_service.websocket.ProviderStatusWebSocketHandler webSocketHandler;
 
     public OfficeProfileController(
             OfficeProfileRepository profileRepository,
             UserRepository userRepository,
             FileStorageService fileStorageService,
-            com.queueless.office_service.provider.ProviderService providerService) {
+            com.queueless.office_service.provider.ProviderService providerService,
+            com.queueless.office_service.websocket.ProviderStatusWebSocketHandler webSocketHandler) {
         this.profileRepository = profileRepository;
         this.userRepository = userRepository;
         this.fileStorageService = fileStorageService;
         this.providerService = providerService;
+        this.webSocketHandler = webSocketHandler;
     }
 
     @GetMapping("/profile")
@@ -97,6 +100,44 @@ public class OfficeProfileController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
         }
+    }
+
+    @GetMapping("/open-status")
+    public ResponseEntity<?> getOfficeOpenStatus(Authentication authentication) {
+        User user = resolveAuthenticatedUser(authentication);
+        OfficeProfile profile = profileRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Office profile not found"));
+        return ResponseEntity.ok(Map.of(
+                "officeId", profile.getId(),
+                "isOpen", profile.getIsOpen()
+        ));
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/open-status")
+    public ResponseEntity<?> updateOfficeOpenStatus(
+            @RequestBody Map<String, Object> body,
+            Authentication authentication) {
+        User user = resolveAuthenticatedUser(authentication);
+        OfficeProfile profile = profileRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Office profile not found"));
+
+        if (!body.containsKey("isOpen") || body.get("isOpen") == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "isOpen is required"));
+        }
+        Boolean isOpen = Boolean.valueOf(body.get("isOpen").toString());
+        profile.setIsOpen(isOpen);
+        profileRepository.save(profile);
+
+        // Broadcast real-time office status to all connected office and customer apps
+        webSocketHandler.broadcastOfficeStatus(profile.getId(), isOpen);
+
+        return ResponseEntity.ok(Map.of(
+                "officeId", profile.getId(),
+                "isOpen", profile.getIsOpen(),
+                "message", "Office status updated to " + (isOpen ? "OPEN" : "CLOSED")
+        ));
     }
 
     private User resolveAuthenticatedUser(Authentication authentication) {

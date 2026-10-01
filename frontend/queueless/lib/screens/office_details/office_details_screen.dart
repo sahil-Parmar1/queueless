@@ -59,6 +59,19 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
               }
             });
           }
+        } else if (data['event'] == 'OFFICE_STATUS_CHANGED') {
+          final dynamic oId = data['officeId'];
+          if (oId == widget.officeId) {
+            final bool isOpen = data['isOpen'] == true;
+            setState(() {
+              if (_officeDetails != null) {
+                _officeDetails!['isOpen'] = isOpen;
+              }
+              if (_liveQueue != null) {
+                _liveQueue!['isOpen'] = isOpen;
+              }
+            });
+          }
         }
       },
     );
@@ -154,6 +167,18 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
 
     final dailyMaxTokens = _liveQueue?['dailyMaxTokens'] ?? 60;
     final isOfficeFull = _liveQueue?['isOfficeFull'] == true;
+    final bool isOpen = (_officeDetails?['isOpen'] ?? _liveQueue?['isOpen'] ?? true) == true;
+
+    if (!isOpen) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Office is currently closed. Cannot book token at this time.'),
+          backgroundColor: Color(0xFFEF4444),
+        ),
+      );
+      return;
+    }
+
     if (isOfficeFull) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -449,6 +474,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
     final int todayTokensCount = _liveQueue?['todayTokensCount'] ?? 0;
     final int remainingCapacity = _liveQueue?['remainingCapacity'] ?? (dailyMaxTokens - todayTokensCount);
     final bool isOfficeFull = _liveQueue?['isOfficeFull'] == true || remainingCapacity <= 0;
+    final bool isOfficeOpen = (_officeDetails?['isOpen'] ?? _liveQueue?['isOpen'] ?? true) == true;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -478,28 +504,47 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
           ],
         ),
         child: SafeArea(
-          child: ElevatedButton.icon(
-            onPressed: (_booking || isOfficeFull) ? null : _showBookingSheet,
-            icon: _booking
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
-                : Icon(isOfficeFull ? Icons.block_rounded : Icons.confirmation_number_rounded),
-            label: Text(
-              _booking
-                  ? 'Booking...'
-                  : (isOfficeFull ? 'Daily Limit Reached (Queue Closed)' : 'Join Queue / Book Token'),
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isOfficeFull ? const Color(0xFF94A3B8) : const Color(0xFF4F46E5),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              elevation: 0,
-            ),
+          child: Builder(
+            builder: (context) {
+              final bool canJoinQueue = !_booking && !isOfficeFull && isOfficeOpen;
+              String joinButtonText = 'Join Queue / Book Token';
+              IconData joinButtonIcon = Icons.confirmation_number_rounded;
+              Color joinButtonColor = const Color(0xFF4F46E5);
+
+              if (_booking) {
+                joinButtonText = 'Booking...';
+              } else if (!isOfficeOpen) {
+                joinButtonText = 'Office is Closed';
+                joinButtonIcon = Icons.lock_clock_rounded;
+                joinButtonColor = const Color(0xFF94A3B8);
+              } else if (isOfficeFull) {
+                joinButtonText = 'Daily Limit Reached (Queue Closed)';
+                joinButtonIcon = Icons.block_rounded;
+                joinButtonColor = const Color(0xFF94A3B8);
+              }
+
+              return ElevatedButton.icon(
+                onPressed: canJoinQueue ? _showBookingSheet : null,
+                icon: _booking
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : Icon(joinButtonIcon),
+                label: Text(
+                  joinButtonText,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: joinButtonColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 0,
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -543,20 +588,50 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                           style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.verified_rounded, color: Colors.white, size: 14),
-                            SizedBox(width: 4),
-                            Text('Verified', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isOfficeOpen ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isOfficeOpen ? 'OPEN' : 'CLOSED',
+                                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.verified_rounded, color: Colors.white, size: 14),
+                                SizedBox(width: 4),
+                                Text('Verified', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -578,6 +653,36 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
               ),
             ),
             const SizedBox(height: 20),
+
+            // Office Closed Warning Banner
+            if (!isOfficeOpen) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFFCA5A5)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.lock_clock_rounded, color: Color(0xFFEF4444), size: 22),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'This office is currently closed / offline. Queue booking is temporarily disabled.',
+                        style: TextStyle(
+                          color: Color(0xFF991B1B),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             // Office Full Warning Banner (TASK 1)
             if (isOfficeFull) ...[
@@ -830,7 +935,8 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
       }
     }
 
-    final bool canBook = availableNow && !isProviderFull;
+    final bool isOfficeOpen = _officeDetails?['isOpen'] != false;
+    final bool canBook = isOfficeOpen && availableNow && !isProviderFull;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -921,7 +1027,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
               decoration: BoxDecoration(
                 color: canBook
                     ? const Color(0xFF10B981).withValues(alpha: 0.1)
-                    : (isProviderFull
+                    : (!isOfficeOpen || isProviderFull
                         ? const Color(0xFFEF4444).withValues(alpha: 0.1)
                         : const Color(0xFF94A3B8).withValues(alpha: 0.1)),
                 borderRadius: BorderRadius.circular(8),
@@ -932,13 +1038,17 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                   Text(
                     canBook
                         ? 'Book'
-                        : (isProviderFull ? 'Full' : (!onDuty ? 'Off duty' : 'Off hours')),
+                        : (!isOfficeOpen
+                            ? 'Closed'
+                            : (isProviderFull ? 'Full' : (!onDuty ? 'Off duty' : 'Off hours'))),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: canBook
                           ? const Color(0xFF10B981)
-                          : (isProviderFull ? const Color(0xFFEF4444) : const Color(0xFF64748B)),
+                          : (!isOfficeOpen || isProviderFull
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF64748B)),
                     ),
                   ),
                   if (canBook) ...[

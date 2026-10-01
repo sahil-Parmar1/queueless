@@ -64,4 +64,8 @@ public interface QueueTokenRepository extends JpaRepository<QueueToken, Long> {
 
     @Query("SELECT COUNT(t) FROM QueueToken t WHERE t.provider.id = :providerId AND t.status = 'WAITING' AND t.sequenceNumber < :sequenceNumber")
     Long countTokensAheadOfProvider(@Param("providerId") Long providerId, @Param("sequenceNumber") Integer sequenceNumber);
+
+    List<QueueToken> findByOfficeIdAndProviderIsNullAndStatusInOrderBySequenceNumberAsc(Long officeId, List<TokenStatus> statuses);
+
+    Long countByOfficeIdAndProviderIsNullAndStatus(Long officeId, TokenStatus status);
 }

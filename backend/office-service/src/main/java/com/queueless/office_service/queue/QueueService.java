@@ -184,21 +184,107 @@ public class QueueService {
             ));
         }
 
+        // Unassigned tokens (where provider == null and status is WAITING)
+        List<QueueToken> unassignedTokens = tokenRepository
+                .findByOfficeIdAndProviderIsNullAndStatusInOrderBySequenceNumberAsc(
+                        officeId, List.of(TokenStatus.WAITING)
+                );
+
+        List<Map<String, Object>> unassignedList = new ArrayList<>();
+        for (int i = 0; i < unassignedTokens.size(); i++) {
+            QueueToken t = unassignedTokens.get(i);
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", t.getId());
+            item.put("tokenNumber", t.getTokenNumber());
+            item.put("customerName", t.getCustomerName());
+            item.put("customerPhone", t.getCustomerPhone() != null ? t.getCustomerPhone() : "");
+            item.put("customerEmail", t.getCustomerEmail() != null ? t.getCustomerEmail() : "");
+            item.put("sequenceNumber", t.getSequenceNumber());
+            item.put("status", t.getStatus().name());
+            item.put("estimatedWaitMinutes", t.getEstimatedWaitMinutes());
+            item.put("position", i + 1);
+            item.put("bookedAt", t.getBookedAt() != null ? t.getBookedAt().toString() : "");
+            unassignedList.add(item);
+        }
+
+        // All waiting tokens for this office (with assigned provider details)
+        List<Map<String, Object>> allWaitingList = new ArrayList<>();
+        for (int i = 0; i < waitingTokens.size(); i++) {
+            QueueToken t = waitingTokens.get(i);
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", t.getId());
+            item.put("tokenNumber", t.getTokenNumber());
+            item.put("customerName", t.getCustomerName());
+            item.put("customerPhone", t.getCustomerPhone() != null ? t.getCustomerPhone() : "");
+            item.put("sequenceNumber", t.getSequenceNumber());
+            item.put("status", t.getStatus().name());
+            item.put("estimatedWaitMinutes", t.getEstimatedWaitMinutes());
+            item.put("position", i + 1);
+            item.put("bookedAt", t.getBookedAt() != null ? t.getBookedAt().toString() : "");
+            if (t.getProvider() != null) {
+                item.put("providerId", t.getProvider().getId());
+                item.put("providerName", t.getProvider().getName());
+                item.put("providerDesignation", t.getProvider().getDesignation());
+            } else {
+                item.put("providerId", null);
+                item.put("providerName", "Unassigned");
+                item.put("providerDesignation", "Desk Counter");
+            }
+            allWaitingList.add(item);
+        }
+
         int dailyMaxTokens = office.getDailyMaxTokens();
         long todayTokensCount = tokenRepository.countValidTokensTodayByOffice(officeId, startOfDay, endOfDay);
         long remainingCapacity = Math.max(0, dailyMaxTokens - todayTokensCount);
         boolean isOfficeFull = todayTokensCount >= dailyMaxTokens;
 
+        // Available Providers in this office
+        List<Provider> providers = providerRepository.findByOfficeIdAndActiveTrueOrderByIdAsc(officeId);
+        List<Map<String, Object>> providerSummaries = new ArrayList<>();
+        for (Provider p : providers) {
+            Map<String, Object> pm = new HashMap<>();
+            pm.put("id", p.getId());
+            pm.put("name", p.getName());
+            pm.put("designation", p.getDesignation());
+            pm.put("onDuty", p.getOnDuty() != null ? p.getOnDuty() : true);
+            pm.put("availableNow", providerService.isProviderAvailableNow(p));
+            pm.put("dailyMaxTokens", p.getDailyMaxTokens());
+
+            long pTodayTokens = tokenRepository.countValidTokensTodayByProvider(p.getId(), startOfDay, endOfDay);
+            pm.put("todayTokensCount", pTodayTokens);
+            if (p.getDailyMaxTokens() != null) {
+                pm.put("remainingCapacity", Math.max(0, p.getDailyMaxTokens() - pTodayTokens));
+                pm.put("isFull", pTodayTokens >= p.getDailyMaxTokens());
+            } else {
+                pm.put("remainingCapacity", remainingCapacity);
+                pm.put("isFull", isOfficeFull);
+            }
+            providerSummaries.add(pm);
+        }
+
         Map<String, Object> response = new HashMap<>();
         response.put("officeId", office.getId());
         response.put("officeName", office.getUser() != null ? office.getUser().getName() : "Office");
         response.put("category", office.getCategory() != null ? office.getCategory().name() : "OFFICE");
+        response.put("isOpen", office.getIsOpen());
         response.put("activeToken", activeToken != null ? activeToken.getTokenNumber() : null);
-        response.put("activeTokenDetails", activeToken);
+        response.put("activeTokenDetails", activeToken != null ? Map.of(
+                "id", activeToken.getId(),
+                "tokenNumber", activeToken.getTokenNumber(),
+                "customerName", activeToken.getCustomerName(),
+                "customerPhone", activeToken.getCustomerPhone() != null ? activeToken.getCustomerPhone() : "",
+                "status", activeToken.getStatus().name(),
+                "sequenceNumber", activeToken.getSequenceNumber(),
+                "calledAt", activeToken.getCalledAt() != null ? activeToken.getCalledAt().toString() : ""
+        ) : null);
         response.put("waitingCount", waitingCount);
         response.put("completedCount", completedCount);
         response.put("avgWaitTimeMinutes", DEFAULT_SERVICE_TIME_MINUTES);
         response.put("nextTokens", nextTokens);
+        response.put("unassignedTokens", unassignedList);
+        response.put("unassignedCount", unassignedList.size());
+        response.put("waitingTokens", allWaitingList);
+        response.put("availableProviders", providerSummaries);
         response.put("openingTime", office.getOpeningTime());
         response.put("closingTime", office.getClosingTime());
         response.put("dailyMaxTokens", dailyMaxTokens);
@@ -264,6 +350,76 @@ public class QueueService {
             curr.setStatus(TokenStatus.SKIPPED);
             tokenRepository.save(curr);
         });
+
+        return getLiveQueue(officeId);
+    }
+
+    /**
+     * Operator Action: Forward an unassigned or waiting token to an available provider.
+     */
+    public Map<String, Object> forwardTokenToProvider(Long officeId, Long tokenId, Long providerId) {
+        QueueToken token = tokenRepository.findById(tokenId)
+                .orElseThrow(() -> new IllegalArgumentException("Token not found: " + tokenId));
+
+        if (!token.getOffice().getId().equals(officeId)) {
+            throw new IllegalArgumentException("Token does not belong to this office");
+        }
+
+        if (token.getStatus() != TokenStatus.WAITING && token.getStatus() != TokenStatus.CALLED) {
+            throw new IllegalStateException("Only WAITING or CALLED tokens can be forwarded to a provider");
+        }
+
+        Provider provider = providerRepository.findByIdAndOfficeId(providerId, officeId)
+                .orElseThrow(() -> new IllegalArgumentException("Provider not found or does not belong to this office"));
+
+        // Validate provider daily limit if set
+        if (provider.getDailyMaxTokens() != null) {
+            LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+            LocalDateTime endOfDay = LocalDate.now().atTime(LocalTime.MAX);
+            long providerTokensToday = tokenRepository.countValidTokensTodayByProvider(providerId, startOfDay, endOfDay);
+            if (providerTokensToday >= provider.getDailyMaxTokens()) {
+                throw new IllegalStateException("Provider " + provider.getName() + " has reached their daily maximum limit of " + provider.getDailyMaxTokens() + " tokens.");
+            }
+        }
+
+        token.setProvider(provider);
+        // If it was CALLED at the front desk, move it back to WAITING for the assigned provider
+        if (token.getStatus() == TokenStatus.CALLED) {
+            token.setStatus(TokenStatus.WAITING);
+            token.setCalledAt(null);
+        }
+        tokenRepository.save(token);
+
+        Map<String, Object> response = getLiveQueue(officeId);
+        response.put("forwardedTokenNumber", token.getTokenNumber());
+        response.put("assignedProviderName", provider.getName());
+        return response;
+    }
+
+    /**
+     * Operator Action: Directly call / serve a specific unassigned token at the front desk.
+     */
+    public Map<String, Object> serveTokenAtDesk(Long officeId, Long tokenId) {
+        // Complete current active token if one exists
+        tokenRepository.findFirstByOfficeIdAndStatusInOrderBySequenceNumberAsc(
+                officeId,
+                List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
+        ).ifPresent(curr -> {
+            curr.setStatus(TokenStatus.COMPLETED);
+            curr.setCompletedAt(LocalDateTime.now());
+            tokenRepository.save(curr);
+        });
+
+        QueueToken token = tokenRepository.findById(tokenId)
+                .orElseThrow(() -> new IllegalArgumentException("Token not found: " + tokenId));
+
+        if (!token.getOffice().getId().equals(officeId)) {
+            throw new IllegalArgumentException("Token does not belong to this office");
+        }
+
+        token.setStatus(TokenStatus.CALLED);
+        token.setCalledAt(LocalDateTime.now());
+        tokenRepository.save(token);
 
         return getLiveQueue(officeId);
     }

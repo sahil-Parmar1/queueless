@@ -154,4 +154,37 @@ public class QueueController {
     public ResponseEntity<?> skipCurrent(@PathVariable("officeId") Long officeId) {
         return ResponseEntity.ok(queueService.skipCurrent(officeId));
     }
+
+    /**
+     * Office operator forwards an unassigned or waiting token to an available provider.
+     */
+    @PostMapping("/office/{officeId}/tokens/{tokenId}/forward")
+    public ResponseEntity<?> forwardToken(
+            @PathVariable("officeId") Long officeId,
+            @PathVariable("tokenId") Long tokenId,
+            @RequestBody Map<String, Object> body) {
+        if (!body.containsKey("providerId") || body.get("providerId") == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "providerId is required", "message", "Provider ID is required"));
+        }
+        Long providerId = Long.valueOf(body.get("providerId").toString());
+        try {
+            return ResponseEntity.ok(queueService.forwardTokenToProvider(officeId, tokenId, providerId));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * Office operator serves an unassigned token directly at desk counter.
+     */
+    @PostMapping("/office/{officeId}/tokens/{tokenId}/serve")
+    public ResponseEntity<?> serveTokenAtDesk(
+            @PathVariable("officeId") Long officeId,
+            @PathVariable("tokenId") Long tokenId) {
+        try {
+            return ResponseEntity.ok(queueService.serveTokenAtDesk(officeId, tokenId));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
+        }
+    }
 }

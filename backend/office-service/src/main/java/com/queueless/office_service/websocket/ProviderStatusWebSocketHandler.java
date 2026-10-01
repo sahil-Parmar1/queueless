@@ -82,4 +82,31 @@ public class ProviderStatusWebSocketHandler extends TextWebSocketHandler {
             }
         }
     }
+
+    /**
+     * Broadcasts real-time office open/closed status change to all connected office and customer clients.
+     */
+    public void broadcastOfficeStatus(Long officeId, boolean isOpen) {
+        String jsonPayload = String.format(
+                "{\"event\":\"OFFICE_STATUS_CHANGED\",\"officeId\":%d,\"isOpen\":%b,\"timestamp\":%d}",
+                officeId != null ? officeId : -1,
+                isOpen,
+                System.currentTimeMillis()
+        );
+
+        TextMessage textMessage = new TextMessage(jsonPayload);
+        log.info("Broadcasting office open status update: {} to {} sessions", jsonPayload, sessions.size());
+
+        for (WebSocketSession session : sessions) {
+            if (session.isOpen()) {
+                try {
+                    synchronized (session) {
+                        session.sendMessage(textMessage);
+                    }
+                } catch (IOException e) {
+                    log.warn("Failed to send WebSocket message to session {}: {}", session.getId(), e.getMessage());
+                }
+            }
+        }
+    }
 }
