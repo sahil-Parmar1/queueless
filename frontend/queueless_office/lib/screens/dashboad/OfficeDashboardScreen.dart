@@ -8,6 +8,7 @@ import 'package:queueless_office/config/api_config.dart';
 import 'package:queueless_office/screens/auth/office_auth_screen.dart';
 import 'package:queueless_office/screens/dashboad/office_onboarding_screen.dart';
 import 'package:queueless_office/screens/providers/providers_screen.dart';
+import 'package:queueless_office/widgets/qr_stand_dialog.dart';
 
 class OfficeDashboardScreen extends StatefulWidget {
   const OfficeDashboardScreen({super.key});
@@ -774,60 +775,15 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
   }
 
   void _showOfficeQrDialog() {
-    final officeName = _userData?['name'] ?? 'Office';
-    final officeId = _profileData?['id'] ?? '---';
+    final officeName = _userData?['name'] ?? _profileData?['name'] ?? 'Office';
+    final officeId = _profileData?['id'] ?? _userData?['id'] ?? '---';
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.qr_code_2_rounded, color: Color(0xFF4F46E5)),
-            SizedBox(width: 10),
-            Text('Reception QR Stand', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Column(
-                children: [
-                  const Icon(Icons.qr_code_scanner_rounded, size: 100, color: Color(0xFF4F46E5)),
-                  const SizedBox(height: 12),
-                  Text(
-                    officeName,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Office ID: #$officeId',
-                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            const Text(
-              'Print and place this QR Code at your entrance. Walk-in customers scanning this with QueueLess will instantly join your queue.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.4),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
+      builder: (context) => QrStandDialog(
+        title: 'Reception QR Stand',
+        officeName: officeName,
+        officeId: officeId,
       ),
     );
   }

@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:queueless_office/config/api_config.dart';
 import 'package:queueless_office/screens/auth/office_auth_screen.dart';
 import 'package:queueless_office/theme/provider_theme.dart';
+import 'package:queueless_office/widgets/qr_stand_dialog.dart';
 
 class ProviderDashboardScreen extends StatefulWidget {
   const ProviderDashboardScreen({super.key});
@@ -20,6 +21,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   bool _loading = true;
   Map<String, dynamic>? _providerData;
   String? _officeId;
+  int? _numericOfficeId;
 
   // Provider Duty Status state
   bool _isOnDuty = true;
@@ -589,12 +591,19 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
       if (cachedOfficeId != null) {
         _officeId = cachedOfficeId;
       }
+      final cachedOfficeNumericId = await _storage.read(key: 'office_numeric_id');
+      if (cachedOfficeNumericId != null) {
+        _numericOfficeId = int.tryParse(cachedOfficeNumericId);
+      }
 
       if (cachedProvider != null) {
         try {
           _providerData = jsonDecode(cachedProvider);
           if (_providerData?['onDuty'] != null) {
             _isOnDuty = _providerData!['onDuty'] == true;
+          }
+          if (_providerData?['officeId'] != null) {
+            _numericOfficeId = int.tryParse(_providerData!['officeId'].toString());
           }
         } catch (_) {}
       }
@@ -615,13 +624,19 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
             if (data['onDuty'] != null) {
               _isOnDuty = data['onDuty'] == true;
             }
+            if (data['officeId'] != null) {
+              _numericOfficeId = int.tryParse(data['officeId'].toString());
+            }
             if (data['officeCode'] != null) {
-              _officeId = data['officeCode'];
+              _officeId = data['officeCode'].toString();
             }
           });
           await _storage.write(key: 'provider_data', value: jsonEncode(data));
           if (_officeId != null) {
             await _storage.write(key: 'office_id', value: _officeId!);
+          }
+          if (_numericOfficeId != null) {
+            await _storage.write(key: 'office_numeric_id', value: _numericOfficeId.toString());
           }
           await _loadQueueSettings();
           await _fetchLiveQueue(silent: true);
@@ -768,6 +783,29 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
     }
   }
 
+  void _showProviderQrDialog() {
+    final name = _providerData?['name'] ?? 'Provider';
+    final specialization = _providerData?['designation'] ?? _providerData?['specialization'] ?? '';
+    final dynamic rawOfficeId = _providerData?['officeId'] ?? _numericOfficeId;
+    final int? numericOfficeId = rawOfficeId != null ? int.tryParse(rawOfficeId.toString()) : null;
+    final String officeCode = _providerData?['officeCode']?.toString() ?? _officeId ?? (numericOfficeId != null ? '#$numericOfficeId' : '---');
+    final officeName = _providerData?['officeName'] ?? 'Office $officeCode';
+    final providerId = _providerData?['id'];
+
+    showDialog(
+      context: context,
+      builder: (context) => QrStandDialog(
+        title: '$name Desk Stand',
+        officeName: officeName,
+        officeId: numericOfficeId ?? rawOfficeId ?? officeCode,
+        officeCode: officeCode,
+        providerId: providerId,
+        providerName: name,
+        designation: specialization,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final name = _providerData?['name'] ?? 'Provider';
@@ -893,6 +931,15 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                 ),
               ),
             ),
+            IconButton(
+              icon: const Icon(Icons.qr_code_2_rounded, color: ProviderColors.primary, size: 21),
+              tooltip: 'My Desk QR Stand',
+              padding: const EdgeInsets.all(6),
+              constraints: const BoxConstraints(),
+              visualDensity: VisualDensity.compact,
+              onPressed: _showProviderQrDialog,
+            ),
+            const SizedBox(width: 2),
             IconButton(
               icon: const Icon(Icons.refresh_rounded, color: ProviderColors.mutedText, size: 21),
               tooltip: 'Refresh Profile',
@@ -1081,11 +1128,30 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                                         child: const Icon(Icons.copy_rounded, color: Colors.white, size: 14),
                                       ),
                                     ),
+                                    const Spacer(),
+                                    OutlinedButton.icon(
+                                      onPressed: _showProviderQrDialog,
+                                      icon: const Icon(Icons.qr_code_2_rounded, size: 15),
+                                      label: const Text('Show QR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.white,
+                                        side: const BorderSide(color: Colors.white70, width: 1.2),
+                                        backgroundColor: Colors.white.withValues(alpha: 0.15),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        minimumSize: Size.zero,
+                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ],
                             ),
                           ),
+                          const SizedBox(height: 18),
+
+                          // Dedicated Quick Action: My Desk QR Stand
+                          _buildDeskQrActionCard(),
                           const SizedBox(height: 20),
 
                           // Section: Incoming Token Requests from Office (when limit reached)
@@ -1233,6 +1299,122 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                   ),
                 ),
               ),
+      ),
+    );
+  }
+
+  Widget _buildDeskQrActionCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE9D5FF), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: ProviderColors.primary.withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: _showProviderQrDialog,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    gradient: ProviderColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: ProviderColors.primary.withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.qr_code_2_rounded, color: Colors.white, size: 28),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Flexible(
+                            child: Text(
+                              'My Desk QR Stand',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: ProviderColors.mainText,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: ProviderColors.primarySoft,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'DIRECT CHECK-IN',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: ProviderColors.primaryDark,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      const Text(
+                        'Display or print your QR code. Walk-in clients scan to book tokens directly with you.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: ProviderColors.secondaryText,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: _showProviderQrDialog,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ProviderColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('View QR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      SizedBox(width: 4),
+                      Icon(Icons.arrow_forward_rounded, size: 14),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

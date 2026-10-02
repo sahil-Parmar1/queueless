@@ -5,8 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:queueless_office/config/api_config.dart';
 import 'package:queueless_office/screens/providers/add_edit_provider_dialog.dart';
-
 import 'package:queueless_office/services/provider_status_websocket_service.dart';
+import 'package:queueless_office/widgets/qr_stand_dialog.dart';
 
 class ProvidersScreen extends StatefulWidget {
   final Map<String, dynamic>? officeProfile;
@@ -258,6 +258,26 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
       builder: (context) => AddEditProviderDialog(
         provider: provider,
         onSaved: _fetchProviders,
+      ),
+    );
+  }
+
+  void _showProviderQrDialog(Map<String, dynamic> provider) {
+    final name = provider['name'] ?? 'Provider';
+    final designation = provider['designation'] ?? '';
+    final officeName = widget.officeProfile?['name'] ?? 'Office';
+    final officeId = widget.officeProfile?['id'] ?? provider['officeId'] ?? '---';
+    final providerId = provider['id'];
+
+    showDialog(
+      context: context,
+      builder: (context) => QrStandDialog(
+        title: '$name Desk Stand',
+        officeName: officeName,
+        officeId: officeId,
+        providerId: providerId,
+        providerName: name,
+        designation: designation,
       ),
     );
   }
@@ -768,6 +788,11 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    IconButton(
+                      icon: const Icon(Icons.qr_code_2_rounded, size: 20, color: Color(0xFF4F46E5)),
+                      tooltip: 'View QR Stand',
+                      onPressed: () => _showProviderQrDialog(p),
+                    ),
                     IconButton(
                       icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF4F46E5)),
                       tooltip: 'Edit details & schedule',

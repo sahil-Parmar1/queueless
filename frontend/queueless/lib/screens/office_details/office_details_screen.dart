@@ -8,10 +8,12 @@ import '../queue/active_token_screen.dart';
 
 class OfficeDetailsScreen extends StatefulWidget {
   final int officeId;
+  final int? initialProviderId;
 
   const OfficeDetailsScreen({
     super.key,
     required this.officeId,
+    this.initialProviderId,
   });
 
   @override
@@ -551,7 +553,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
               }
 
               return ElevatedButton.icon(
-                onPressed: canJoinQueue ? _showBookingSheet : null,
+                onPressed: canJoinQueue ? () => _showBookingSheet(widget.initialProviderId) : null,
                 icon: _booking
                     ? const SizedBox(
                         width: 18,
