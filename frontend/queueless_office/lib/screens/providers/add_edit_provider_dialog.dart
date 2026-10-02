@@ -58,8 +58,8 @@ class _AddEditProviderDialogState extends State<AddEditProviderDialog> {
   ];
 
   String get _apiBaseUrl => kIsWeb
-      ? 'http://localhost:8080/api/office/providers'
-      : 'http://10.0.2.2:8080/api/office/providers';
+      ? 'http://localhost:8081/api/office/providers'
+      : 'http://10.0.2.2:8081/api/office/providers';
 
   @override
   void initState() {
@@ -254,9 +254,19 @@ class _AddEditProviderDialogState extends State<AddEditProviderDialog> {
           );
         }
       } else {
-        final body = jsonDecode(response.body);
+        String msg = 'Request failed (${response.statusCode})';
+        try {
+          final body = jsonDecode(response.body);
+          if (body is Map) {
+            msg = body['error'] ?? body['message'] ?? msg;
+          }
+        } catch (_) {
+          if (response.body.isNotEmpty) {
+            msg = response.body;
+          }
+        }
         setState(() {
-          _errorMessage = body['error'] ?? body['message'] ?? 'Request failed (${response.statusCode})';
+          _errorMessage = msg;
           _saving = false;
         });
       }

@@ -27,8 +27,8 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
   ProviderStatusWebSocketService? _webSocketService;
 
   String get _apiBaseUrl => kIsWeb
-      ? 'http://localhost:8080/api/office/providers'
-      : 'http://10.0.2.2:8080/api/office/providers';
+      ? 'http://localhost:8081/api/office/providers'
+      : 'http://10.0.2.2:8081/api/office/providers';
 
   @override
   void initState() {

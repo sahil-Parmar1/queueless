@@ -23,8 +23,8 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
   bool _obscurePassword = true;
 
   String get _backendUrl => kIsWeb
-      ? 'http://localhost:8080/api/provider/login'
-      : 'http://10.0.2.2:8080/api/provider/login';
+      ? 'http://localhost:8081/api/provider/login'
+      : 'http://10.0.2.2:8081/api/provider/login';
 
   @override
   void dispose() {

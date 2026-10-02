@@ -24,13 +24,13 @@ public class GatewayProxyController {
 
     private final HttpClient httpClient;
 
-    @Value("${services.auth.url:http://localhost:8081}")
+    @Value("${services.auth.url:http://localhost:8082}")
     private String authServiceUrl;
 
-    @Value("${services.office.url:http://localhost:8082}")
+    @Value("${services.office.url:http://localhost:8083}")
     private String officeServiceUrl;
 
-    @Value("${services.customer.url:http://localhost:8083}")
+    @Value("${services.customer.url:http://localhost:8084}")
     private String customerServiceUrl;
 
     private static final Set<String> DISALLOWED_HEADERS = Set.of(
@@ -103,7 +103,7 @@ public class GatewayProxyController {
             // Build Spring ResponseEntity
             HttpHeaders responseHeaders = new HttpHeaders();
             downstreamResponse.headers().map().forEach((key, values) -> {
-                if (!DISALLOWED_HEADERS.contains(key.toLowerCase()) && !"content-length".equalsIgnoreCase(key)) {
+                if (key != null && !DISALLOWED_HEADERS.contains(key.toLowerCase()) && !"content-length".equalsIgnoreCase(key)) {
                     responseHeaders.put(key, values);
                 }
             });
@@ -116,8 +116,24 @@ public class GatewayProxyController {
 
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                    .body(("Gateway Error forwarding request: " + e.getMessage()).getBytes());
+            String errorMsg = e.getMessage();
+            if (errorMsg == null && e.getCause() != null) {
+                errorMsg = e.getCause().getMessage();
+            }
+            if (errorMsg == null) {
+                errorMsg = e.getClass().getSimpleName();
+            }
+
+            String targetBase = resolveTargetServiceUrl(request.getRequestURI());
+            String jsonError = String.format(
+                    "{\"error\":\"GATEWAY_ERROR\",\"message\":\"Gateway Error connecting to %s: %s. Please ensure the microservice is running.\",\"status\":502}",
+                    targetBase != null ? targetBase : "downstream service",
+                    errorMsg.replace("\"", "'")
+            );
+
+            HttpHeaders errHeaders = new HttpHeaders();
+            errHeaders.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+            return new ResponseEntity<>(jsonError.getBytes(java.nio.charset.StandardCharsets.UTF_8), errHeaders, HttpStatus.BAD_GATEWAY);
         }
     }
 

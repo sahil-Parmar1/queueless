@@ -24,6 +24,19 @@ class QueueNotificationService with WidgetsBindingObserver {
   bool _alertedTwoAhead = false;
   bool _alertedTurnArrived = false;
 
+  static int _activeTokenScreenCount = 0;
+  static bool get isTokenScreenActive => _activeTokenScreenCount > 0;
+
+  static void registerTokenScreen() {
+    _activeTokenScreenCount++;
+  }
+
+  static void unregisterTokenScreen() {
+    if (_activeTokenScreenCount > 0) {
+      _activeTokenScreenCount--;
+    }
+  }
+
   static const String _turnChannelId = 'queueless_turn_alerts_custom_sound';
   static const String _turnChannelName = 'Customer Turn Arrived Alerts';
   static const String _turnChannelDescription = 'Plays custom voice alert when your turn arrives in queue';
@@ -132,47 +145,58 @@ class QueueNotificationService with WidgetsBindingObserver {
         _alertedTurnArrived = false;
         return;
       }
-
-      final rawTokenId = data['id'] ?? data['token']?['id'];
-      final int? tokenId = rawTokenId is int ? rawTokenId : int.tryParse('$rawTokenId');
-
-      // If token changed, reset alert flags for the new token
-      if (tokenId != null && tokenId != _currentTrackedTokenId) {
-        _currentTrackedTokenId = tokenId;
-        _alertedTwoAhead = false;
-        _alertedTurnArrived = false;
-      }
-
-      final status = (data['status'] ?? data['token']?['status'] ?? 'WAITING').toString().toUpperCase();
-      final dynamic rawPeopleAhead = data['peopleAhead'];
-      final int peopleAhead = (rawPeopleAhead is int)
-          ? rawPeopleAhead
-          : int.tryParse('$rawPeopleAhead') ?? 0;
-      final tokenNumber = (data['tokenNumber'] ?? data['token']?['tokenNumber'] ?? '---').toString();
-      final String destination = (data['providerName'] ?? data['officeName'] ?? 'the counter').toString();
-
-      // Situation 1: Only 2 people ahead
-      if (peopleAhead <= 2 && peopleAhead > 0 && status == 'WAITING' && !_alertedTwoAhead) {
-        _alertedTwoAhead = true;
-        _triggerTwoAheadAlert(
-          peopleAhead: peopleAhead,
-          tokenNumber: tokenNumber,
-          destination: destination,
-          tokenData: data,
-        );
-      }
-
-      // Situation 2: Turn arrived!
-      if ((status == 'CALLED' || status == 'IN_SERVICE') && !_alertedTurnArrived) {
-        _alertedTurnArrived = true;
-        _triggerTurnArrivedAlert(
-          tokenNumber: tokenNumber,
-          destination: destination,
-          tokenData: data,
-        );
-      }
+      processTokenData(data);
     } catch (e) {
       debugPrint('QueueNotificationService checkQueueStatus error: $e');
+    }
+  }
+
+  /// Process token data from polling or directly from active screen
+  void processTokenData(Map<String, dynamic> data) {
+    if (data['hasActiveToken'] != true) {
+      _currentTrackedTokenId = null;
+      _alertedTwoAhead = false;
+      _alertedTurnArrived = false;
+      return;
+    }
+
+    final rawTokenId = data['id'] ?? data['token']?['id'];
+    final int? tokenId = rawTokenId is int ? rawTokenId : int.tryParse('$rawTokenId');
+
+    // If token changed, reset alert flags for the new token
+    if (tokenId != null && tokenId != _currentTrackedTokenId) {
+      _currentTrackedTokenId = tokenId;
+      _alertedTwoAhead = false;
+      _alertedTurnArrived = false;
+    }
+
+    final status = (data['status'] ?? data['token']?['status'] ?? 'WAITING').toString().toUpperCase();
+    final dynamic rawPeopleAhead = data['peopleAhead'];
+    final int peopleAhead = (rawPeopleAhead is int)
+        ? rawPeopleAhead
+        : int.tryParse('$rawPeopleAhead') ?? 0;
+    final tokenNumber = (data['tokenNumber'] ?? data['token']?['tokenNumber'] ?? '---').toString();
+    final String destination = (data['providerName'] ?? data['officeName'] ?? 'the counter').toString();
+
+    // Situation 1: Only 2 people ahead
+    if (peopleAhead <= 2 && peopleAhead > 0 && status == 'WAITING' && !_alertedTwoAhead) {
+      _alertedTwoAhead = true;
+      _triggerTwoAheadAlert(
+        peopleAhead: peopleAhead,
+        tokenNumber: tokenNumber,
+        destination: destination,
+        tokenData: data,
+      );
+    }
+
+    // Situation 2: Turn arrived!
+    if ((status == 'CALLED' || status == 'IN_SERVICE') && !_alertedTurnArrived) {
+      _alertedTurnArrived = true;
+      _triggerTurnArrivedAlert(
+        tokenNumber: tokenNumber,
+        destination: destination,
+        tokenData: data,
+      );
     }
   }
 
@@ -338,16 +362,19 @@ class QueueNotificationService with WidgetsBindingObserver {
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Dismiss', style: TextStyle(color: Color(0xFF64748B))),
-            ),
+            if (!isTokenScreenActive)
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Dismiss', style: TextStyle(color: Color(0xFF64748B))),
+              ),
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                Navigator.of(ctx).push(
-                  MaterialPageRoute(builder: (_) => ActiveTokenScreen(initialTokenData: tokenData)),
-                );
+                if (!isTokenScreenActive) {
+                  Navigator.of(ctx).push(
+                    MaterialPageRoute(builder: (_) => ActiveTokenScreen(initialTokenData: tokenData)),
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF4F46E5),
@@ -355,7 +382,7 @@ class QueueNotificationService with WidgetsBindingObserver {
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              child: const Text('View Token Pass'),
+              child: Text(isTokenScreenActive ? 'Got It, I\'m Ready!' : 'View Token Pass'),
             ),
           ],
         ),
@@ -447,17 +474,22 @@ class QueueNotificationService with WidgetsBindingObserver {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                Navigator.of(ctx).push(
-                  MaterialPageRoute(builder: (_) => ActiveTokenScreen(initialTokenData: tokenData)),
-                );
+                if (!isTokenScreenActive) {
+                  Navigator.of(ctx).push(
+                    MaterialPageRoute(builder: (_) => ActiveTokenScreen(initialTokenData: tokenData)),
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF10B981),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                padding: EdgeInsets.symmetric(horizontal: isTokenScreenActive ? 24 : 22, vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              child: const Text('Proceed to Counter', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: Text(
+                isTokenScreenActive ? 'Proceed Now' : 'Proceed to Counter',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),

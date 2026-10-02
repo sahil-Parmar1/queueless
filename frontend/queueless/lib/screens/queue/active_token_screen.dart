@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/office_service.dart';
+import '../../services/queue_notification_service.dart';
 
 class ActiveTokenScreen extends StatefulWidget {
   final Map<String, dynamic>? initialTokenData;
@@ -19,19 +20,17 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
   bool _loading = true;
   Map<String, dynamic>? _tokenData;
   Timer? _pollingTimer;
-  bool _alertedTwoAhead = false;
-  bool _alertedTurnArrived = false;
-  bool _isShowingDialog = false;
 
   @override
   void initState() {
     super.initState();
+    QueueNotificationService.registerTokenScreen();
     if (widget.initialTokenData != null) {
       _tokenData = widget.initialTokenData;
       _loading = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _checkAlerts(_tokenData);
+        if (mounted && _tokenData != null) {
+          QueueNotificationService().processTokenData(_tokenData!);
         }
       });
     } else {
@@ -42,6 +41,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
 
   @override
   void dispose() {
+    QueueNotificationService.unregisterTokenScreen();
     _pollingTimer?.cancel();
     super.dispose();
   }
@@ -65,203 +65,10 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
         _tokenData = data;
         _loading = false;
       });
-      _checkAlerts(data);
-    }
-  }
-
-  void _checkAlerts(Map<String, dynamic>? data) {
-    if (data == null || data['hasActiveToken'] != true) return;
-
-    final status = (data['status'] ?? data['token']?['status'] ?? 'WAITING').toString().toUpperCase();
-    final dynamic rawPeopleAhead = data['peopleAhead'];
-    final int peopleAhead = (rawPeopleAhead is int)
-        ? rawPeopleAhead
-        : int.tryParse('$rawPeopleAhead') ?? 0;
-    final tokenNumber = (data['tokenNumber'] ?? data['token']?['tokenNumber'] ?? '---').toString();
-    final String destination = (data['providerName'] ?? data['officeName'] ?? 'the counter').toString();
-
-    // Alert 1: Only 2 people ahead
-    if (peopleAhead <= 2 && peopleAhead > 0 && status == 'WAITING' && !_alertedTwoAhead) {
-      _alertedTwoAhead = true;
-      _showTwoAheadAlert(peopleAhead, tokenNumber, destination);
-    }
-
-    // Alert 2: Turn arrived!
-    if ((status == 'CALLED' || status == 'IN_SERVICE') && !_alertedTurnArrived) {
-      _alertedTurnArrived = true;
-      _showTurnArrivedAlert(tokenNumber, destination);
-    }
-  }
-
-  void _showTwoAheadAlert(int peopleAhead, String tokenNumber, String destination) {
-    if (_isShowingDialog) return;
-    _isShowingDialog = true;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        _isShowingDialog = false;
-        return;
+      if (data != null) {
+        QueueNotificationService().processTokenData(data);
       }
-
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: Colors.white,
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.timer_rounded, color: Color(0xFFD97706), size: 26),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Almost Your Turn!',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF0F172A)),
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFFCD34D)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.confirmation_number_rounded, color: Color(0xFFB45309), size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Token #$tokenNumber',
-                      style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF92400E)),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Only $peopleAhead person${peopleAhead == 1 ? '' : 's'} ahead of you in line. Please proceed towards the waiting area or counter for $destination.',
-                style: const TextStyle(fontSize: 14, color: Color(0xFF334155), height: 1.4),
-              ),
-            ],
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4F46E5),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: const Text('Got It, I\'m Ready!'),
-            ),
-          ],
-        ),
-      ).then((_) {
-        if (mounted) {
-          _isShowingDialog = false;
-        }
-      });
-    });
-  }
-
-  void _showTurnArrivedAlert(String tokenNumber, String destination) {
-    if (_isShowingDialog) return;
-    _isShowingDialog = true;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        _isShowingDialog = false;
-        return;
-      }
-
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: Colors.white,
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.campaign_rounded, color: Color(0xFF10B981), size: 28),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  '🎉 It\'s Your Turn Now!',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF0F172A)),
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD1FAE5),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF6EE7B7)),
-                ),
-                child: Column(
-                  children: [
-                    const Text('CALLING TOKEN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF065F46))),
-                    const SizedBox(height: 2),
-                    Text(
-                      tokenNumber,
-                      style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Color(0xFF047857)),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Your token is now being called by $destination! Please proceed immediately.',
-                style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B), height: 1.4, fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: const Text('Proceed Now', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      ).then((_) {
-        if (mounted) {
-          _isShowingDialog = false;
-        }
-      });
-    });
+    }
   }
 
   Future<void> _handleCancelToken() async {

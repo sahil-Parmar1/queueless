@@ -20,8 +20,8 @@ class _OfficeAuthScreenState extends State<OfficeAuthScreen> {
   bool _loading = false;
 
   String get _backendUrl => kIsWeb
-      ? 'http://localhost:8080/api/auth/office/google'
-      : 'http://10.0.2.2:8080/api/auth/office/google';
+      ? 'http://localhost:8081/api/auth/office/google'
+      : 'http://10.0.2.2:8081/api/auth/office/google';
 
   Future<void> _loginWithGoogle() async {
     setState(() => _loading = true);
@@ -68,8 +68,18 @@ class _OfficeAuthScreenState extends State<OfficeAuthScreen> {
               );
             }
           } else {
-            final err = jsonDecode(response.body);
-            _showSnackBar(err['message'] ?? 'Authentication failed. Please try again.', isError: true);
+            String errorMsg = 'Authentication failed. Please try again.';
+            try {
+              final err = jsonDecode(response.body);
+              if (err is Map && err['message'] != null) {
+                errorMsg = err['message'].toString();
+              }
+            } catch (_) {
+              if (response.body.isNotEmpty) {
+                errorMsg = response.body;
+              }
+            }
+            _showSnackBar(errorMsg, isError: true);
           }
         } else {
           _showSnackBar('Could not retrieve Google ID Token', isError: true);

@@ -7,6 +7,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -224,8 +225,7 @@ public class ProviderService {
         }
 
         if (request.getSchedules() != null) {
-            provider.getSchedules().clear();
-            applySchedules(provider, request.getSchedules());
+            updateSchedules(provider, request.getSchedules());
         }
 
         Provider saved = providerRepository.save(provider);
@@ -414,16 +414,49 @@ public class ProviderService {
 
     private void applySchedules(Provider provider, List<ProviderScheduleDto> scheduleDtos) {
         if (scheduleDtos == null) return;
-        List<ProviderSchedule> list = new ArrayList<>();
+        if (provider.getSchedules() == null) {
+            provider.setSchedules(new ArrayList<>());
+        }
         for (ProviderScheduleDto dto : scheduleDtos) {
             ProviderSchedule ps = new ProviderSchedule();
             ps.setProvider(provider);
             ps.setDayOfWeek(dto.getDayOfWeek());
             ps.setStartTime(dto.parseStartTime());
             ps.setEndTime(dto.parseEndTime());
-            list.add(ps);
+            provider.getSchedules().add(ps);
         }
-        provider.setSchedules(list);
+    }
+
+    private void updateSchedules(Provider provider, List<ProviderScheduleDto> scheduleDtos) {
+        if (scheduleDtos == null) return;
+        if (provider.getSchedules() == null) {
+            provider.setSchedules(new ArrayList<>());
+        }
+
+        Map<DayOfWeek, ProviderScheduleDto> dtoMap = scheduleDtos.stream()
+                .collect(Collectors.toMap(ProviderScheduleDto::getDayOfWeek, d -> d));
+
+        // 1. Remove schedules for days no longer in scheduleDtos
+        provider.getSchedules().removeIf(s -> !dtoMap.containsKey(s.getDayOfWeek()));
+
+        // 2. Update existing days in-place or add new days
+        Map<DayOfWeek, ProviderSchedule> existingMap = provider.getSchedules().stream()
+                .collect(Collectors.toMap(ProviderSchedule::getDayOfWeek, s -> s));
+
+        for (ProviderScheduleDto dto : scheduleDtos) {
+            ProviderSchedule existing = existingMap.get(dto.getDayOfWeek());
+            if (existing != null) {
+                existing.setStartTime(dto.parseStartTime());
+                existing.setEndTime(dto.parseEndTime());
+            } else {
+                ProviderSchedule ps = new ProviderSchedule();
+                ps.setProvider(provider);
+                ps.setDayOfWeek(dto.getDayOfWeek());
+                ps.setStartTime(dto.parseStartTime());
+                ps.setEndTime(dto.parseEndTime());
+                provider.getSchedules().add(ps);
+            }
+        }
     }
 
     /**

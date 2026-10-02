@@ -15,7 +15,7 @@ class ProviderStatusWebSocketService {
     if (_disposed) return;
     _reconnectTimer?.cancel();
 
-    final host = kIsWeb ? 'localhost:8082' : '10.0.2.2:8082';
+    final host = kIsWeb ? 'localhost:8083' : '10.0.2.2:8083';
     final url = 'ws://$host/ws/provider-status';
 
     WebSocket.connect(url).then((ws) {

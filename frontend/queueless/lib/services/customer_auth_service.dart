@@ -34,10 +34,10 @@ class CustomerAuthService {
 
   String get _baseUrl {
     if (kIsWeb) {
-      return 'http://localhost:8080/api/auth';
+      return 'http://localhost:8081/api/auth';
     }
     // Android emulator -> 10.0.2.2, default fallback -> localhost
-    return 'http://10.0.2.2:8080/api/auth';
+    return 'http://10.0.2.2:8081/api/auth';
   }
 
   // ==========================================

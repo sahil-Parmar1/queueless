@@ -35,36 +35,36 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   bool _queueActionLoading = false;
 
   String get _backendUrl => kIsWeb
-      ? 'http://localhost:8080/api/provider/me'
-      : 'http://10.0.2.2:8080/api/provider/me';
+      ? 'http://localhost:8081/api/provider/me'
+      : 'http://10.0.2.2:8081/api/provider/me';
 
   String get _providerDutyStatusUrl => kIsWeb
-      ? 'http://localhost:8080/api/provider/duty-status'
-      : 'http://10.0.2.2:8080/api/provider/duty-status';
+      ? 'http://localhost:8081/api/provider/duty-status'
+      : 'http://10.0.2.2:8081/api/provider/duty-status';
 
   String get _queueSettingsUrl => kIsWeb
-      ? 'http://localhost:8080/api/provider/settings/queue'
-      : 'http://10.0.2.2:8080/api/provider/settings/queue';
+      ? 'http://localhost:8081/api/provider/settings/queue'
+      : 'http://10.0.2.2:8081/api/provider/settings/queue';
 
   String get _providerQueueLiveUrl => kIsWeb
-      ? 'http://localhost:8080/api/provider/queue/live'
-      : 'http://10.0.2.2:8080/api/provider/queue/live';
+      ? 'http://localhost:8081/api/provider/queue/live'
+      : 'http://10.0.2.2:8081/api/provider/queue/live';
 
   String get _providerQueueCallNextUrl => kIsWeb
-      ? 'http://localhost:8080/api/provider/queue/call-next'
-      : 'http://10.0.2.2:8080/api/provider/queue/call-next';
+      ? 'http://localhost:8081/api/provider/queue/call-next'
+      : 'http://10.0.2.2:8081/api/provider/queue/call-next';
 
   String _providerQueueServeUrl(dynamic id) => kIsWeb
-      ? 'http://localhost:8080/api/provider/queue/tokens/$id/serve'
-      : 'http://10.0.2.2:8080/api/provider/queue/tokens/$id/serve';
+      ? 'http://localhost:8081/api/provider/queue/tokens/$id/serve'
+      : 'http://10.0.2.2:8081/api/provider/queue/tokens/$id/serve';
 
   String get _providerQueueCompleteUrl => kIsWeb
-      ? 'http://localhost:8080/api/provider/queue/complete'
-      : 'http://10.0.2.2:8080/api/provider/queue/complete';
+      ? 'http://localhost:8081/api/provider/queue/complete'
+      : 'http://10.0.2.2:8081/api/provider/queue/complete';
 
   String get _providerQueueSkipUrl => kIsWeb
-      ? 'http://localhost:8080/api/provider/queue/skip'
-      : 'http://10.0.2.2:8080/api/provider/queue/skip';
+      ? 'http://localhost:8081/api/provider/queue/skip'
+      : 'http://10.0.2.2:8081/api/provider/queue/skip';
 
   @override
   void initState() {
