@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:queueless/config/api_config.dart';
 import 'google_auth_service.dart';
 
 class AuthResult {
@@ -32,13 +33,7 @@ class CustomerAuthService {
   static const String _keyJwtToken = 'queueless_customer_jwt';
   static const String _keyUserData = 'queueless_customer_user';
 
-  String get _baseUrl {
-    if (kIsWeb) {
-      return 'http://localhost:8081/api/auth';
-    }
-    // Android emulator -> 10.0.2.2, default fallback -> localhost
-    return 'http://10.0.2.2:8081/api/auth';
-  }
+  String get _baseUrl => '$apiBaseUrl/api/auth';
 
   // ==========================================
   // GOOGLE SIGN IN (AUTO-REGISTER & LOGIN)

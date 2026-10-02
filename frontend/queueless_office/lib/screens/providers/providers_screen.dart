@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:queueless_office/config/api_config.dart';
 import 'package:queueless_office/screens/providers/add_edit_provider_dialog.dart';
 
 import 'package:queueless_office/services/provider_status_websocket_service.dart';
@@ -26,9 +26,7 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
   final Map<int, bool> _togglingStatus = {};
   ProviderStatusWebSocketService? _webSocketService;
 
-  String get _apiBaseUrl => kIsWeb
-      ? 'http://localhost:8081/api/office/providers'
-      : 'http://10.0.2.2:8081/api/office/providers';
+  String get _apiBaseUrl => '$apiBaseUrl/api/office/providers';
 
   @override
   void initState() {

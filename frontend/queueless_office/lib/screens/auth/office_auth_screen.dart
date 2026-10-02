@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:queueless_office/config/api_config.dart';
 import 'package:queueless_office/screens/auth/provider_login_screen.dart';
 import 'package:queueless_office/screens/dashboad/OfficeDashboardScreen.dart';
 import 'package:queueless_office/services/google_auth_service.dart';
@@ -19,9 +20,7 @@ class _OfficeAuthScreenState extends State<OfficeAuthScreen> {
   final _storage = const FlutterSecureStorage();
   bool _loading = false;
 
-  String get _backendUrl => kIsWeb
-      ? 'http://localhost:8081/api/auth/office/google'
-      : 'http://10.0.2.2:8081/api/auth/office/google';
+  String get _backendUrl => '$apiBaseUrl/api/auth/office/google';
 
   Future<void> _loginWithGoogle() async {
     setState(() => _loading = true);

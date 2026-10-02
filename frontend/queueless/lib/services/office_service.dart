@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:queueless/config/api_config.dart';
 
 class OfficeService {
   static final OfficeService _instance = OfficeService._internal();
@@ -12,12 +13,7 @@ class OfficeService {
   static const String _keyJwtToken = 'queueless_customer_jwt';
   static const String _keyUserData = 'queueless_customer_user';
 
-  String get _baseUrl {
-    if (kIsWeb) {
-      return 'http://localhost:8081/api';
-    }
-    return 'http://10.0.2.2:8081/api';
-  }
+  String get _baseUrl => '$apiBaseUrl/api';
 
   Future<Map<String, String>> _getHeaders() async {
     final token = await _storage.read(key: _keyJwtToken);

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:queueless_office/config/api_config.dart';
 import 'package:queueless_office/screens/dashboad/OfficeDashboardScreen.dart';
 
 class OfficeOnboardingScreen extends StatefulWidget {
@@ -65,9 +66,7 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
     super.dispose();
   }
 
-  String get _baseUrl => kIsWeb
-      ? 'http://localhost:8081/api/office/onboarding'
-      : 'http://10.0.2.2:8081/api/office/onboarding';
+  String get _baseUrl => '$apiBaseUrl/api/office/onboarding';
 
   Future<void> _pickFile(bool isPrimary) async {
     final result = await FilePicker.pickFiles(

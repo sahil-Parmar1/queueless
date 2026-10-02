@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:queueless_office/config/api_config.dart';
 import 'package:queueless_office/screens/provider_dashboard/provider_dashboard_screen.dart';
 import 'package:queueless_office/theme/provider_theme.dart';
 
@@ -23,9 +23,7 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
   bool _loading = false;
   bool _obscurePassword = true;
 
-  String get _backendUrl => kIsWeb
-      ? 'http://localhost:8081/api/provider/login'
-      : 'http://10.0.2.2:8081/api/provider/login';
+  String get _backendUrl => '$apiBaseUrl/api/provider/login';
 
   @override
   void dispose() {

@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:queueless_office/config/api_config.dart';
 import 'package:queueless_office/screens/auth/office_auth_screen.dart';
 import 'package:queueless_office/screens/dashboad/office_onboarding_screen.dart';
 import 'package:queueless_office/screens/providers/providers_screen.dart';
@@ -40,13 +40,9 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
   // For Approved state tab switching: 0 -> Queue Dashboard, 1 -> Office Profile Details
   int _approvedSelectedTab = 0;
 
-  String get _baseUrl => kIsWeb
-      ? 'http://localhost:8081/api/office/profile'
-      : 'http://10.0.2.2:8081/api/office/profile';
+  String get _baseUrl => '$apiBaseUrl/api/office/profile';
 
-  String get _apiBaseUrl => kIsWeb
-      ? 'http://localhost:8081/api'
-      : 'http://10.0.2.2:8081/api';
+  String get _apiBaseUrl => '$apiBaseUrl/api';
 
   @override
   void initState() {

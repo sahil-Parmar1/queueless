@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:queueless_office/config/api_config.dart';
 import 'package:queueless_office/screens/auth/office_auth_screen.dart';
 import 'package:queueless_office/theme/provider_theme.dart';
 
@@ -35,45 +35,25 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   Timer? _liveQueueTimer;
   bool _queueActionLoading = false;
 
-  String get _backendUrl => kIsWeb
-      ? 'http://localhost:8081/api/provider/me'
-      : 'http://10.0.2.2:8081/api/provider/me';
+  String get _backendUrl => '$apiBaseUrl/api/provider/me';
 
-  String get _providerDutyStatusUrl => kIsWeb
-      ? 'http://localhost:8081/api/provider/duty-status'
-      : 'http://10.0.2.2:8081/api/provider/duty-status';
+  String get _providerDutyStatusUrl => '$apiBaseUrl/api/provider/duty-status';
 
-  String get _queueSettingsUrl => kIsWeb
-      ? 'http://localhost:8081/api/provider/settings/queue'
-      : 'http://10.0.2.2:8081/api/provider/settings/queue';
+  String get _queueSettingsUrl => '$apiBaseUrl/api/provider/settings/queue';
 
-  String get _providerQueueLiveUrl => kIsWeb
-      ? 'http://localhost:8081/api/provider/queue/live'
-      : 'http://10.0.2.2:8081/api/provider/queue/live';
+  String get _providerQueueLiveUrl => '$apiBaseUrl/api/provider/queue/live';
 
-  String get _providerQueueCallNextUrl => kIsWeb
-      ? 'http://localhost:8081/api/provider/queue/call-next'
-      : 'http://10.0.2.2:8081/api/provider/queue/call-next';
+  String get _providerQueueCallNextUrl => '$apiBaseUrl/api/provider/queue/call-next';
 
-  String _providerQueueServeUrl(dynamic id) => kIsWeb
-      ? 'http://localhost:8081/api/provider/queue/tokens/$id/serve'
-      : 'http://10.0.2.2:8081/api/provider/queue/tokens/$id/serve';
+  String _providerQueueServeUrl(dynamic id) => '$apiBaseUrl/api/provider/queue/tokens/$id/serve';
 
-  String get _providerQueueCompleteUrl => kIsWeb
-      ? 'http://localhost:8081/api/provider/queue/complete'
-      : 'http://10.0.2.2:8081/api/provider/queue/complete';
+  String get _providerQueueCompleteUrl => '$apiBaseUrl/api/provider/queue/complete';
 
-  String get _providerQueueSkipUrl => kIsWeb
-      ? 'http://localhost:8081/api/provider/queue/skip'
-      : 'http://10.0.2.2:8081/api/provider/queue/skip';
+  String get _providerQueueSkipUrl => '$apiBaseUrl/api/provider/queue/skip';
 
-  String _providerRequestAcceptUrl(dynamic id) => kIsWeb
-      ? 'http://localhost:8081/api/provider/queue/requests/$id/accept'
-      : 'http://10.0.2.2:8081/api/provider/queue/requests/$id/accept';
+  String _providerRequestAcceptUrl(dynamic id) => '$apiBaseUrl/api/provider/queue/requests/$id/accept';
 
-  String _providerRequestDeclineUrl(dynamic id) => kIsWeb
-      ? 'http://localhost:8081/api/provider/queue/requests/$id/decline'
-      : 'http://10.0.2.2:8081/api/provider/queue/requests/$id/decline';
+  String _providerRequestDeclineUrl(dynamic id) => '$apiBaseUrl/api/provider/queue/requests/$id/decline';
 
   @override
   void initState() {

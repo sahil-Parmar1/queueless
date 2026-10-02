@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:queueless/config/api_config.dart';
 
 class ProviderStatusWebSocketService {
   WebSocket? _socket;
@@ -15,8 +16,7 @@ class ProviderStatusWebSocketService {
     if (_disposed) return;
     _reconnectTimer?.cancel();
 
-    final host = kIsWeb ? 'localhost:8083' : '10.0.2.2:8083';
-    final url = 'ws://$host/ws/provider-status';
+    final url = wsProviderStatusUrl;
 
     WebSocket.connect(url).then((ws) {
       if (_disposed) {
