@@ -245,7 +245,7 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
 
   Widget _buildOfficeCard(dynamic office) {
     final name = office['name'] ?? 'Office';
-    final category = office['category'] ?? 'OTHER';
+    final category = (office['category'] ?? 'OTHER').toString().toUpperCase();
     final address = office['address'] ?? '';
     final city = office['city'] ?? '';
     final doctorName = office['doctorName'];
@@ -258,10 +258,14 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
     final bool isOpen = office['isOpen'] != false;
 
     String subInfo = '';
-    if (doctorName != null && doctorName.toString().isNotEmpty) {
+    if (category == 'CLINIC' && doctorName != null && doctorName.toString().isNotEmpty) {
       subInfo = '👨‍⚕️ $doctorName ${specialization != null ? '($specialization)' : ''}';
     } else if (salonType != null && salonType.toString().isNotEmpty) {
       subInfo = '✂️ $salonType Salon';
+    } else if (category == 'SALON') {
+      subInfo = '✂️ Salon';
+    } else if (category == 'CLINIC' && specialization != null && specialization.toString().isNotEmpty) {
+      subInfo = '👨‍⚕️ $specialization';
     } else if (specialization != null && specialization.toString().isNotEmpty) {
       subInfo = specialization;
     }

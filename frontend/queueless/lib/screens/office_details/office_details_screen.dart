@@ -208,6 +208,9 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
         ? null
         : preselectedProviderId;
 
+    final String category = (_officeDetails?['category'] ?? 'OTHER').toString().toUpperCase();
+    final bool isClinic = category == 'CLINIC';
+
     if (!mounted) return;
 
     final booked = await showModalBottomSheet<bool>(
@@ -253,7 +256,10 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
 
                   // Provider Selection (if office has providers configured)
                   if (_providers.isNotEmpty) ...[
-                    const Text('Select Doctor / Provider', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondaryText)),
+                    Text(
+                      isClinic ? 'Select Doctor / Staff' : 'Select Staff',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
+                    ),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<int?>(
                       initialValue: selectedProviderId,
@@ -275,9 +281,12 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                         ),
                       ),
                       items: [
-                        const DropdownMenuItem<int?>(
+                        DropdownMenuItem<int?>(
                           value: null,
-                          child: Text('Any Available Staff / Doctor', style: TextStyle(fontSize: 14)),
+                          child: Text(
+                            isClinic ? 'Any Available Staff / Doctor' : 'Any Available Staff',
+                            style: const TextStyle(fontSize: 14),
+                          ),
                         ),
                         ..._providers.map((p) {
                           final name = p['name'] ?? 'Provider';
@@ -469,7 +478,8 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
     }
 
     final name = _officeDetails?['name'] ?? 'Office';
-    final category = _officeDetails?['category'] ?? 'OTHER';
+    final category = (_officeDetails?['category'] ?? 'OTHER').toString().toUpperCase();
+    final bool isClinic = category == 'CLINIC';
     final address = _officeDetails?['address'] ?? '';
     final city = _officeDetails?['city'] ?? '';
     final state = _officeDetails?['state'] ?? '';
@@ -823,9 +833,9 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
 
             // Providers & Staff Section
             if (_providers.isNotEmpty) ...[
-              const Text(
-                'Available Doctors & Staff',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.mainText),
+              Text(
+                isClinic ? 'Available Doctors & Staff' : 'Available Staff',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.mainText),
               ),
               const SizedBox(height: 12),
               ..._providers.map((p) => _buildProviderCard(p)),
@@ -833,7 +843,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
             ],
 
             // Category Details
-            if (category == 'CLINIC' || doctorName != null) ...[
+            if (isClinic) ...[
               _buildSectionCard(
                 title: 'Doctor Information',
                 icon: Icons.medical_services_outlined,
