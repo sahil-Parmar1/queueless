@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/customer_auth_service.dart';
 import '../../services/office_service.dart';
+import '../../theme/app_theme.dart';
 import '../auth/customer_login_screen.dart';
 import '../search/office_search_screen.dart';
 import '../queue/active_token_screen.dart';
@@ -121,9 +122,7 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
-                ),
+                gradient: AppColors.tealCyanGradient,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.timer_outlined, color: Colors.white, size: 20),
@@ -155,7 +154,7 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
       ),
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF4F46E5)),
+              child: CircularProgressIndicator(color: AppColors.primary),
             )
           : SafeArea(
               child: SingleChildScrollView(
@@ -171,15 +170,11 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF4F46E5), Color(0xFF6366F1), Color(0xFF818CF8)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
+                            gradient: AppColors.primaryGradient,
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+                                color: AppColors.primary.withValues(alpha: 0.25),
                                 blurRadius: 20,
                                 offset: const Offset(0, 8),
                               ),
@@ -277,9 +272,10 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppColors.border),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.04),
+                                  color: Colors.black.withValues(alpha: 0.03),
                                   blurRadius: 10,
                                   offset: const Offset(0, 3),
                                 ),
@@ -288,12 +284,12 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                             child: const Row(
                               children: [
-                                Icon(Icons.search_rounded, color: Color(0xFF64748B)),
+                                Icon(Icons.search_rounded, color: AppColors.primary),
                                 SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
                                     'Search offices, clinics, salons, banks...',
-                                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                                    style: TextStyle(color: AppColors.mutedText, fontSize: 14),
                                   ),
                                 ),
                               ],
@@ -319,7 +315,7 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
                                 icon: Icons.qr_code_scanner_rounded,
                                 title: 'Scan QR Code',
                                 subtitle: 'Instant check-in',
-                                color: const Color(0xFF4F46E5),
+                                color: AppColors.primary,
                                 onTap: () {
                                   Navigator.push(
                                     context,
@@ -334,7 +330,7 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
                                 icon: Icons.location_on_rounded,
                                 title: 'Nearby Places',
                                 subtitle: 'View live queues',
-                                color: const Color(0xFF059669),
+                                color: AppColors.cyanDark,
                                 onTap: () {
                                   Navigator.push(
                                     context,
@@ -353,7 +349,7 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
                                 icon: Icons.confirmation_number_rounded,
                                 title: 'My Tokens',
                                 subtitle: 'Active pass',
-                                color: const Color(0xFFD97706),
+                                color: AppColors.primaryLight,
                                 onTap: () {
                                   Navigator.push(
                                     context,
@@ -368,7 +364,7 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
                                 icon: Icons.history_rounded,
                                 title: 'Queue History',
                                 subtitle: 'Completed visits',
-                                color: const Color(0xFF7C3AED),
+                                color: AppColors.secondaryText,
                                 onTap: () {
                                   Navigator.push(
                                     context,
@@ -397,7 +393,7 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
                               const SizedBox(
                                 width: 14,
                                 height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4F46E5)),
+                                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
                               ),
                           ],
                         ),
@@ -486,10 +482,10 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFC7D2FE), width: 1.5),
+        border: Border.all(color: AppColors.primaryLight.withValues(alpha: 0.3), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF4F46E5).withValues(alpha: 0.08),
+            color: AppColors.primary.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -504,18 +500,18 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEEF2FF),
+                  color: AppColors.primarySoft,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   children: [
-                    const CircleAvatar(radius: 4, backgroundColor: Color(0xFF4F46E5)),
+                    const CircleAvatar(radius: 4, backgroundColor: AppColors.primary),
                     const SizedBox(width: 6),
                     Text(
                       status == 'CALLED' ? 'TURN READY' : 'ACTIVE QUEUE PASS',
                       style: const TextStyle(
                         fontSize: 11,
-                        color: Color(0xFF4F46E5),
+                        color: AppColors.primaryDark,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
                       ),
@@ -552,7 +548,7 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
                         : '$peopleAhead person${peopleAhead == 1 ? '' : 's'} ahead • Now #$currentlyServing',
                     style: TextStyle(
                       fontSize: 13,
-                      color: peopleAhead == 0 ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                      color: peopleAhead == 0 ? AppColors.success : const Color(0xFF64748B),
                       fontWeight: peopleAhead == 0 ? FontWeight.bold : FontWeight.w500,
                     ),
                   ),
@@ -561,8 +557,15 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4F46E5),
+                  gradient: AppColors.tealCyanGradient,
                   borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.25),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
                 child: Text(
                   tokenNumber,
@@ -591,7 +594,7 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
               icon: const Icon(Icons.qr_code_rounded, size: 18),
               label: const Text('View Live Token & Tracking'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4F46E5),
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -674,8 +677,8 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
             icon: const Icon(Icons.search_rounded, size: 16),
             label: const Text('Browse Nearby Places'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF4F46E5),
-              side: const BorderSide(color: Color(0xFFC7D2FE)),
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primaryLight),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),

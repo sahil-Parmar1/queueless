@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/office_service.dart';
+import '../../theme/app_theme.dart';
 
 class TokenHistoryScreen extends StatefulWidget {
   const TokenHistoryScreen({super.key});
@@ -33,21 +34,21 @@ class _TokenHistoryScreenState extends State<TokenHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
-        foregroundColor: const Color(0xFF0F172A),
+        foregroundColor: AppColors.mainText,
         title: const Text(
           'Queue History',
-          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: AppColors.mainText),
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5)))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : RefreshIndicator(
               onRefresh: _loadHistory,
-              color: const Color(0xFF4F46E5),
+              color: AppColors.primary,
               child: _history.isEmpty
                   ? _buildEmptyState()
                   : ListView.separated(
@@ -68,18 +69,18 @@ class _TokenHistoryScreenState extends State<TokenHistoryScreen> {
       padding: const EdgeInsets.all(32),
       children: [
         const SizedBox(height: 60),
-        Icon(Icons.history_toggle_off_rounded, size: 64, color: Colors.grey.shade400),
+        Icon(Icons.history_toggle_off_rounded, size: 64, color: AppColors.mutedText.withValues(alpha: 0.4)),
         const SizedBox(height: 16),
         const Text(
           'No Queue History',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.mainText),
         ),
         const SizedBox(height: 8),
         const Text(
           'When you book tokens and complete your visits, your history will be recorded here.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.4),
+          style: TextStyle(fontSize: 14, color: AppColors.secondaryText, height: 1.4),
         ),
       ],
     );
@@ -100,10 +101,10 @@ class _TokenHistoryScreenState extends State<TokenHistoryScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: AppColors.primaryDark.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -112,9 +113,9 @@ class _TokenHistoryScreenState extends State<TokenHistoryScreen> {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+              color: AppColors.primarySoft,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -122,7 +123,7 @@ class _TokenHistoryScreenState extends State<TokenHistoryScreen> {
               style: const TextStyle(
                 fontWeight: FontWeight.w900,
                 fontSize: 16,
-                color: Color(0xFF4F46E5),
+                color: AppColors.primaryDark,
               ),
             ),
           ),
@@ -136,13 +137,13 @@ class _TokenHistoryScreenState extends State<TokenHistoryScreen> {
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
+                    color: AppColors.mainText,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '$category • $bookedAt',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  style: const TextStyle(fontSize: 12, color: AppColors.mutedText),
                 ),
               ],
             ),
@@ -158,20 +159,20 @@ class _TokenHistoryScreenState extends State<TokenHistoryScreen> {
     Color fg;
     switch (status) {
       case 'COMPLETED':
-        bg = const Color(0xFFECFDF5);
-        fg = const Color(0xFF059669);
+        bg = AppColors.successSoft;
+        fg = AppColors.success;
         break;
       case 'CANCELLED':
-        bg = const Color(0xFFFEF2F2);
-        fg = const Color(0xFFDC2626);
+        bg = AppColors.errorSoft;
+        fg = AppColors.error;
         break;
       case 'SKIPPED':
-        bg = const Color(0xFFFFFBEB);
-        fg = const Color(0xFFD97706);
+        bg = AppColors.warningSoft;
+        fg = AppColors.warning;
         break;
       default:
-        bg = const Color(0xFFEEF2FF);
-        fg = const Color(0xFF4F46E5);
+        bg = AppColors.primarySoft;
+        fg = AppColors.primaryDark;
     }
 
     return Container(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/customer_auth_service.dart';
 import '../../services/office_service.dart';
 import '../../services/provider_status_websocket_service.dart';
+import '../../theme/app_theme.dart';
 import '../auth/customer_login_screen.dart';
 import '../queue/active_token_screen.dart';
 
@@ -99,40 +100,41 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
     final bool? goToLogin = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
+              decoration: const BoxDecoration(
+                color: AppColors.primarySoft,
+                shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.lock_clock_outlined, color: Color(0xFF4F46E5), size: 22),
+              child: const Icon(Icons.lock_clock_outlined, color: AppColors.primary, size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.mainText),
               ),
             ),
           ],
         ),
         content: Text(
           message,
-          style: const TextStyle(fontSize: 14, color: Color(0xFF475569), height: 1.4),
+          style: const TextStyle(fontSize: 14, color: AppColors.secondaryText, height: 1.4),
         ),
         actionsPadding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.mutedText, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4F46E5),
+              backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -157,6 +159,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
 
   Future<void> _showBookingSheet([int? preselectedProviderId]) async {
     final isAuth = await CustomerAuthService().isLoggedIn();
+    if (!mounted) return;
     if (!isAuth) {
       await _promptSignInDialog(
         title: 'Sign In Required',
@@ -173,7 +176,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Office is currently closed. Cannot book token at this time.'),
-          backgroundColor: Color(0xFFEF4444),
+          backgroundColor: AppColors.error,
         ),
       );
       return;
@@ -183,7 +186,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Office has reached its daily maximum limit of $dailyMaxTokens tokens. Queue is closed for today.'),
-          backgroundColor: const Color(0xFFEF4444),
+          backgroundColor: AppColors.error,
         ),
       );
       return;
@@ -233,10 +236,10 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                     children: [
                       const Text(
                         'Confirm Queue Token',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.mainText),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 20),
+                        icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.mutedText),
                         onPressed: () => Navigator.pop(context, false),
                       ),
                     ],
@@ -244,27 +247,31 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'You will receive a live digital token for ${_officeDetails?['name'] ?? 'this office'}.',
-                    style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                    style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
                   ),
                   const SizedBox(height: 20),
 
                   // Provider Selection (if office has providers configured)
                   if (_providers.isNotEmpty) ...[
-                    const Text('Select Doctor / Provider', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                    const Text('Select Doctor / Provider', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondaryText)),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<int?>(
                       initialValue: selectedProviderId,
                       decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.badge_outlined, size: 20),
+                        prefixIcon: const Icon(Icons.badge_outlined, size: 20, color: AppColors.primary),
                         filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
+                        fillColor: AppColors.background,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                          borderSide: const BorderSide(color: AppColors.border),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                         ),
                       ),
                       items: [
@@ -296,7 +303,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                               '$name$desig$statusSuffix',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: canSelect ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+                                color: canSelect ? AppColors.mainText : AppColors.mutedText,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -313,45 +320,53 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                   ],
 
                   // Name Field
-                  const Text('Full Name', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                  const Text('Full Name', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondaryText)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: nameController,
                     decoration: InputDecoration(
                       hintText: 'Enter your name',
-                      prefixIcon: const Icon(Icons.person_outline, size: 20),
+                      prefixIcon: const Icon(Icons.person_outline, size: 20, color: AppColors.primary),
                       filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
+                      fillColor: AppColors.background,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        borderSide: const BorderSide(color: AppColors.border),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                       ),
                     ),
                   ),
                   const SizedBox(height: 14),
 
                   // Phone Field
-                  const Text('Phone Number (Optional)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                  const Text('Phone Number (Optional)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondaryText)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: phoneController,
                     keyboardType: TextInputType.phone,
                     decoration: InputDecoration(
                       hintText: '+91 9876543210',
-                      prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                      prefixIcon: const Icon(Icons.phone_outlined, size: 20, color: AppColors.primary),
                       filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
+                      fillColor: AppColors.background,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        borderSide: const BorderSide(color: AppColors.border),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                       ),
                     ),
                   ),
@@ -368,7 +383,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                       Navigator.pop(context, true);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4F46E5),
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -403,7 +418,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Token ${tokenData['tokenNumber']} booked successfully!'),
-              backgroundColor: const Color(0xFF10B981),
+              backgroundColor: AppColors.primaryDark,
             ),
           );
 
@@ -427,7 +442,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(result['errorMessage'] ?? 'Failed to book token'),
-                backgroundColor: const Color(0xFFEF4444),
+                backgroundColor: AppColors.error,
               ),
             );
           }
@@ -440,13 +455,14 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
   Widget build(BuildContext context) {
     if (_loading) {
       return const Scaffold(
-        backgroundColor: Color(0xFFF8FAFC),
-        body: Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5))),
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
       );
     }
 
     if (_officeDetails == null) {
       return Scaffold(
+        backgroundColor: AppColors.background,
         appBar: AppBar(title: const Text('Office Details')),
         body: const Center(child: Text('Office details could not be found.')),
       );
@@ -477,15 +493,15 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
     final bool isOfficeOpen = (_officeDetails?['isOpen'] ?? _liveQueue?['isOpen'] ?? true) == true;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF0F172A),
+        foregroundColor: AppColors.mainText,
         elevation: 0.5,
-        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: AppColors.mainText)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
             tooltip: 'Refresh queue status',
             onPressed: _loadDetails,
           ),
@@ -495,6 +511,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
+          border: const Border(top: BorderSide(color: AppColors.borderLight, width: 1)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -509,18 +526,18 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
               final bool canJoinQueue = !_booking && !isOfficeFull && isOfficeOpen;
               String joinButtonText = 'Join Queue / Book Token';
               IconData joinButtonIcon = Icons.confirmation_number_rounded;
-              Color joinButtonColor = const Color(0xFF4F46E5);
+              Color joinButtonColor = AppColors.primary;
 
               if (_booking) {
                 joinButtonText = 'Booking...';
               } else if (!isOfficeOpen) {
                 joinButtonText = 'Office is Closed';
                 joinButtonIcon = Icons.lock_clock_rounded;
-                joinButtonColor = const Color(0xFF94A3B8);
+                joinButtonColor = AppColors.border;
               } else if (isOfficeFull) {
                 joinButtonText = 'Daily Limit Reached (Queue Closed)';
                 joinButtonIcon = Icons.block_rounded;
-                joinButtonColor = const Color(0xFF94A3B8);
+                joinButtonColor = AppColors.border;
               }
 
               return ElevatedButton.icon(
@@ -534,11 +551,15 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                     : Icon(joinButtonIcon),
                 label: Text(
                   joinButtonText,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: canJoinQueue ? Colors.white : AppColors.mutedText,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: joinButtonColor,
-                  foregroundColor: Colors.white,
+                  foregroundColor: canJoinQueue ? Colors.white : AppColors.mutedText,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   elevation: 0,
@@ -557,15 +578,11 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                gradient: AppColors.primaryGradient,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF4F46E5).withValues(alpha: 0.25),
+                    color: AppColors.primaryDark.withValues(alpha: 0.25),
                     blurRadius: 16,
                     offset: const Offset(0, 6),
                   ),
@@ -593,7 +610,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: isOfficeOpen ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                              color: isOfficeOpen ? AppColors.success : AppColors.error,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
@@ -619,7 +636,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF10B981),
+                              color: Colors.white.withValues(alpha: 0.25),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: const Row(
@@ -660,19 +677,19 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                 margin: const EdgeInsets.only(bottom: 16),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: AppColors.errorSoft,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFFCA5A5)),
+                  border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.lock_clock_rounded, color: Color(0xFFEF4444), size: 22),
+                    Icon(Icons.lock_clock_rounded, color: AppColors.error, size: 22),
                     SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'This office is currently closed / offline. Queue booking is temporarily disabled.',
                         style: TextStyle(
-                          color: Color(0xFF991B1B),
+                          color: AppColors.error,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           height: 1.3,
@@ -684,25 +701,25 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
               ),
             ],
 
-            // Office Full Warning Banner (TASK 1)
+            // Office Full Warning Banner
             if (isOfficeFull) ...[
               Container(
                 margin: const EdgeInsets.only(bottom: 16),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: AppColors.errorSoft,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFFCA5A5)),
+                  border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline_rounded, color: Color(0xFFEF4444), size: 22),
+                    const Icon(Icons.info_outline_rounded, color: AppColors.error, size: 22),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'This office has reached its maximum daily limit of $dailyMaxTokens tokens. New queue tokens are blocked for today.',
                         style: const TextStyle(
-                          color: Color(0xFF991B1B),
+                          color: AppColors.error,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           height: 1.3,
@@ -717,7 +734,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
             // Live Queue Status Box
             const Text(
               'Live Queue Overview',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.mainText),
             ),
             const SizedBox(height: 12),
             Container(
@@ -726,7 +743,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
-                  color: isOfficeFull ? const Color(0xFFFCA5A5) : const Color(0xFFE2E8F0),
+                  color: isOfficeFull ? AppColors.error.withValues(alpha: 0.4) : AppColors.border,
                 ),
               ),
               child: Column(
@@ -737,26 +754,26 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Now Serving', style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                            const Text('Now Serving', style: TextStyle(fontSize: 12, color: AppColors.mutedText, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 4),
                             Text(
                               activeToken != null ? '#$activeToken' : 'None',
-                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF10B981)),
+                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.primary),
                             ),
                           ],
                         ),
                       ),
-                      Container(width: 1, height: 44, color: const Color(0xFFE2E8F0)),
+                      Container(width: 1, height: 44, color: AppColors.border),
                       const SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Waiting in Line', style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                            const Text('Waiting in Line', style: TextStyle(fontSize: 12, color: AppColors.mutedText, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 4),
                             Text(
                               '$waitingCount people',
-                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF4F46E5)),
+                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.cyanDark),
                             ),
                           ],
                         ),
@@ -764,15 +781,15 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  const Divider(height: 1),
+                  const Divider(height: 1, color: AppColors.borderLight),
                   const SizedBox(height: 14),
                   Row(
                     children: [
-                      const Icon(Icons.timer_outlined, color: Color(0xFFF59E0B), size: 18),
+                      const Icon(Icons.timer_outlined, color: AppColors.warning, size: 18),
                       const SizedBox(width: 8),
                       Text(
                         'Estimated wait time: ~${estWait > 0 ? estWait : 5} minutes',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
                       ),
                     ],
                   ),
@@ -781,7 +798,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                     children: [
                       Icon(
                         isOfficeFull ? Icons.warning_amber_rounded : Icons.offline_pin_outlined,
-                        color: isOfficeFull ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                        color: isOfficeFull ? AppColors.error : AppColors.primary,
                         size: 18,
                       ),
                       const SizedBox(width: 8),
@@ -793,7 +810,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: isOfficeFull ? const Color(0xFFEF4444) : const Color(0xFF0F766E),
+                            color: isOfficeFull ? AppColors.error : AppColors.primaryDark,
                           ),
                         ),
                       ),
@@ -808,7 +825,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
             if (_providers.isNotEmpty) ...[
               const Text(
                 'Available Doctors & Staff',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.mainText),
               ),
               const SizedBox(height: 12),
               ..._providers.map((p) => _buildProviderCard(p)),
@@ -858,14 +875,14 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: AppColors.border),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('About', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                    const Text('About', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.mainText)),
                     const SizedBox(height: 6),
-                    Text(description, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4)),
+                    Text(description, style: const TextStyle(fontSize: 13, color: AppColors.secondaryText, height: 1.4)),
                   ],
                 ),
               ),
@@ -887,16 +904,16 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: const Color(0xFF4F46E5)),
+              Icon(icon, size: 18, color: AppColors.primary),
               const SizedBox(width: 8),
-              Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+              Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.mainText)),
             ],
           ),
           const SizedBox(height: 14),
@@ -905,8 +922,8 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(item['label']!, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
-                    Text(item['value']!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
+                    Text(item['label']!, style: const TextStyle(fontSize: 13, color: AppColors.mutedText)),
+                    Text(item['value']!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.mainText)),
                   ],
                 ),
               )),
@@ -945,7 +962,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isProviderFull ? const Color(0xFFFCA5A5) : const Color(0xFFE2E8F0),
+          color: isProviderFull ? AppColors.error.withValues(alpha: 0.3) : AppColors.border,
         ),
       ),
       child: Row(
@@ -953,29 +970,29 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
           Container(
             width: 42,
             height: 42,
-            decoration: BoxDecoration(
-              color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
+            decoration: const BoxDecoration(
+              color: AppColors.primarySoft,
+              borderRadius: BorderRadius.all(Radius.circular(10)),
             ),
-            child: const Icon(Icons.person_outline_rounded, color: Color(0xFF4F46E5), size: 22),
+            child: const Icon(Icons.person_outline_rounded, color: AppColors.primary, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A))),
+                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.mainText)),
                 const SizedBox(height: 3),
                 Row(
                   children: [
-                    Text(desig, style: const TextStyle(fontSize: 12, color: Color(0xFF4F46E5), fontWeight: FontWeight.w600)),
+                    Text(desig, style: const TextStyle(fontSize: 12, color: AppColors.primaryDark, fontWeight: FontWeight.w600)),
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: onDuty
-                            ? const Color(0xFF10B981).withValues(alpha: 0.1)
-                            : const Color(0xFF64748B).withValues(alpha: 0.1),
+                            ? AppColors.successSoft
+                            : AppColors.borderLight,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
@@ -986,7 +1003,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                             height: 5,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: onDuty ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                              color: onDuty ? AppColors.success : AppColors.mutedText,
                             ),
                           ),
                           const SizedBox(width: 4),
@@ -995,7 +1012,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.bold,
-                              color: onDuty ? const Color(0xFF047857) : const Color(0xFF475569),
+                              color: onDuty ? AppColors.success : AppColors.secondaryText,
                             ),
                           ),
                         ],
@@ -1004,7 +1021,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                   ],
                 ),
                 const SizedBox(height: 2),
-                Text(todayHours, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                Text(todayHours, style: const TextStyle(fontSize: 11, color: AppColors.mutedText)),
                 if (capacityText.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
@@ -1012,7 +1029,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: isProviderFull ? const Color(0xFFEF4444) : const Color(0xFF0F766E),
+                      color: isProviderFull ? AppColors.error : AppColors.primaryDark,
                     ),
                   ),
                 ],
@@ -1026,10 +1043,10 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: canBook
-                    ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                    ? AppColors.primarySoft
                     : (!isOfficeOpen || isProviderFull
-                        ? const Color(0xFFEF4444).withValues(alpha: 0.1)
-                        : const Color(0xFF94A3B8).withValues(alpha: 0.1)),
+                        ? AppColors.errorSoft
+                        : AppColors.borderLight),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -1045,15 +1062,15 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: canBook
-                          ? const Color(0xFF10B981)
+                          ? AppColors.primaryDark
                           : (!isOfficeOpen || isProviderFull
-                              ? const Color(0xFFEF4444)
-                              : const Color(0xFF64748B)),
+                              ? AppColors.error
+                              : AppColors.secondaryText),
                     ),
                   ),
                   if (canBook) ...[
                     const SizedBox(width: 4),
-                    const Icon(Icons.arrow_forward_rounded, size: 12, color: Color(0xFF10B981)),
+                    const Icon(Icons.arrow_forward_rounded, size: 12, color: AppColors.primaryDark),
                   ],
                 ],
               ),

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:queueless_office/screens/auth/office_auth_screen.dart';
+import 'package:queueless_office/theme/provider_theme.dart';
 
 class ProviderDashboardScreen extends StatefulWidget {
   const ProviderDashboardScreen({super.key});
@@ -142,8 +143,21 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           final activeToken = data['activeToken'];
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(activeToken != null ? 'Called next token #$activeToken!' : 'No waiting tokens in line.'),
-              backgroundColor: const Color(0xFF10B981),
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      activeToken != null ? 'Called next token #$activeToken!' : 'No waiting tokens in line.',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: ProviderColors.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           );
         }
@@ -154,7 +168,18 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
       if (mounted) {
         setState(() => _queueActionLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to call next token: $e'), backgroundColor: const Color(0xFFEF4444)),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Failed to call next token: $e', style: const TextStyle(fontWeight: FontWeight.w500))),
+              ],
+            ),
+            backgroundColor: ProviderColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     }
@@ -179,9 +204,22 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
             _queueActionLoading = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Token is now IN SERVICE! Customer notified.'),
-              backgroundColor: Color(0xFF10B981),
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.play_circle_outline_rounded, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Token is now IN SERVICE! Customer notified.',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: ProviderColors.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           );
         }
@@ -192,7 +230,12 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
       if (mounted) {
         setState(() => _queueActionLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to serve token: $e'), backgroundColor: const Color(0xFFEF4444)),
+          SnackBar(
+            content: Text('Failed to serve token: $e'),
+            backgroundColor: ProviderColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     }
@@ -217,9 +260,22 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
             _queueActionLoading = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Token completed successfully!'),
-              backgroundColor: Color(0xFF10B981),
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Token completed successfully!',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: ProviderColors.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           );
         }
@@ -230,7 +286,12 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
       if (mounted) {
         setState(() => _queueActionLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to complete token: $e'), backgroundColor: const Color(0xFFEF4444)),
+          SnackBar(
+            content: Text('Failed to complete token: $e'),
+            backgroundColor: ProviderColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     }
@@ -255,9 +316,22 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
             _queueActionLoading = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Token marked as skipped/hold.'),
-              backgroundColor: Color(0xFFF59E0B),
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.pause_circle_outline_rounded, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Token marked as skipped/hold.',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: ProviderColors.warning,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           );
         }
@@ -268,7 +342,12 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
       if (mounted) {
         setState(() => _queueActionLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to skip token: $e'), backgroundColor: const Color(0xFFEF4444)),
+          SnackBar(
+            content: Text('Failed to skip token: $e'),
+            backgroundColor: ProviderColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     }
@@ -293,9 +372,22 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
             _queueActionLoading = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Token request accepted! Token added to your queue.'),
-              backgroundColor: Color(0xFF10B981),
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Token request accepted! Token added to your queue.',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: ProviderColors.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           );
         }
@@ -311,7 +403,12 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
       if (mounted) {
         setState(() => _queueActionLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to accept request: $e'), backgroundColor: const Color(0xFFEF4444)),
+          SnackBar(
+            content: Text('Failed to accept request: $e'),
+            backgroundColor: ProviderColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     }
@@ -336,9 +433,22 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
             _queueActionLoading = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Token request declined.'),
-              backgroundColor: Color(0xFF64748B),
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.close_rounded, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Token request declined.',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: ProviderColors.mutedText,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           );
         }
@@ -354,7 +464,12 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
       if (mounted) {
         setState(() => _queueActionLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to decline request: $e'), backgroundColor: const Color(0xFFEF4444)),
+          SnackBar(
+            content: Text('Failed to decline request: $e'),
+            backgroundColor: ProviderColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     }
@@ -393,9 +508,17 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
     final parsed = int.tryParse(text);
     if (parsed == null || parsed <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid positive integer limit.'),
-          backgroundColor: Color(0xFFEF4444),
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.white, size: 18),
+              SizedBox(width: 8),
+              Expanded(child: Text('Please enter a valid positive integer limit.')),
+            ],
+          ),
+          backgroundColor: ProviderColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       return;
@@ -424,8 +547,16 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Daily token limit updated to $updatedLimit tokens!'),
-              backgroundColor: const Color(0xFF10B981),
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('Daily token limit updated to $updatedLimit tokens!')),
+                ],
+              ),
+              backgroundColor: ProviderColors.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           );
         }
@@ -443,7 +574,12 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
         if (mounted) {
           setState(() => _savingLimit = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(msg), backgroundColor: const Color(0xFFEF4444)),
+            SnackBar(
+              content: Text(msg),
+              backgroundColor: ProviderColors.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
           );
         }
       }
@@ -451,7 +587,12 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
       if (mounted) {
         setState(() => _savingLimit = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Network error: $e'), backgroundColor: const Color(0xFFEF4444)),
+          SnackBar(
+            content: Text('Network error: $e'),
+            backgroundColor: ProviderColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     }
@@ -553,11 +694,15 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                     size: 18,
                   ),
                   const SizedBox(width: 8),
-                  Text(_isOnDuty ? 'You are now ON DUTY' : 'You are now OFF DUTY'),
+                  Text(
+                    _isOnDuty ? 'You are now ON DUTY' : 'You are now OFF DUTY',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ],
               ),
-              backgroundColor: _isOnDuty ? const Color(0xFF10B981) : const Color(0xFF64748B),
+              backgroundColor: _isOnDuty ? ProviderColors.success : ProviderColors.secondaryText,
               behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               duration: const Duration(seconds: 2),
             ),
           );
@@ -574,8 +719,9 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to update duty status: $e'),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: ProviderColors.error,
             behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -587,22 +733,33 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: const Text('Are you sure you want to sign out of the Provider Portal?'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.logout_rounded, color: ProviderColors.error, size: 22),
+              SizedBox(width: 10),
+              Text('Sign Out', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+            ],
+          ),
+          content: const Text(
+            'Are you sure you want to sign out of the Provider Portal?',
+            style: TextStyle(color: ProviderColors.secondaryText, fontSize: 14),
+          ),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+              child: const Text('Cancel', style: TextStyle(color: ProviderColors.mutedText, fontWeight: FontWeight.w600)),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEF4444),
+                backgroundColor: ProviderColors.error,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
               ),
-              child: const Text('Sign Out'),
+              child: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ],
         ),
@@ -617,8 +774,9 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: ProviderColors.error,
             behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -644,457 +802,458 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
     final bufferTime = _providerData?['bufferTimeMinutes'] ?? 5;
     final workingDays = _providerData?['workingDays'] as List<dynamic>? ?? [];
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        titleSpacing: 12,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0284C7).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.badge_rounded, color: Color(0xFF0284C7), size: 20),
-            ),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Provider Portal',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
-                    ),
-                  ),
-                  Text(
-                    'Queueless Suite',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          // ON DUTY / OFF DUTY Switch
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(right: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              decoration: BoxDecoration(
-                color: _isOnDuty
-                    ? const Color(0xFF10B981).withValues(alpha: 0.12)
-                    : const Color(0xFF64748B).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: _isOnDuty ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
-                  width: 1.2,
+    return Theme(
+      data: ProviderTheme.themeData,
+      child: Scaffold(
+        backgroundColor: ProviderColors.background,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          titleSpacing: 16,
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: ProviderColors.primarySoft,
+                  borderRadius: BorderRadius.circular(10),
                 ),
+                child: const Icon(Icons.badge_rounded, color: ProviderColors.primary, size: 22),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _isOnDuty ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    _isOnDuty ? 'ON DUTY' : 'OFF DUTY',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: _isOnDuty ? const Color(0xFF047857) : const Color(0xFF475569),
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  SizedBox(
-                    height: 22,
-                    width: 32,
-                    child: FittedBox(
-                      fit: BoxFit.contain,
-                      child: Switch(
-                        value: _isOnDuty,
-                        activeThumbColor: const Color(0xFF10B981),
-                        activeTrackColor: const Color(0xFF10B981).withValues(alpha: 0.35),
-                        inactiveThumbColor: const Color(0xFF64748B),
-                        inactiveTrackColor: const Color(0xFFCBD5E1),
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        onChanged: _togglingDuty ? null : (val) => _updateDutyStatus(val),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Provider Portal',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: ProviderColors.mainText,
+                        letterSpacing: -0.3,
                       ),
                     ),
+                    Text(
+                      'Queueless Suite',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: ProviderColors.mutedText,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            // ON DUTY / OFF DUTY Switch Pill
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(right: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _isOnDuty
+                      ? ProviderColors.success.withValues(alpha: 0.12)
+                      : ProviderColors.primarySoft,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _isOnDuty
+                        ? ProviderColors.success.withValues(alpha: 0.4)
+                        : const Color(0xFFDDD6FE),
+                    width: 1.2,
                   ),
-                ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _isOnDuty ? ProviderColors.success : ProviderColors.mutedText,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      _isOnDuty ? 'ON DUTY' : 'OFF DUTY',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: _isOnDuty ? const Color(0xFF047857) : ProviderColors.secondaryText,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    SizedBox(
+                      height: 22,
+                      width: 34,
+                      child: FittedBox(
+                        fit: BoxFit.contain,
+                        child: Switch(
+                          value: _isOnDuty,
+                          activeThumbColor: ProviderColors.success,
+                          activeTrackColor: ProviderColors.success.withValues(alpha: 0.35),
+                          inactiveThumbColor: ProviderColors.mutedText,
+                          inactiveTrackColor: const Color(0xFFCBD5E1),
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          onChanged: _togglingDuty ? null : (val) => _updateDutyStatus(val),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded, color: ProviderColors.mutedText, size: 21),
+              tooltip: 'Refresh Profile',
+              padding: const EdgeInsets.all(6),
+              constraints: const BoxConstraints(),
+              visualDensity: VisualDensity.compact,
+              onPressed: _loadProviderProfile,
+            ),
+            const SizedBox(width: 2),
+            IconButton(
+              icon: const Icon(Icons.logout_rounded, color: ProviderColors.error, size: 21),
+              tooltip: 'Sign Out',
+              padding: const EdgeInsets.all(6),
+              constraints: const BoxConstraints(),
+              visualDensity: VisualDensity.compact,
+              onPressed: () => _handleLogout(),
+            ),
+            const SizedBox(width: 10),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Container(color: ProviderColors.border, height: 1),
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B), size: 19),
-            tooltip: 'Refresh Profile',
-            padding: const EdgeInsets.all(4),
-            constraints: const BoxConstraints(),
-            visualDensity: VisualDensity.compact,
-            onPressed: _loadProviderProfile,
-          ),
-          const SizedBox(width: 2),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 19),
-            tooltip: 'Sign Out',
-            padding: const EdgeInsets.all(4),
-            constraints: const BoxConstraints(),
-            visualDensity: VisualDensity.compact,
-            onPressed: () => _handleLogout(),
-          ),
-          const SizedBox(width: 8),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(color: const Color(0xFFE2E8F0), height: 1),
         ),
-      ),
-      body: _loading && _providerData == null
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF0284C7)),
-            )
-          : RefreshIndicator(
-              onRefresh: () async {
-                await _loadProviderProfile();
-                await _loadQueueSettings();
-                await _fetchLiveQueue();
-              },
-              color: const Color(0xFF0284C7),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 680),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Welcome Banner / Profile Header Card
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+        body: _loading && _providerData == null
+            ? const Center(
+                child: CircularProgressIndicator(color: ProviderColors.primary),
+              )
+            : RefreshIndicator(
+                onRefresh: () async {
+                  await _loadProviderProfile();
+                  await _loadQueueSettings();
+                  await _fetchLiveQueue();
+                },
+                color: ProviderColors.primary,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 680),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Welcome Banner / Profile Header Card
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              gradient: ProviderColors.headerGradient,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: ProviderColors.primaryGlow,
                             ),
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF0284C7).withValues(alpha: 0.25),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 32,
-                                    backgroundColor: Colors.white.withValues(alpha: 0.2),
-                                    child: Text(
-                                      name.isNotEmpty ? name[0].toUpperCase() : 'P',
-                                      style: const TextStyle(
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 32,
+                                      backgroundColor: Colors.white.withValues(alpha: 0.22),
+                                      child: Text(
+                                        name.isNotEmpty ? name[0].toUpperCase() : 'P',
+                                        style: const TextStyle(
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          name,
-                                          style: const TextStyle(
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.w800,
-                                            color: Colors.white,
-                                            letterSpacing: -0.3,
-                                          ),
-                                        ),
-                                        if (username.isNotEmpty) ...[
-                                          const SizedBox(height: 2),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
                                           Text(
-                                            '@$username',
+                                            name,
                                             style: const TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.white70,
-                                              fontWeight: FontWeight.w600,
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.w800,
+                                              color: Colors.white,
+                                              letterSpacing: -0.3,
+                                            ),
+                                          ),
+                                          if (username.isNotEmpty) ...[
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '@$username',
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.white70,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                          const SizedBox(height: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withValues(alpha: 0.18),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: Text(
+                                              specialization,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white,
+                                              ),
                                             ),
                                           ),
                                         ],
-                                        const SizedBox(height: 6),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withValues(alpha: 0.15),
-                                            borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    // Status Badge
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: isActive
+                                            ? Colors.white.withValues(alpha: 0.2)
+                                            : const Color(0xFFEF4444).withValues(alpha: 0.25),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: isActive ? Colors.white70 : const Color(0xFFFCA5A5),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            isActive ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                                            color: isActive ? const Color(0xFF34D399) : const Color(0xFFF87171),
+                                            size: 14,
                                           ),
-                                          child: Text(
-                                            specialization,
-                                            style: const TextStyle(
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            isActive ? 'Active' : 'Inactive',
+                                            style: TextStyle(
                                               fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700,
+                                              color: isActive ? Colors.white : const Color(0xFFFCA5A5),
                                             ),
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  // Status Badge
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: isActive
-                                          ? const Color(0xFF10B981).withValues(alpha: 0.2)
-                                          : const Color(0xFFEF4444).withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: isActive ? const Color(0xFF34D399) : const Color(0xFFF87171),
+                                        ],
                                       ),
                                     ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          isActive ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                                          color: isActive ? const Color(0xFF34D399) : const Color(0xFFF87171),
-                                          size: 14,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          isActive ? 'Active' : 'Inactive',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: isActive ? Colors.white : const Color(0xFFFCA5A5),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+                                const Divider(color: Colors.white24, height: 1),
+                                const SizedBox(height: 14),
+
+                                // Office ID pill inside header
+                                Row(
+                                  children: [
+                                    const Icon(Icons.domain_rounded, color: Colors.white70, size: 16),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Office ID: $officeCode',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    InkWell(
+                                      onTap: () {
+                                        Clipboard.setData(ClipboardData(text: officeCode));
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: const Text('Office ID copied to clipboard!'),
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                           ),
+                                        );
+                                      },
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.18),
+                                          borderRadius: BorderRadius.circular(6),
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-                              const Divider(color: Colors.white24, height: 1),
-                              const SizedBox(height: 14),
-
-                              // Office ID pill inside header
-                              Row(
-                                children: [
-                                  const Icon(Icons.domain_rounded, color: Colors.white70, size: 16),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Office ID: $officeCode',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  InkWell(
-                                    onTap: () {
-                                      Clipboard.setData(ClipboardData(text: officeCode));
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Office ID copied to clipboard!'),
-                                          behavior: SnackBarBehavior.floating,
-                                        ),
-                                      );
-                                    },
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(6),
+                                        child: const Icon(Icons.copy_rounded, color: Colors.white, size: 14),
                                       ),
-                                      child: const Icon(Icons.copy_rounded, color: Colors.white, size: 14),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
+                          const SizedBox(height: 20),
 
-                        // Section: Incoming Token Requests from Office (when limit reached)
-                        _buildIncomingRequestsSection(),
+                          // Section: Incoming Token Requests from Office (when limit reached)
+                          _buildIncomingRequestsSection(),
 
-                        // Section: Live Queue Counter & Management
-                        _buildLiveQueueSection(),
-                        const SizedBox(height: 20),
+                          // Section: Live Queue Counter & Management
+                          _buildLiveQueueSection(),
+                          const SizedBox(height: 20),
 
-                        // Section: Daily Token & Queue Limit (TASK 2)
-                        _buildQueueLimitCard(),
-                        const SizedBox(height: 20),
+                          // Section: Daily Token & Queue Limit
+                          _buildQueueLimitCard(),
+                          const SizedBox(height: 20),
 
-                        // Section 1: Assigned Schedule & Availability
-                        _buildCard(
-                          title: 'Assigned Schedule & Hours',
-                          icon: Icons.access_time_rounded,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildInfoRow(
-                                Icons.wb_sunny_outlined,
-                                'Working Hours',
-                                '$startTime - $endTime',
-                              ),
-                              const SizedBox(height: 12),
-                              if (breakStart != null && breakEnd != null) ...[
+                          // Section: Assigned Schedule & Availability
+                          _buildCard(
+                            title: 'Assigned Schedule & Hours',
+                            icon: Icons.access_time_rounded,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                                 _buildInfoRow(
-                                  Icons.coffee_outlined,
-                                  'Break Time',
-                                  '$breakStart - $breakEnd',
+                                  Icons.wb_sunny_outlined,
+                                  'Working Hours',
+                                  '$startTime - $endTime',
                                 ),
                                 const SizedBox(height: 12),
+                                if (breakStart != null && breakEnd != null) ...[
+                                  _buildInfoRow(
+                                    Icons.coffee_outlined,
+                                    'Break Time',
+                                    '$breakStart - $breakEnd',
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
+                                _buildInfoRow(
+                                  Icons.timelapse_outlined,
+                                  'Buffer Time per Token',
+                                  '$bufferTime mins',
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'Working Days',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: ProviderColors.mutedText,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    'MONDAY',
+                                    'TUESDAY',
+                                    'WEDNESDAY',
+                                    'THURSDAY',
+                                    'FRIDAY',
+                                    'SATURDAY',
+                                    'SUNDAY',
+                                  ].map((day) {
+                                    final isWorking = workingDays.contains(day);
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: isWorking
+                                            ? ProviderColors.primarySoft
+                                            : const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: isWorking
+                                              ? ProviderColors.primary.withValues(alpha: 0.3)
+                                              : ProviderColors.border,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        day.substring(0, 3),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: isWorking ? ProviderColors.primary : const Color(0xFF94A3B8),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
                               ],
-                              _buildInfoRow(
-                                Icons.timelapse_outlined,
-                                'Buffer Time per Token',
-                                '$bufferTime mins',
-                              ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                'Working Days',
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Section: Account Information
+                          _buildCard(
+                            title: 'Account Information',
+                            icon: Icons.person_pin_outlined,
+                            child: Column(
+                              children: [
+                                _buildInfoRow(
+                                  Icons.badge_outlined,
+                                  'Username',
+                                  username.isNotEmpty ? username : 'N/A',
+                                ),
+                                const SizedBox(height: 12),
+                                _buildInfoRow(
+                                  Icons.email_outlined,
+                                  'Email',
+                                  _providerData?['email'] ?? 'Not provided',
+                                ),
+                                const SizedBox(height: 12),
+                                _buildInfoRow(
+                                  Icons.phone_outlined,
+                                  'Phone Number',
+                                  _providerData?['phoneNumber'] ?? 'Not provided',
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+
+                          // Logout Button
+                          SizedBox(
+                            height: 50,
+                            child: OutlinedButton.icon(
+                              onPressed: () => _handleLogout(),
+                              icon: const Icon(Icons.logout_rounded, color: ProviderColors.error),
+                              label: const Text(
+                                'Sign Out from Provider Portal',
                                 style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF64748B),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: ProviderColors.error,
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  'MONDAY',
-                                  'TUESDAY',
-                                  'WEDNESDAY',
-                                  'THURSDAY',
-                                  'FRIDAY',
-                                  'SATURDAY',
-                                  'SUNDAY',
-                                ].map((day) {
-                                  final isWorking = workingDays.contains(day);
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: isWorking
-                                          ? const Color(0xFF0284C7).withValues(alpha: 0.1)
-                                          : const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: isWorking
-                                            ? const Color(0xFF0284C7).withValues(alpha: 0.3)
-                                            : const Color(0xFFE2E8F0),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      day.substring(0, 3),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: isWorking ? const Color(0xFF0284C7) : const Color(0xFF94A3B8),
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Section 2: Contact & Portal Info
-                        _buildCard(
-                          title: 'Account Information',
-                          icon: Icons.person_pin_outlined,
-                          child: Column(
-                            children: [
-                              _buildInfoRow(
-                                Icons.badge_outlined,
-                                'Username',
-                                username.isNotEmpty ? username : 'N/A',
-                              ),
-                              const SizedBox(height: 12),
-                              _buildInfoRow(
-                                Icons.email_outlined,
-                                'Email',
-                                _providerData?['email'] ?? 'Not provided',
-                              ),
-                              const SizedBox(height: 12),
-                              _buildInfoRow(
-                                Icons.phone_outlined,
-                                'Phone Number',
-                                _providerData?['phoneNumber'] ?? 'Not provided',
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 28),
-
-                        // Logout Button
-                        SizedBox(
-                          height: 50,
-                          child: OutlinedButton.icon(
-                            onPressed: () => _handleLogout(),
-                            icon: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
-                            label: const Text(
-                              'Sign Out from Provider Portal',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFFEF4444),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFFFECACA), width: 1.5),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                backgroundColor: Colors.white,
                               ),
                             ),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Color(0xFFFCA5A5), width: 1.5),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                              backgroundColor: Colors.white,
-                            ),
                           ),
-                        ),
-                        const SizedBox(height: 32),
-                      ],
+                          const SizedBox(height: 32),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+      ),
     );
   }
 
@@ -1106,30 +1265,31 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ProviderColors.card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        border: Border.all(color: ProviderColors.border),
+        boxShadow: ProviderColors.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: const Color(0xFF0284C7), size: 20),
-              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: ProviderColors.primarySoft,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: ProviderColors.primary, size: 18),
+              ),
+              const SizedBox(width: 10),
               Text(
                 title,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF0F172A),
+                  color: ProviderColors.mainText,
                 ),
               ),
             ],
@@ -1150,12 +1310,12 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
         const SizedBox(width: 10),
         Text(
           label,
-          style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+          style: const TextStyle(fontSize: 13, color: ProviderColors.mutedText, fontWeight: FontWeight.w500),
         ),
         const Spacer(),
         Text(
           value,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ProviderColors.mainText),
         ),
       ],
     );
@@ -1183,19 +1343,13 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ProviderColors.card,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: (providerFull || officeFull) ? const Color(0xFFFCA5A5) : const Color(0xFFE2E8F0),
+          color: (providerFull || officeFull) ? const Color(0xFFFCA5A5) : ProviderColors.border,
           width: (providerFull || officeFull) ? 1.5 : 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        boxShadow: ProviderColors.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1208,10 +1362,10 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0284C7).withValues(alpha: 0.1),
+                      color: ProviderColors.primarySoft,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.confirmation_number_rounded, color: Color(0xFF0284C7), size: 20),
+                    child: const Icon(Icons.confirmation_number_rounded, color: ProviderColors.primary, size: 20),
                   ),
                   const SizedBox(width: 10),
                   const Text(
@@ -1219,7 +1373,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
+                      color: ProviderColors.mainText,
                     ),
                   ),
                 ],
@@ -1228,8 +1382,8 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: (providerFull || officeFull)
-                      ? const Color(0xFFEF4444).withValues(alpha: 0.1)
-                      : const Color(0xFF10B981).withValues(alpha: 0.1),
+                      ? ProviderColors.error.withValues(alpha: 0.12)
+                      : ProviderColors.success.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -1239,7 +1393,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: (providerFull || officeFull) ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                    color: (providerFull || officeFull) ? ProviderColors.error : ProviderColors.success,
                   ),
                 ),
               ),
@@ -1253,9 +1407,9 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              color: ProviderColors.background,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: ProviderColors.border),
             ),
             child: Column(
               children: [
@@ -1265,26 +1419,26 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Your Daily Limit', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                          const Text('Your Daily Limit', style: TextStyle(fontSize: 11, color: ProviderColors.mutedText, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 2),
                           Text(
                             providerMax != null ? '$providerMax tokens' : 'Not set (Office max: $officeMax)',
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ProviderColors.mainText),
                           ),
                         ],
                       ),
                     ),
-                    Container(width: 1, height: 32, color: const Color(0xFFCBD5E1)),
+                    Container(width: 1, height: 32, color: ProviderColors.border),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Your Tokens Today', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                          const Text('Your Tokens Today', style: TextStyle(fontSize: 11, color: ProviderColors.mutedText, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 2),
                           Text(
                             '$providerToday tokens',
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0284C7)),
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ProviderColors.primary),
                           ),
                         ],
                       ),
@@ -1292,7 +1446,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                const Divider(height: 1, color: ProviderColors.border),
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -1300,29 +1454,29 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Office Daily Max', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                          const Text('Office Daily Max', style: TextStyle(fontSize: 11, color: ProviderColors.mutedText, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 2),
                           Text(
                             '$officeMax tokens',
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ProviderColors.secondaryText),
                           ),
                         ],
                       ),
                     ),
-                    Container(width: 1, height: 32, color: const Color(0xFFCBD5E1)),
+                    Container(width: 1, height: 32, color: ProviderColors.border),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Your Remaining Today', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                          const Text('Your Remaining Today', style: TextStyle(fontSize: 11, color: ProviderColors.mutedText, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 2),
                           Text(
                             '$remaining tokens',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: (providerFull || officeFull) ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                              color: (providerFull || officeFull) ? ProviderColors.error : ProviderColors.success,
                             ),
                           ),
                         ],
@@ -1338,7 +1492,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           // Edit Limit Field
           const Text(
             'Configure Your Daily Max Token Limit',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ProviderColors.mainText),
           ),
           const SizedBox(height: 8),
           Row(
@@ -1350,15 +1504,21 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: InputDecoration(
                     hintText: 'e.g. 20',
-                    prefixIcon: const Icon(Icons.pin_outlined, size: 20),
+                    prefixIcon: const Icon(Icons.pin_outlined, size: 20, color: ProviderColors.primary),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    filled: true,
+                    fillColor: ProviderColors.background,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                      borderSide: const BorderSide(color: ProviderColors.border),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      borderSide: const BorderSide(color: ProviderColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: ProviderColors.primary, width: 1.8),
                     ),
                   ),
                 ),
@@ -1375,7 +1535,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                     : const Icon(Icons.check_rounded, size: 18),
                 label: Text(_savingLimit ? 'Saving...' : 'Save Limit'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0284C7),
+                  backgroundColor: ProviderColors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1385,9 +1545,9 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            'Cannot exceed office maximum of $officeMax tokens. Sum of all providers cannot exceed office limit.',
-            style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), height: 1.3),
+          const Text(
+            'Cannot exceed office maximum limit. Sum of all providers cannot exceed office limit.',
+            style: TextStyle(fontSize: 11, color: ProviderColors.mutedText, height: 1.3),
           ),
         ],
       ),
@@ -1470,7 +1630,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: incoming.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (ctx, idx) {
               final req = incoming[idx] as Map<String, dynamic>;
               final reqId = req['id'];
@@ -1505,13 +1665,13 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                         children: [
                           Text(
                             reqCust,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: ProviderColors.mainText),
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           Text(
                             'From: $reqOffice',
-                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                            style: const TextStyle(fontSize: 11, color: ProviderColors.mutedText),
                           ),
                         ],
                       ),
@@ -1520,7 +1680,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                     OutlinedButton(
                       onPressed: _queueActionLoading ? null : () => _declineTokenRequest(reqId),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFDC2626),
+                        foregroundColor: ProviderColors.error,
                         side: const BorderSide(color: Color(0xFFFECACA)),
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         visualDensity: VisualDensity.compact,
@@ -1532,7 +1692,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                     ElevatedButton(
                       onPressed: _queueActionLoading ? null : () => _acceptTokenRequest(reqId),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF10B981),
+                        backgroundColor: ProviderColors.success,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1568,16 +1728,10 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ProviderColors.card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        border: Border.all(color: ProviderColors.border),
+        boxShadow: ProviderColors.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1591,10 +1745,10 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0284C7).withValues(alpha: 0.1),
+                      color: ProviderColors.primarySoft,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.people_alt_rounded, color: Color(0xFF0284C7), size: 20),
+                    child: const Icon(Icons.people_alt_rounded, color: ProviderColors.primary, size: 20),
                   ),
                   const SizedBox(width: 10),
                   const Text(
@@ -1602,7 +1756,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
+                      color: ProviderColors.mainText,
                     ),
                   ),
                 ],
@@ -1612,13 +1766,13 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                      color: ProviderColors.success.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.circle, color: Color(0xFF10B981), size: 8),
+                        Icon(Icons.circle, color: ProviderColors.success, size: 8),
                         SizedBox(width: 4),
                         Text(
                           'LIVE',
@@ -1629,7 +1783,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                   ),
                   const SizedBox(width: 6),
                   IconButton(
-                    icon: const Icon(Icons.sync_rounded, color: Color(0xFF64748B), size: 20),
+                    icon: const Icon(Icons.sync_rounded, color: ProviderColors.mutedText, size: 20),
                     tooltip: 'Refresh Queue',
                     visualDensity: VisualDensity.compact,
                     onPressed: () => _fetchLiveQueue(),
@@ -1642,48 +1796,48 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
 
           // 3 Metric Tiles
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: ProviderColors.background,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: ProviderColors.border),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: Column(
                     children: [
-                      const Text('Serving Now', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                      const Text('Serving Now', style: TextStyle(fontSize: 11, color: ProviderColors.mutedText, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 4),
                       Text(
                         activeToken != null ? '#$activeToken' : '--',
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0284C7)),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: ProviderColors.primary),
                       ),
                     ],
                   ),
                 ),
-                Container(width: 1, height: 28, color: const Color(0xFFCBD5E1)),
+                Container(width: 1, height: 28, color: ProviderColors.border),
                 Expanded(
                   child: Column(
                     children: [
-                      const Text('Waiting in Line', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                      const Text('Waiting in Line', style: TextStyle(fontSize: 11, color: ProviderColors.mutedText, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 4),
                       Text(
                         '$waitingCount',
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFFF59E0B)),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: ProviderColors.warning),
                       ),
                     ],
                   ),
                 ),
-                Container(width: 1, height: 28, color: const Color(0xFFCBD5E1)),
+                Container(width: 1, height: 28, color: ProviderColors.border),
                 Expanded(
                   child: Column(
                     children: [
-                      const Text('Done Today', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                      const Text('Done Today', style: TextStyle(fontSize: 11, color: ProviderColors.mutedText, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 4),
                       Text(
                         '$completedCount',
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: ProviderColors.success),
                       ),
                     ],
                   ),
@@ -1696,12 +1850,12 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           // Currently Active Token Panel
           if (activeToken != null && activeDetails != null) ...[
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: isServing ? const Color(0xFFF0FDF4) : const Color(0xFFEFF6FF),
+                color: isServing ? const Color(0xFFF0FDF4) : const Color(0xFFF5F3FF),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: isServing ? const Color(0xFF86EFAC) : const Color(0xFF93C5FD),
+                  color: isServing ? const Color(0xFF86EFAC) : const Color(0xFFDDD6FE),
                   width: 1.5,
                 ),
               ),
@@ -1717,13 +1871,13 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.5,
-                          color: isServing ? const Color(0xFF15803D) : const Color(0xFF1D4ED8),
+                          color: isServing ? const Color(0xFF15803D) : ProviderColors.primaryDark,
                         ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: isServing ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
+                          color: isServing ? const Color(0xFF16A34A) : ProviderColors.primary,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
@@ -1733,15 +1887,15 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Text(
                         '#$activeToken',
                         style: TextStyle(
-                          fontSize: 30,
+                          fontSize: 32,
                           fontWeight: FontWeight.w900,
-                          color: isServing ? const Color(0xFF15803D) : const Color(0xFF1E40AF),
+                          color: isServing ? const Color(0xFF15803D) : ProviderColors.primaryDark,
                           letterSpacing: -0.5,
                         ),
                       ),
@@ -1752,12 +1906,12 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                           children: [
                             Row(
                               children: [
-                                const Icon(Icons.person_outline_rounded, size: 16, color: Color(0xFF475569)),
+                                const Icon(Icons.person_outline_rounded, size: 16, color: ProviderColors.secondaryText),
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
                                     activeDetails['customerName'] ?? 'Customer',
-                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ProviderColors.mainText),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -1767,12 +1921,12 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                               const SizedBox(height: 4),
                               Row(
                                 children: [
-                                  const Icon(Icons.phone_outlined, size: 14, color: Color(0xFF64748B)),
+                                  const Icon(Icons.phone_outlined, size: 14, color: ProviderColors.mutedText),
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
                                       activeDetails['customerPhone'].toString(),
-                                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                      style: const TextStyle(fontSize: 12, color: ProviderColors.mutedText),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
@@ -1799,7 +1953,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                           icon: const Icon(Icons.play_arrow_rounded, size: 18),
                           label: const Text('Start Serving'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF10B981),
+                            backgroundColor: ProviderColors.success,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -1811,7 +1965,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                         icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
                         label: const Text('Complete'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0284C7),
+                          backgroundColor: ProviderColors.primary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -1819,7 +1973,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                       ),
                       OutlinedButton.icon(
                         onPressed: _queueActionLoading ? null : _skipToken,
-                        icon: const Icon(Icons.pause_circle_outline_rounded, size: 18, color: Color(0xFFF59E0B)),
+                        icon: const Icon(Icons.pause_circle_outline_rounded, size: 18, color: ProviderColors.warning),
                         label: const Text('Skip / Hold', style: TextStyle(color: Color(0xFFD97706))),
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Color(0xFFFCD34D)),
@@ -1830,10 +1984,10 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                       if (waitingCount > 0) ...[
                         OutlinedButton.icon(
                           onPressed: _queueActionLoading ? null : _callNextCustomer,
-                          icon: const Icon(Icons.skip_next_rounded, size: 18, color: Color(0xFF4F46E5)),
-                          label: const Text('Call Next', style: TextStyle(color: Color(0xFF4F46E5))),
+                          icon: const Icon(Icons.skip_next_rounded, size: 18, color: ProviderColors.primaryDark),
+                          label: const Text('Call Next', style: TextStyle(color: ProviderColors.primaryDark)),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFFC7D2FE)),
+                            side: const BorderSide(color: Color(0xFFDDD6FE)),
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
@@ -1847,28 +2001,36 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           ] else ...[
             // Idle State: No Active Token
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: ProviderColors.background,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: ProviderColors.border),
               ),
               child: Column(
                 children: [
-                  const Icon(Icons.chair_outlined, size: 36, color: Color(0xFF94A3B8)),
-                  const SizedBox(height: 8),
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: ProviderColors.primarySoft,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.chair_outlined, size: 28, color: ProviderColors.primary),
+                  ),
+                  const SizedBox(height: 10),
                   const Text(
                     'No Customer Currently at Counter',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ProviderColors.mainText),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     waitingCount > 0
                         ? '$waitingCount customer${waitingCount == 1 ? '' : 's'} waiting in line.'
                         : 'No customers currently in your queue.',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    style: const TextStyle(fontSize: 12, color: ProviderColors.mutedText),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -1885,7 +2047,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                         style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0284C7),
+                        backgroundColor: ProviderColors.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1905,11 +2067,11 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
               children: [
                 Text(
                   'Upcoming Customers ($waitingCount)',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ProviderColors.mainText),
                 ),
-                Text(
+                const Text(
                   'Auto-updates live',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: 11, color: ProviderColors.mutedText, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -1918,7 +2080,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: waitingTokens.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (ctx, index) {
                 final item = waitingTokens[index] as Map<String, dynamic>;
                 final tokenNum = item['tokenNumber'] ?? '---';
@@ -1929,9 +2091,9 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+                    color: ProviderColors.background,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: ProviderColors.border),
                   ),
                   child: Row(
                     children: [
@@ -1940,7 +2102,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                         height: 28,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0284C7).withValues(alpha: 0.1),
+                          color: ProviderColors.primarySoft,
                           shape: BoxShape.circle,
                         ),
                         child: Text(
@@ -1948,7 +2110,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF0284C7),
+                            color: ProviderColors.primary,
                           ),
                         ),
                       ),
@@ -1962,14 +2124,14 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F172A),
+                                color: ProviderColors.mainText,
                               ),
                             ),
                             Text(
                               custName,
                               style: const TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF64748B),
+                                color: ProviderColors.mutedText,
                                 fontWeight: FontWeight.w500,
                               ),
                               overflow: TextOverflow.ellipsis,
@@ -1980,7 +2142,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                       if (waitEst > 0) ...[
                         Text(
                           '~$waitEst m',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+                          style: const TextStyle(fontSize: 11, color: ProviderColors.mutedText, fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(width: 8),
                       ],
@@ -1988,9 +2150,9 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                         onPressed: _queueActionLoading ? null : () => _serveToken(item['id']),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF0284C7),
+                          foregroundColor: ProviderColors.primary,
                           elevation: 0,
-                          side: const BorderSide(color: Color(0xFFBAE6FD)),
+                          side: const BorderSide(color: Color(0xFFDDD6FE)),
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           visualDensity: VisualDensity.compact,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

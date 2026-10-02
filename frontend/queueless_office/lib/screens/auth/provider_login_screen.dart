@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:queueless_office/screens/provider_dashboard/provider_dashboard_screen.dart';
+import 'package:queueless_office/theme/provider_theme.dart';
 
 class ProviderLoginScreen extends StatefulWidget {
   const ProviderLoginScreen({super.key});
@@ -110,10 +111,10 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
               color: Colors.white,
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text(message, style: const TextStyle(fontWeight: FontWeight.w500))),
+            Expanded(child: Text(message, style: const TextStyle(fontWeight: FontWeight.w600))),
           ],
         ),
-        backgroundColor: isError ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+        backgroundColor: isError ? ProviderColors.error : ProviderColors.success,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -123,250 +124,245 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A)),
-          onPressed: () => Navigator.pop(context),
-          tooltip: 'Back to Office Login',
+    return Theme(
+      data: ProviderTheme.themeData,
+      child: Scaffold(
+        backgroundColor: ProviderColors.background,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: ProviderColors.mainText),
+            onPressed: () => Navigator.pop(context),
+            tooltip: 'Back to Office Login',
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Header Icon
-                  Container(
-                    width: 68,
-                    height: 68,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)],
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Header Icon
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        gradient: ProviderColors.headerGradient,
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: ProviderColors.primaryGlow,
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF0284C7).withValues(alpha: 0.35),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
+                      child: const Icon(Icons.badge_rounded, color: Colors.white, size: 36),
                     ),
-                    child: const Icon(Icons.badge_rounded, color: Colors.white, size: 34),
-                  ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'Provider Portal',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
-                      letterSpacing: -0.5,
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Provider Portal',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: ProviderColors.mainText,
+                        letterSpacing: -0.5,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Sign in with your office credentials to manage your consultation queue.',
-                    style: TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.4),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Login Card
-                  Container(
-                    padding: const EdgeInsets.all(28),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF0F172A).withValues(alpha: 0.06),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Sign in with your office credentials to manage your consultation queue.',
+                      style: TextStyle(fontSize: 14, color: ProviderColors.secondaryText, height: 1.4),
+                      textAlign: TextAlign.center,
                     ),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Office ID Field
-                          TextFormField(
-                            controller: _officeIdController,
-                            textCapitalization: TextCapitalization.characters,
-                            decoration: InputDecoration(
-                              labelText: 'Office ID',
-                              hintText: 'e.g. OFF-QL8392',
-                              prefixIcon: const Icon(Icons.domain_outlined, color: Color(0xFF0284C7)),
-                              filled: true,
-                              fillColor: const Color(0xFFF8FAFC),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(color: Color(0xFF0284C7), width: 1.5),
-                              ),
-                            ),
-                            validator: (val) {
-                              if (val == null || val.trim().isEmpty) {
-                                return 'Please enter your Office ID';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 18),
+                    const SizedBox(height: 28),
 
-                          // Username Field
-                          TextFormField(
-                            controller: _usernameController,
-                            autocorrect: false,
-                            decoration: InputDecoration(
-                              labelText: 'Username',
-                              hintText: 'e.g. dr.robert',
-                              prefixIcon: const Icon(Icons.person_outline, color: Color(0xFF0284C7)),
-                              filled: true,
-                              fillColor: const Color(0xFFF8FAFC),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(color: Color(0xFF0284C7), width: 1.5),
-                              ),
-                            ),
-                            validator: (val) {
-                              if (val == null || val.trim().isEmpty) {
-                                return 'Please enter your username';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 18),
-
-                          // Password Field
-                          TextFormField(
-                            controller: _passwordController,
-                            obscureText: _obscurePassword,
-                            decoration: InputDecoration(
-                              labelText: 'Password',
-                              hintText: '••••••••',
-                              prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF0284C7)),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                  color: const Color(0xFF64748B),
-                                ),
-                                onPressed: () {
-                                  setState(() => _obscurePassword = !_obscurePassword);
-                                },
-                              ),
-                              filled: true,
-                              fillColor: const Color(0xFFF8FAFC),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(color: Color(0xFF0284C7), width: 1.5),
-                              ),
-                            ),
-                            validator: (val) {
-                              if (val == null || val.trim().isEmpty) {
-                                return 'Please enter your password';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 24),
-
-                          // Submit Button
-                          SizedBox(
-                            height: 52,
-                            child: ElevatedButton(
-                              onPressed: _loading ? null : _handleLogin,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0284C7),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
+                    // Login Card
+                    Container(
+                      padding: const EdgeInsets.all(28),
+                      decoration: BoxDecoration(
+                        color: ProviderColors.card,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: ProviderColors.border),
+                        boxShadow: ProviderColors.cardShadow,
+                      ),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Office ID Field
+                            TextFormField(
+                              controller: _officeIdController,
+                              textCapitalization: TextCapitalization.characters,
+                              decoration: InputDecoration(
+                                labelText: 'Office ID',
+                                hintText: 'e.g. OFF-QL8392',
+                                prefixIcon: const Icon(Icons.domain_outlined, color: ProviderColors.primary),
+                                filled: true,
+                                fillColor: ProviderColors.background,
+                                border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: ProviderColors.border),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: ProviderColors.border),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: ProviderColors.primary, width: 1.8),
                                 ),
                               ),
-                              child: _loading
-                                  ? const SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                                    )
-                                  : const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.login_rounded, size: 20),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          'Sign In',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                              validator: (val) {
+                                if (val == null || val.trim().isEmpty) {
+                                  return 'Please enter your Office ID';
+                                }
+                                return null;
+                              },
                             ),
-                          ),
-                          const SizedBox(height: 20),
+                            const SizedBox(height: 18),
 
-                          // Helper message
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF0F9FF),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFBAE6FD)),
+                            // Username Field
+                            TextFormField(
+                              controller: _usernameController,
+                              autocorrect: false,
+                              decoration: InputDecoration(
+                                labelText: 'Username',
+                                hintText: 'e.g. dr.robert',
+                                prefixIcon: const Icon(Icons.person_outline, color: ProviderColors.primary),
+                                filled: true,
+                                fillColor: ProviderColors.background,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: ProviderColors.border),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: ProviderColors.border),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: ProviderColors.primary, width: 1.8),
+                                ),
+                              ),
+                              validator: (val) {
+                                if (val == null || val.trim().isEmpty) {
+                                  return 'Please enter your username';
+                                }
+                                return null;
+                              },
                             ),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.info_outline, color: Color(0xFF0284C7), size: 18),
-                                SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'Contact your office administrator if you forgot your username or password.',
-                                    style: TextStyle(fontSize: 12, color: Color(0xFF0369A1), height: 1.3),
+                            const SizedBox(height: 18),
+
+                            // Password Field
+                            TextFormField(
+                              controller: _passwordController,
+                              obscureText: _obscurePassword,
+                              decoration: InputDecoration(
+                                labelText: 'Password',
+                                hintText: '••••••••',
+                                prefixIcon: const Icon(Icons.lock_outline, color: ProviderColors.primary),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                    color: ProviderColors.mutedText,
+                                  ),
+                                  onPressed: () {
+                                    setState(() => _obscurePassword = !_obscurePassword);
+                                  },
+                                ),
+                                filled: true,
+                                fillColor: ProviderColors.background,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: ProviderColors.border),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: ProviderColors.border),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: ProviderColors.primary, width: 1.8),
+                                ),
+                              ),
+                              validator: (val) {
+                                if (val == null || val.trim().isEmpty) {
+                                  return 'Please enter your password';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 26),
+
+                            // Submit Button
+                            SizedBox(
+                              height: 52,
+                              child: ElevatedButton(
+                                onPressed: _loading ? null : _handleLogin,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: ProviderColors.primary,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
                                   ),
                                 ),
-                              ],
+                                child: _loading
+                                    ? const SizedBox(
+                                        width: 22,
+                                        height: 22,
+                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                                      )
+                                    : const Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.login_rounded, size: 20),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'Sign In',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 20),
+
+                            // Helper message
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: ProviderColors.primarySoft,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: const Color(0xFFDDD6FE)),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.info_outline, color: ProviderColors.primaryDark, size: 18),
+                                  SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'Contact your office administrator if you forgot your username or password.',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: ProviderColors.primaryDark,
+                                        fontWeight: FontWeight.w500,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

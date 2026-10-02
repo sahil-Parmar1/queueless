@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/customer_auth_service.dart';
+import '../../theme/app_theme.dart';
 import '../dashboard/customer_dashboard_screen.dart';
 
 class CustomerLoginScreen extends StatefulWidget {
@@ -82,10 +83,10 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                      color: AppColors.primarySoft,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.gavel_rounded, color: Color(0xFF4F46E5), size: 22),
+                    child: const Icon(Icons.gavel_rounded, color: AppColors.primary, size: 22),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
@@ -162,7 +163,7 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
                               height: 24,
                               child: Checkbox(
                                 value: agreed,
-                                activeColor: const Color(0xFF4F46E5),
+                                activeColor: AppColors.primary,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                                 onChanged: (val) {
                                   setModalState(() {
@@ -197,7 +198,7 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
                 ElevatedButton(
                   onPressed: agreed ? () => Navigator.pop(context, true) : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4F46E5),
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: const Color(0xFFCBD5E1),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -299,15 +300,11 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
                     width: 76,
                     height: 76,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      gradient: AppColors.primaryGradient,
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
+                          color: AppColors.primary.withValues(alpha: 0.35),
                           blurRadius: 24,
                           offset: const Offset(0, 10),
                         ),
@@ -351,9 +348,10 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AppColors.border),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF0F172A).withValues(alpha: 0.06),
+                          color: const Color(0xFF0F172A).withValues(alpha: 0.04),
                           blurRadius: 30,
                           offset: const Offset(0, 10),
                         ),
@@ -365,21 +363,21 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
                         // Feature Pills
                         _buildFeatureRow(
                           icon: Icons.confirmation_number_outlined,
-                          color: const Color(0xFF4F46E5),
+                          color: AppColors.primary,
                           title: 'Digital Queue Tokens',
                           subtitle: 'Book tokens remotely without standing in line',
                         ),
                         const SizedBox(height: 14),
                         _buildFeatureRow(
                           icon: Icons.notifications_active_outlined,
-                          color: const Color(0xFF059669),
+                          color: AppColors.cyanDark,
                           title: 'Live Turn Notifications',
                           subtitle: 'Get notified when your turn is approaching',
                         ),
                         const SizedBox(height: 14),
                         _buildFeatureRow(
                           icon: Icons.qr_code_scanner_rounded,
-                          color: const Color(0xFFD97706),
+                          color: AppColors.warning,
                           title: 'Instant QR Check-in',
                           subtitle: 'Scan office QR codes for fast queue entry',
                         ),
@@ -406,7 +404,7 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
                                     width: 22,
                                     height: 22,
                                     child: CircularProgressIndicator(
-                                      color: Color(0xFF4F46E5),
+                                      color: AppColors.primary,
                                       strokeWidth: 2.5,
                                     ),
                                   )

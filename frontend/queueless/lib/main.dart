@@ -4,6 +4,7 @@ import 'package:queueless/screens/auth/customer_login_screen.dart';
 import 'package:queueless/screens/dashboard/customer_dashboard_screen.dart';
 import 'package:queueless/services/customer_auth_service.dart';
 import 'package:queueless/services/queue_notification_service.dart';
+import 'package:queueless/theme/app_theme.dart';
 
 import 'firebase_options.dart';
 
@@ -28,22 +29,7 @@ class MyApp extends StatelessWidget {
       navigatorKey: QueueNotificationService.navigatorKey,
       title: 'QueueLess - Smart Queue Management',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4F46E5),
-          primary: const Color(0xFF4F46E5),
-          secondary: const Color(0xFF6366F1),
-          surface: const Color(0xFFF8FAFC),
-        ),
-        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          foregroundColor: Color(0xFF0F172A),
-          elevation: 0,
-          scrolledUnderElevation: 0,
-        ),
-      ),
+      theme: AppTheme.lightTheme,
       home: const AuthGate(),
     );
   }
@@ -98,7 +84,7 @@ class _AuthGateState extends State<AuthGate> {
       return const Scaffold(
         backgroundColor: Color(0xFFF8FAFC),
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF4F46E5)),
+          child: CircularProgressIndicator(color: AppColors.primary),
         ),
       );
     }

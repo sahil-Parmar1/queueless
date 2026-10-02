@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/office_service.dart';
 import '../../services/provider_status_websocket_service.dart';
+import '../../theme/app_theme.dart';
 import '../office_details/office_details_screen.dart';
 
 class OfficeSearchScreen extends StatefulWidget {
@@ -103,14 +104,14 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
-        foregroundColor: const Color(0xFF0F172A),
+        foregroundColor: AppColors.mainText,
         title: const Text(
           'Find Offices & Queues',
-          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: AppColors.mainText),
         ),
       ),
       body: Column(
@@ -123,8 +124,9 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
               children: [
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
+                    color: AppColors.background,
                     borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.border),
                   ),
                   child: TextField(
                     controller: _searchController,
@@ -133,11 +135,11 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
                     onSubmitted: (_) => _loadOffices(),
                     decoration: InputDecoration(
                       hintText: 'Search by clinic, doctor, salon, city...',
-                      hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
-                      prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B)),
+                      hintStyle: const TextStyle(color: AppColors.mutedText, fontSize: 14),
+                      prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear_rounded, size: 20, color: Color(0xFF94A3B8)),
+                              icon: const Icon(Icons.clear_rounded, size: 20, color: AppColors.mutedText),
                               onPressed: () {
                                 _searchController.clear();
                                 _loadOffices();
@@ -145,6 +147,8 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
                             )
                           : null,
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
                   ),
@@ -170,15 +174,20 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
                             _loadOffices();
                           }
                         },
-                        selectedColor: const Color(0xFF4F46E5),
-                        backgroundColor: const Color(0xFFF1F5F9),
+                        selectedColor: AppColors.primary,
+                        backgroundColor: Colors.white,
                         labelStyle: TextStyle(
-                          color: isSelected ? Colors.white : const Color(0xFF475569),
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                          color: isSelected ? Colors.white : AppColors.secondaryText,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                           fontSize: 13,
                         ),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        side: BorderSide.none,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          side: BorderSide(
+                            color: isSelected ? AppColors.primary : AppColors.border,
+                            width: 1,
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -190,10 +199,10 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
           // Search Results
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5)))
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
                 : RefreshIndicator(
                     onRefresh: _loadOffices,
-                    color: const Color(0xFF4F46E5),
+                    color: AppColors.primary,
                     child: _offices.isEmpty
                         ? _buildEmptyState()
                         : ListView.separated(
@@ -217,18 +226,18 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
       padding: const EdgeInsets.all(32),
       children: [
         const SizedBox(height: 40),
-        Icon(Icons.search_off_rounded, size: 64, color: Colors.grey.shade400),
+        Icon(Icons.search_off_rounded, size: 64, color: AppColors.mutedText.withValues(alpha: 0.4)),
         const SizedBox(height: 16),
         const Text(
           'No Places Found',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.mainText),
         ),
         const SizedBox(height: 8),
         const Text(
           'We couldn\'t find any registered offices matching your search. Try adjusting the category or search keywords.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.4),
+          style: TextStyle(fontSize: 14, color: AppColors.secondaryText, height: 1.4),
         ),
       ],
     );
@@ -272,10 +281,10 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: AppColors.border),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: AppColors.primaryDark.withValues(alpha: 0.04),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -308,17 +317,19 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF0F172A),
+                                color: AppColors.mainText,
                               ),
                             ),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: isOpen ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+                              color: isOpen ? AppColors.successSoft : AppColors.errorSoft,
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: isOpen ? const Color(0xFFA7F3D0) : const Color(0xFFFECACA),
+                                color: isOpen
+                                    ? AppColors.success.withValues(alpha: 0.3)
+                                    : AppColors.error.withValues(alpha: 0.3),
                                 width: 0.8,
                               ),
                             ),
@@ -330,7 +341,7 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
                                   height: 6,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: isOpen ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                                    color: isOpen ? AppColors.success : AppColors.error,
                                   ),
                                 ),
                                 const SizedBox(width: 4),
@@ -339,7 +350,7 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
-                                    color: isOpen ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                                    color: isOpen ? AppColors.success : AppColors.error,
                                   ),
                                 ),
                               ],
@@ -351,13 +362,13 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
                         const SizedBox(height: 4),
                         Text(
                           subInfo,
-                          style: const TextStyle(fontSize: 13, color: Color(0xFF475569), fontWeight: FontWeight.w500),
+                          style: const TextStyle(fontSize: 13, color: AppColors.primaryDark, fontWeight: FontWeight.w600),
                         ),
                       ],
                       const SizedBox(height: 4),
                       Text(
                         [address, city].where((e) => e.toString().isNotEmpty).join(', '),
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                        style: const TextStyle(fontSize: 12, color: AppColors.mutedText),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -367,28 +378,30 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            const Divider(height: 1, color: Color(0xFFF1F5F9)),
+            const Divider(height: 1, color: AppColors.borderLight),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF64748B)),
+                    const Icon(Icons.access_time_rounded, size: 14, color: AppColors.mutedText),
                     const SizedBox(width: 4),
                     Text(
                       '$openingTime - $closingTime',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
                     ),
                   ],
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isOpen ? const Color(0xFFEEF2FF) : const Color(0xFFFEF2F2),
+                    color: isOpen ? AppColors.primarySoft : AppColors.errorSoft,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: isOpen ? const Color(0xFFC7D2FE) : const Color(0xFFFECACA),
+                      color: isOpen
+                          ? AppColors.primaryLight.withValues(alpha: 0.4)
+                          : AppColors.error.withValues(alpha: 0.3),
                       width: 0.8,
                     ),
                   ),
@@ -398,7 +411,7 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
                       Icon(
                         isOpen ? Icons.people_alt_rounded : Icons.lock_clock_rounded,
                         size: 13,
-                        color: isOpen ? const Color(0xFF4F46E5) : const Color(0xFFDC2626),
+                        color: isOpen ? AppColors.primaryDark : AppColors.error,
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -407,7 +420,7 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
                             : 'Queue Closed',
                         style: TextStyle(
                           fontSize: 12,
-                          color: isOpen ? const Color(0xFF4F46E5) : const Color(0xFFDC2626),
+                          color: isOpen ? AppColors.primaryDark : AppColors.error,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -425,15 +438,15 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
   Color _getCategoryColor(String category) {
     switch (category) {
       case 'CLINIC':
-        return const Color(0xFF0284C7);
+        return AppColors.primary;
       case 'SALON':
-        return const Color(0xFFD946EF);
+        return AppColors.cyanDark;
       case 'BANK':
-        return const Color(0xFF059669);
+        return AppColors.primaryDark;
       case 'RESTAURANT':
         return const Color(0xFFEA580C);
       default:
-        return const Color(0xFF4F46E5);
+        return AppColors.primary;
     }
   }
 

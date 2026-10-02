@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:queueless/screens/search/office_search_screen.dart';
 import '../../services/office_service.dart';
 import '../../services/queue_notification_service.dart';
+import '../../theme/app_theme.dart';
 
 class ActiveTokenScreen extends StatefulWidget {
   final Map<String, dynamic>? initialTokenData;
@@ -77,34 +78,39 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
+            Icon(Icons.warning_amber_rounded, color: AppColors.error),
             SizedBox(width: 8),
-            Text('Cancel Token?'),
+            Text(
+              'Cancel Token?',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
           ],
         ),
         content: const Text(
           'Are you sure you want to cancel your digital token? You will lose your current spot in the queue.',
-          style: TextStyle(fontSize: 14),
+          style: TextStyle(fontSize: 14, color: AppColors.secondaryText),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text(
               'Keep Token',
-              style: TextStyle(color: Color(0xFF64748B)),
+              style: TextStyle(color: AppColors.mutedText, fontWeight: FontWeight.w600),
             ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
+              backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
               ),
+              elevation: 0,
             ),
             child: const Text('Yes, Cancel'),
           ),
@@ -117,13 +123,17 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Token cancelled successfully.')),
+            const SnackBar(
+              content: Text('Token cancelled successfully.'),
+              backgroundColor: AppColors.primaryDark,
+            ),
           );
           Navigator.pop(context, true);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Failed to cancel token. Please try again.'),
+              backgroundColor: AppColors.error,
             ),
           );
         }
@@ -134,18 +144,18 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
-        foregroundColor: const Color(0xFF0F172A),
+        foregroundColor: AppColors.mainText,
         title: const Text(
           'My Digital Token',
           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
             tooltip: 'Refresh queue status',
             onPressed: _fetchActiveToken,
           ),
@@ -153,7 +163,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
       ),
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF4F46E5)),
+              child: CircularProgressIndicator(color: AppColors.primary),
             )
           : _tokenData == null
           ? _buildNoActiveTokenView()
@@ -169,15 +179,15 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+              padding: const EdgeInsets.all(22),
+              decoration: const BoxDecoration(
+                color: AppColors.primarySoft,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.confirmation_number_outlined,
                 size: 50,
-                color: Color(0xFF4F46E5),
+                color: AppColors.primary,
               ),
             ),
             const SizedBox(height: 20),
@@ -186,7 +196,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF0F172A),
+                color: AppColors.mainText,
               ),
             ),
             const SizedBox(height: 8),
@@ -195,7 +205,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: Color(0xFF64748B),
+                color: AppColors.secondaryText,
                 height: 1.4,
               ),
             ),
@@ -208,7 +218,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
               icon: const Icon(Icons.search_rounded),
               label: const Text('Browse Offices'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4F46E5),
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
@@ -217,6 +227,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+                elevation: 0,
               ),
             ),
           ],
@@ -255,12 +266,12 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
               margin: const EdgeInsets.only(bottom: 16),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFDCFCE7),
+                color: AppColors.successSoft,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF22C55E), width: 1.5),
+                border: Border.all(color: AppColors.success, width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF22C55E).withValues(alpha: 0.15),
+                    color: AppColors.success.withValues(alpha: 0.15),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -271,7 +282,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: const BoxDecoration(
-                      color: Color(0xFF16A34A),
+                      color: AppColors.success,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -290,7 +301,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFF14532D),
+                            color: Color(0xFF065F46),
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -299,7 +310,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF166534),
+                            color: Color(0xFF047857),
                           ),
                         ),
                       ],
@@ -313,12 +324,12 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
               margin: const EdgeInsets.only(bottom: 16),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
+                color: AppColors.warningSoft,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
+                border: Border.all(color: AppColors.warning, width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                    color: AppColors.warning.withValues(alpha: 0.15),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -329,7 +340,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: const BoxDecoration(
-                      color: Color(0xFFD97706),
+                      color: AppColors.warning,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -375,7 +386,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
+                  color: AppColors.primary.withValues(alpha: 0.10),
                   blurRadius: 24,
                   offset: const Offset(0, 8),
                 ),
@@ -387,11 +398,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    gradient: AppColors.tealCyanGradient,
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(24),
                       topRight: Radius.circular(24),
@@ -441,7 +448,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.25),
+                            color: Colors.white.withValues(alpha: 0.22),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
@@ -512,7 +519,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF94A3B8),
+                          color: AppColors.mutedText,
                           letterSpacing: 1.5,
                         ),
                       ),
@@ -522,7 +529,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                         style: const TextStyle(
                           fontSize: 54,
                           fontWeight: FontWeight.w900,
-                          color: Color(0xFF4F46E5),
+                          color: AppColors.primaryDark,
                           letterSpacing: 2,
                         ),
                       ),
@@ -533,7 +540,9 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
+                          color: peopleAhead == 0
+                              ? AppColors.successSoft
+                              : AppColors.primarySoft,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
@@ -544,8 +553,8 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: peopleAhead == 0
-                                ? const Color(0xFF10B981)
-                                : const Color(0xFF334155),
+                                ? AppColors.success
+                                : AppColors.primaryDark,
                           ),
                         ),
                       ),
@@ -562,7 +571,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 2),
                         child: Container(
                           height: 2,
-                          color: const Color(0xFFE2E8F0),
+                          color: AppColors.border,
                         ),
                       ),
                     ),
@@ -579,13 +588,13 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                           label: 'Est. Wait',
                           value: '$waitMins min',
                           icon: Icons.timer_outlined,
-                          color: const Color(0xFFF59E0B),
+                          color: AppColors.warning,
                         ),
                       ),
                       Container(
                         width: 1,
                         height: 40,
-                        color: const Color(0xFFE2E8F0),
+                        color: AppColors.border,
                       ),
                       Expanded(
                         child: _buildMetricTile(
@@ -594,7 +603,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                               ? '#$currentlyServing'
                               : '--',
                           icon: Icons.notifications_active_outlined,
-                          color: const Color(0xFF10B981),
+                          color: AppColors.primary,
                         ),
                       ),
                     ],
@@ -609,15 +618,15 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF0FDF4),
+              color: AppColors.primarySoft.withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFBBF7D0)),
+              border: Border.all(color: AppColors.primaryLight.withValues(alpha: 0.3)),
             ),
             child: const Row(
               children: [
                 Icon(
                   Icons.check_circle_outline_rounded,
-                  color: Color(0xFF16A34A),
+                  color: AppColors.primary,
                   size: 24,
                 ),
                 SizedBox(width: 12),
@@ -626,8 +635,9 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                     'Stay relaxed! You don\'t have to stand in line. We\'ll notify you when only 2 people are ahead.',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF166534),
+                      color: AppColors.primaryDark,
                       height: 1.4,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
@@ -644,15 +654,15 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                   onPressed: _handleCancelToken,
                   icon: const Icon(
                     Icons.close_rounded,
-                    color: Color(0xFFEF4444),
+                    color: AppColors.error,
                     size: 18,
                   ),
                   label: const Text(
                     'Cancel Token',
-                    style: TextStyle(color: Color(0xFFEF4444)),
+                    style: TextStyle(color: AppColors.error),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFFFECACA)),
+                    side: const BorderSide(color: AppColors.errorSoft),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -667,12 +677,13 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                   icon: const Icon(Icons.refresh_rounded, size: 18),
                   label: const Text('Refresh Status'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4F46E5),
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
+                    elevation: 0,
                   ),
                 ),
               ),
@@ -691,23 +702,23 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
     switch (status) {
       case 'CALLED':
       case 'IN_SERVICE':
-        bg = const Color(0xFF10B981);
+        bg = AppColors.success;
         fg = Colors.white;
         label = 'CALLED / TURN READY';
         break;
       case 'COMPLETED':
-        bg = const Color(0xFF3B82F6);
+        bg = AppColors.cyanDark;
         fg = Colors.white;
         label = 'COMPLETED';
         break;
       case 'CANCELLED':
-        bg = const Color(0xFFEF4444);
+        bg = AppColors.error;
         fg = Colors.white;
         label = 'CANCELLED';
         break;
       default:
         bg = Colors.white;
-        fg = const Color(0xFF4F46E5);
+        fg = AppColors.primaryDark;
         label = 'IN QUEUE';
     }
 
@@ -746,7 +757,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
               label,
               style: const TextStyle(
                 fontSize: 12,
-                color: Color(0xFF64748B),
+                color: AppColors.mutedText,
                 fontWeight: FontWeight.w500,
               ),
             ),
