@@ -108,4 +108,33 @@ public class OfficeQueueController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
         }
     }
+
+    @PostMapping("/tokens/{tokenId}/request-forward")
+    public ResponseEntity<?> requestForwardToken(
+            @PathVariable("tokenId") Long tokenId,
+            @RequestBody Map<String, Object> body,
+            Authentication authentication) {
+        OfficeProfile office = getAuthenticatedOffice(authentication);
+        if (!body.containsKey("providerId") || body.get("providerId") == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "providerId is required", "message", "Provider ID is required"));
+        }
+        Long providerId = Long.valueOf(body.get("providerId").toString());
+        try {
+            return ResponseEntity.ok(queueService.requestTokenToProvider(office.getId(), tokenId, providerId));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/tokens/{tokenId}/cancel-request")
+    public ResponseEntity<?> cancelTokenRequest(
+            @PathVariable("tokenId") Long tokenId,
+            Authentication authentication) {
+        OfficeProfile office = getAuthenticatedOffice(authentication);
+        try {
+            return ResponseEntity.ok(queueService.cancelTokenRequest(office.getId(), tokenId));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
+        }
+    }
 }

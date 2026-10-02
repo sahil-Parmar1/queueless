@@ -43,6 +43,14 @@ public class QueueToken {
     @JsonIgnoreProperties({"office", "schedules", "hibernateLazyInitializer", "handler"})
     private Provider provider;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "requested_provider_id", nullable = true)
+    @JsonIgnoreProperties({"office", "schedules", "hibernateLazyInitializer", "handler"})
+    private Provider requestedProvider;
+
+    @Column(name = "request_status")
+    private String requestStatus;
+
     private Long customerId;
 
     @Column(nullable = false)
@@ -184,5 +192,21 @@ public class QueueToken {
 
     public void setProvider(Provider provider) {
         this.provider = provider;
+    }
+
+    public Provider getRequestedProvider() {
+        return requestedProvider;
+    }
+
+    public void setRequestedProvider(Provider requestedProvider) {
+        this.requestedProvider = requestedProvider;
+    }
+
+    public String getRequestStatus() {
+        return requestStatus;
+    }
+
+    public void setRequestStatus(String requestStatus) {
+        this.requestStatus = requestStatus;
     }
 }

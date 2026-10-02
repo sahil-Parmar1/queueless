@@ -66,6 +66,14 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
       ? 'http://localhost:8081/api/provider/queue/skip'
       : 'http://10.0.2.2:8081/api/provider/queue/skip';
 
+  String _providerRequestAcceptUrl(dynamic id) => kIsWeb
+      ? 'http://localhost:8081/api/provider/queue/requests/$id/accept'
+      : 'http://10.0.2.2:8081/api/provider/queue/requests/$id/accept';
+
+  String _providerRequestDeclineUrl(dynamic id) => kIsWeb
+      ? 'http://localhost:8081/api/provider/queue/requests/$id/decline'
+      : 'http://10.0.2.2:8081/api/provider/queue/requests/$id/decline';
+
   @override
   void initState() {
     super.initState();
@@ -261,6 +269,92 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
         setState(() => _queueActionLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to skip token: $e'), backgroundColor: const Color(0xFFEF4444)),
+        );
+      }
+    }
+  }
+
+  Future<void> _acceptTokenRequest(dynamic tokenId) async {
+    setState(() => _queueActionLoading = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.post(
+        Uri.parse(_providerRequestAcceptUrl(tokenId)),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+            _queueActionLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Token request accepted! Token added to your queue.'),
+              backgroundColor: Color(0xFF10B981),
+            ),
+          );
+        }
+      } else {
+        String err = 'Server error: ${response.statusCode}';
+        try {
+          final errData = jsonDecode(response.body);
+          if (errData['message'] != null) err = errData['message'];
+        } catch (_) {}
+        throw Exception(err);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _queueActionLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to accept request: $e'), backgroundColor: const Color(0xFFEF4444)),
+        );
+      }
+    }
+  }
+
+  Future<void> _declineTokenRequest(dynamic tokenId) async {
+    setState(() => _queueActionLoading = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.post(
+        Uri.parse(_providerRequestDeclineUrl(tokenId)),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+            _queueActionLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Token request declined.'),
+              backgroundColor: Color(0xFF64748B),
+            ),
+          );
+        }
+      } else {
+        String err = 'Server error: ${response.statusCode}';
+        try {
+          final errData = jsonDecode(response.body);
+          if (errData['message'] != null) err = errData['message'];
+        } catch (_) {}
+        throw Exception(err);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _queueActionLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to decline request: $e'), backgroundColor: const Color(0xFFEF4444)),
         );
       }
     }
@@ -856,6 +950,9 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                         ),
                         const SizedBox(height: 20),
 
+                        // Section: Incoming Token Requests from Office (when limit reached)
+                        _buildIncomingRequestsSection(),
+
                         // Section: Live Queue Counter & Management
                         _buildLiveQueueSection(),
                         const SizedBox(height: 20),
@@ -1291,6 +1388,163 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           Text(
             'Cannot exceed office maximum of $officeMax tokens. Sum of all providers cannot exceed office limit.',
             style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), height: 1.3),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIncomingRequestsSection() {
+    final incoming = (_liveQueueData?['incomingRequests'] as List<dynamic>?) ?? [];
+    if (incoming.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFD97706).withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.forward_to_inbox_rounded, color: Color(0xFFD97706), size: 22),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'Incoming Token Request',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF92400E),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD97706),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${incoming.length} New',
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Office is requesting you to take this token beyond your daily limit.',
+                      style: TextStyle(fontSize: 11, color: Color(0xFFB45309)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: incoming.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (ctx, idx) {
+              final req = incoming[idx] as Map<String, dynamic>;
+              final reqId = req['id'];
+              final reqTokenNum = req['tokenNumber'] ?? '---';
+              final reqCust = req['customerName'] ?? 'Customer';
+              final reqOffice = req['officeName'] ?? 'Office Desk';
+
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        reqTokenNum,
+                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF92400E)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            reqCust,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'From: $reqOffice',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton(
+                      onPressed: _queueActionLoading ? null : () => _declineTokenRequest(reqId),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFDC2626),
+                        side: const BorderSide(color: Color(0xFFFECACA)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        visualDensity: VisualDensity.compact,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: const Text('Decline', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(width: 6),
+                    ElevatedButton(
+                      onPressed: _queueActionLoading ? null : () => _acceptTokenRequest(reqId),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        visualDensity: VisualDensity.compact,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: const Text('Accept', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),

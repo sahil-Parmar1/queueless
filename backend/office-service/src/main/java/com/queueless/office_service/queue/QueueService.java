@@ -204,6 +204,9 @@ public class QueueService {
             item.put("estimatedWaitMinutes", t.getEstimatedWaitMinutes());
             item.put("position", i + 1);
             item.put("bookedAt", t.getBookedAt() != null ? t.getBookedAt().toString() : "");
+            item.put("requestedProviderId", t.getRequestedProvider() != null ? t.getRequestedProvider().getId() : null);
+            item.put("requestedProviderName", t.getRequestedProvider() != null ? t.getRequestedProvider().getName() : null);
+            item.put("requestStatus", t.getRequestStatus() != null ? t.getRequestStatus() : "NONE");
             unassignedList.add(item);
         }
 
@@ -383,6 +386,8 @@ public class QueueService {
         }
 
         token.setProvider(provider);
+        token.setRequestedProvider(null);
+        token.setRequestStatus(null);
         // If it was CALLED at the front desk, move it back to WAITING for the assigned provider
         if (token.getStatus() == TokenStatus.CALLED) {
             token.setStatus(TokenStatus.WAITING);
@@ -394,6 +399,52 @@ public class QueueService {
         response.put("forwardedTokenNumber", token.getTokenNumber());
         response.put("assignedProviderName", provider.getName());
         return response;
+    }
+
+    /**
+     * Operator Action: Request a provider whose limit is reached to take an extra token.
+     */
+    public Map<String, Object> requestTokenToProvider(Long officeId, Long tokenId, Long providerId) {
+        QueueToken token = tokenRepository.findById(tokenId)
+                .orElseThrow(() -> new IllegalArgumentException("Token not found: " + tokenId));
+
+        if (!token.getOffice().getId().equals(officeId)) {
+            throw new IllegalArgumentException("Token does not belong to this office");
+        }
+
+        if (token.getStatus() != TokenStatus.WAITING && token.getStatus() != TokenStatus.CALLED) {
+            throw new IllegalStateException("Only WAITING or CALLED tokens can be requested for a provider");
+        }
+
+        Provider provider = providerRepository.findByIdAndOfficeId(providerId, officeId)
+                .orElseThrow(() -> new IllegalArgumentException("Provider not found or does not belong to this office"));
+
+        token.setRequestedProvider(provider);
+        token.setRequestStatus("PENDING");
+        tokenRepository.save(token);
+
+        Map<String, Object> response = getLiveQueue(officeId);
+        response.put("requestedTokenNumber", token.getTokenNumber());
+        response.put("requestedProviderName", provider.getName());
+        return response;
+    }
+
+    /**
+     * Operator Action: Cancel a pending token forward request.
+     */
+    public Map<String, Object> cancelTokenRequest(Long officeId, Long tokenId) {
+        QueueToken token = tokenRepository.findById(tokenId)
+                .orElseThrow(() -> new IllegalArgumentException("Token not found: " + tokenId));
+
+        if (!token.getOffice().getId().equals(officeId)) {
+            throw new IllegalArgumentException("Token does not belong to this office");
+        }
+
+        token.setRequestedProvider(null);
+        token.setRequestStatus(null);
+        tokenRepository.save(token);
+
+        return getLiveQueue(officeId);
     }
 
     /**
@@ -566,11 +617,31 @@ public class QueueService {
                 "sequenceNumber", activeToken.getSequenceNumber(),
                 "calledAt", activeToken.getCalledAt() != null ? activeToken.getCalledAt().toString() : ""
         ) : null);
+        List<QueueToken> incomingRequests = tokenRepository
+                .findByRequestedProviderIdAndRequestStatusAndStatusInOrderBySequenceNumberAsc(
+                        providerId, "PENDING", List.of(TokenStatus.WAITING, TokenStatus.CALLED)
+                );
+
+        List<Map<String, Object>> incomingRequestList = new ArrayList<>();
+        for (QueueToken req : incomingRequests) {
+            Map<String, Object> reqMap = new HashMap<>();
+            reqMap.put("id", req.getId());
+            reqMap.put("tokenNumber", req.getTokenNumber());
+            reqMap.put("customerName", req.getCustomerName());
+            reqMap.put("customerPhone", req.getCustomerPhone() != null ? req.getCustomerPhone() : "");
+            reqMap.put("sequenceNumber", req.getSequenceNumber());
+            reqMap.put("bookedAt", req.getBookedAt() != null ? req.getBookedAt().toString() : "");
+            reqMap.put("officeName", req.getOffice().getUser() != null ? req.getOffice().getUser().getName() : "Office Desk");
+            incomingRequestList.add(reqMap);
+        }
+
         response.put("waitingCount", waitingTokens.size());
         response.put("completedCount", completedCount);
         response.put("skippedCount", skippedCount);
         response.put("waitingTokens", waitingTokenList);
         response.put("todayTotalTokens", todayTokens.size());
+        response.put("incomingRequests", incomingRequestList);
+        response.put("incomingRequestsCount", incomingRequestList.size());
 
         return response;
     }
@@ -647,6 +718,54 @@ public class QueueService {
             curr.setStatus(TokenStatus.SKIPPED);
             tokenRepository.save(curr);
         });
+
+        return getProviderLiveQueue(providerId);
+    }
+
+    /**
+     * Provider Action: Accept an extra token requested by the office.
+     */
+    public Map<String, Object> providerAcceptTokenRequest(Long providerId, Long tokenId) {
+        QueueToken token = tokenRepository.findById(tokenId)
+                .orElseThrow(() -> new IllegalArgumentException("Token not found: " + tokenId));
+
+        if (token.getRequestedProvider() == null || !token.getRequestedProvider().getId().equals(providerId)) {
+            throw new IllegalArgumentException("This token was not requested to you");
+        }
+
+        if (!"PENDING".equalsIgnoreCase(token.getRequestStatus())) {
+            throw new IllegalStateException("Token request is not in PENDING state");
+        }
+
+        Provider provider = token.getRequestedProvider();
+        token.setProvider(provider);
+        token.setRequestedProvider(null);
+        token.setRequestStatus(null);
+
+        // If it was CALLED at the front desk, move it back to WAITING for the assigned provider
+        if (token.getStatus() == TokenStatus.CALLED) {
+            token.setStatus(TokenStatus.WAITING);
+            token.setCalledAt(null);
+        }
+        tokenRepository.save(token);
+
+        return getProviderLiveQueue(providerId);
+    }
+
+    /**
+     * Provider Action: Decline an extra token requested by the office.
+     */
+    public Map<String, Object> providerDeclineTokenRequest(Long providerId, Long tokenId) {
+        QueueToken token = tokenRepository.findById(tokenId)
+                .orElseThrow(() -> new IllegalArgumentException("Token not found: " + tokenId));
+
+        if (token.getRequestedProvider() == null || !token.getRequestedProvider().getId().equals(providerId)) {
+            throw new IllegalArgumentException("This token was not requested to you");
+        }
+
+        token.setRequestedProvider(null);
+        token.setRequestStatus("REJECTED");
+        tokenRepository.save(token);
 
         return getProviderLiveQueue(providerId);
     }

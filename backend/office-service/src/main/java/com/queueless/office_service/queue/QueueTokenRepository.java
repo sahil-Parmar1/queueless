@@ -68,4 +68,7 @@ public interface QueueTokenRepository extends JpaRepository<QueueToken, Long> {
     List<QueueToken> findByOfficeIdAndProviderIsNullAndStatusInOrderBySequenceNumberAsc(Long officeId, List<TokenStatus> statuses);
 
     Long countByOfficeIdAndProviderIsNullAndStatus(Long officeId, TokenStatus status);
+
+    List<QueueToken> findByRequestedProviderIdAndRequestStatusAndStatusInOrderBySequenceNumberAsc(
+            Long requestedProviderId, String requestStatus, List<TokenStatus> statuses);
 }

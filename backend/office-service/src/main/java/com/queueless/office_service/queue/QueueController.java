@@ -187,4 +187,38 @@ public class QueueController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
         }
     }
+
+    /**
+     * Office operator requests a provider to accept a token when provider limit is reached.
+     */
+    @PostMapping("/office/{officeId}/tokens/{tokenId}/request-forward")
+    public ResponseEntity<?> requestForwardToken(
+            @PathVariable("officeId") Long officeId,
+            @PathVariable("tokenId") Long tokenId,
+            @RequestBody Map<String, Object> body) {
+        if (!body.containsKey("providerId") || body.get("providerId") == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "providerId is required", "message", "Provider ID is required"));
+        }
+        Long providerId = Long.valueOf(body.get("providerId").toString());
+        try {
+            return ResponseEntity.ok(queueService.requestTokenToProvider(officeId, tokenId, providerId));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * Office operator cancels a pending token request.
+     */
+    @PostMapping("/office/{officeId}/tokens/{tokenId}/cancel-request")
+    public ResponseEntity<?> cancelTokenRequest(
+            @PathVariable("officeId") Long officeId,
+            @PathVariable("tokenId") Long tokenId) {
+        try {
+            return ResponseEntity.ok(queueService.cancelTokenRequest(officeId, tokenId));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
+        }
+    }
 }
+

@@ -1,15 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:queueless/screens/search/office_search_screen.dart';
 import '../../services/office_service.dart';
 import '../../services/queue_notification_service.dart';
 
 class ActiveTokenScreen extends StatefulWidget {
   final Map<String, dynamic>? initialTokenData;
 
-  const ActiveTokenScreen({
-    super.key,
-    this.initialTokenData,
-  });
+  const ActiveTokenScreen({super.key, this.initialTokenData});
 
   @override
   State<ActiveTokenScreen> createState() => _ActiveTokenScreenState();
@@ -94,14 +92,19 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep Token', style: TextStyle(color: Color(0xFF64748B))),
+            child: const Text(
+              'Keep Token',
+              style: TextStyle(color: Color(0xFF64748B)),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             child: const Text('Yes, Cancel'),
           ),
@@ -119,7 +122,9 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
           Navigator.pop(context, true);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to cancel token. Please try again.')),
+            const SnackBar(
+              content: Text('Failed to cancel token. Please try again.'),
+            ),
           );
         }
       }
@@ -147,10 +152,12 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5)))
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF4F46E5)),
+            )
           : _tokenData == null
-              ? _buildNoActiveTokenView()
-              : _buildActiveTokenContent(),
+          ? _buildNoActiveTokenView()
+          : _buildActiveTokenContent(),
     );
   }
 
@@ -167,29 +174,49 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                 color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.confirmation_number_outlined, size: 50, color: Color(0xFF4F46E5)),
+              child: const Icon(
+                Icons.confirmation_number_outlined,
+                size: 50,
+                color: Color(0xFF4F46E5),
+              ),
             ),
             const SizedBox(height: 20),
             const Text(
               'No Active Token',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0F172A),
+              ),
             ),
             const SizedBox(height: 8),
             const Text(
               'You don\'t currently have any active queue booking. Search for a clinic, salon, or office to join a queue.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.4),
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF64748B),
+                height: 1.4,
+              ),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => OfficeSearchScreen()),
+              ),
               icon: const Icon(Icons.search_rounded),
               label: const Text('Browse Offices'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF4F46E5),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
@@ -199,7 +226,10 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
   }
 
   Widget _buildActiveTokenContent() {
-    final tokenNumber = _tokenData?['tokenNumber'] ?? _tokenData?['token']?['tokenNumber'] ?? '---';
+    final tokenNumber =
+        _tokenData?['tokenNumber'] ??
+        _tokenData?['token']?['tokenNumber'] ??
+        '---';
     final officeName = _tokenData?['officeName'] ?? 'Office';
     final category = _tokenData?['category'] ?? 'OFFICE';
     final status = _tokenData?['status'] ?? 'WAITING';
@@ -212,7 +242,8 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
     final providerDesignation = _tokenData?['providerDesignation'] ?? '';
 
     final isTurnNow = status == 'CALLED' || status == 'IN_SERVICE';
-    final isAlmostTurn = peopleAhead <= 2 && peopleAhead > 0 && status == 'WAITING';
+    final isAlmostTurn =
+        peopleAhead <= 2 && peopleAhead > 0 && status == 'WAITING';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -243,7 +274,11 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                       color: Color(0xFF16A34A),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.campaign_rounded, color: Colors.white, size: 24),
+                    child: const Icon(
+                      Icons.campaign_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -252,12 +287,20 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                       children: [
                         const Text(
                           'IT\'S YOUR TURN NOW!',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF14532D)),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF14532D),
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Please proceed to ${providerName.isNotEmpty ? providerName : officeName} immediately.',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF166534)),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF166534),
+                          ),
                         ),
                       ],
                     ),
@@ -289,7 +332,11 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                       color: Color(0xFFD97706),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.timer_rounded, color: Colors.white, size: 24),
+                    child: const Icon(
+                      Icons.timer_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -298,12 +345,20 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                       children: [
                         const Text(
                           'GET READY! ONLY 2 AHEAD',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF78350F)),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF78350F),
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Only $peopleAhead person${peopleAhead == 1 ? '' : 's'} ahead of you in line. Please head towards the waiting area.',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF92400E)),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF92400E),
+                          ),
                         ),
                       ],
                     ),
@@ -348,14 +403,21 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
                               category,
-                              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                           _buildStatusBadge(status),
@@ -374,7 +436,10 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                       if (providerName.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.25),
                             borderRadius: BorderRadius.circular(20),
@@ -382,12 +447,20 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.badge_outlined, color: Colors.white, size: 14),
+                              const Icon(
+                                Icons.badge_outlined,
+                                color: Colors.white,
+                                size: 14,
+                              ),
                               const SizedBox(width: 6),
                               Flexible(
                                 child: Text(
                                   'Staff: $providerName${providerDesignation.isNotEmpty ? ' ($providerDesignation)' : ''}',
-                                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -401,12 +474,21 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.location_on_outlined, color: Colors.white70, size: 13),
+                            const Icon(
+                              Icons.location_on_outlined,
+                              color: Colors.white70,
+                              size: 13,
+                            ),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
-                                [address, city].where((e) => e.toString().isNotEmpty).join(', '),
-                                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                [address, city]
+                                    .where((e) => e.toString().isNotEmpty)
+                                    .join(', '),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -419,7 +501,10 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
 
                 // Digital Token Big Display
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 28,
+                    horizontal: 20,
+                  ),
                   child: Column(
                     children: [
                       const Text(
@@ -443,7 +528,10 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                       ),
                       const SizedBox(height: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(20),
@@ -455,7 +543,9 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: peopleAhead == 0 ? const Color(0xFF10B981) : const Color(0xFF334155),
+                            color: peopleAhead == 0
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFF334155),
                           ),
                         ),
                       ),
@@ -470,7 +560,10 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                     (index) => Expanded(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: Container(height: 2, color: const Color(0xFFE2E8F0)),
+                        child: Container(
+                          height: 2,
+                          color: const Color(0xFFE2E8F0),
+                        ),
                       ),
                     ),
                   ),
@@ -489,11 +582,17 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                           color: const Color(0xFFF59E0B),
                         ),
                       ),
-                      Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
+                      Container(
+                        width: 1,
+                        height: 40,
+                        color: const Color(0xFFE2E8F0),
+                      ),
                       Expanded(
                         child: _buildMetricTile(
                           label: 'Now Serving',
-                          value: currentlyServing != 'None' ? '#$currentlyServing' : '--',
+                          value: currentlyServing != 'None'
+                              ? '#$currentlyServing'
+                              : '--',
                           icon: Icons.notifications_active_outlined,
                           color: const Color(0xFF10B981),
                         ),
@@ -516,12 +615,20 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
             ),
             child: const Row(
               children: [
-                Icon(Icons.check_circle_outline_rounded, color: Color(0xFF16A34A), size: 24),
+                Icon(
+                  Icons.check_circle_outline_rounded,
+                  color: Color(0xFF16A34A),
+                  size: 24,
+                ),
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'Stay relaxed! You don\'t have to stand in line. We\'ll notify you when only 2 people are ahead.',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF166534), height: 1.4),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF166534),
+                      height: 1.4,
+                    ),
                   ),
                 ),
               ],
@@ -535,12 +642,21 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _handleCancelToken,
-                  icon: const Icon(Icons.close_rounded, color: Color(0xFFEF4444), size: 18),
-                  label: const Text('Cancel Token', style: TextStyle(color: Color(0xFFEF4444))),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Color(0xFFEF4444),
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'Cancel Token',
+                    style: TextStyle(color: Color(0xFFEF4444)),
+                  ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFFFECACA)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
@@ -554,7 +670,9 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                     backgroundColor: const Color(0xFF4F46E5),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
@@ -601,7 +719,12 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
       ),
       child: Text(
         label,
-        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+        style: TextStyle(
+          color: fg,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
@@ -619,13 +742,24 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
           children: [
             Icon(icon, size: 16, color: color),
             const SizedBox(width: 6),
-            Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 6),
         Text(
           value,
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: color),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: color,
+          ),
         ),
       ],
     );

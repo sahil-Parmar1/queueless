@@ -122,4 +122,33 @@ public class ProviderPortalController {
         }
         return ResponseEntity.ok(queueService.providerSkipCurrent(provider.getId()));
     }
+
+    @PostMapping("/api/provider/queue/requests/{tokenId}/accept")
+    public ResponseEntity<?> providerAcceptTokenRequest(
+            @org.springframework.web.bind.annotation.PathVariable("tokenId") Long tokenId,
+            Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof Provider provider)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized provider access"));
+        }
+        try {
+            return ResponseEntity.ok(queueService.providerAcceptTokenRequest(provider.getId(), tokenId));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/api/provider/queue/requests/{tokenId}/decline")
+    public ResponseEntity<?> providerDeclineTokenRequest(
+            @org.springframework.web.bind.annotation.PathVariable("tokenId") Long tokenId,
+            Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof Provider provider)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized provider access"));
+        }
+        try {
+            return ResponseEntity.ok(queueService.providerDeclineTokenRequest(provider.getId(), tokenId));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
+        }
+    }
 }
+

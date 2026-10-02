@@ -344,6 +344,101 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
     }
   }
 
+  Future<void> _requestTokenToProvider(dynamic tokenId, dynamic providerId, String providerName) async {
+    final officeId = _profileData?['id'];
+    if (officeId == null) return;
+    setState(() => _queueActionLoading = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.post(
+        Uri.parse('$_apiBaseUrl/queue/office/$officeId/tokens/$tokenId/request-forward'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'providerId': providerId}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+            _queueActionLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Request sent to $providerName! Waiting for provider acceptance.'),
+              backgroundColor: const Color(0xFFF59E0B),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        String err = 'Failed to send token request';
+        try {
+          final errData = jsonDecode(response.body);
+          if (errData['message'] != null) err = errData['message'];
+        } catch (_) {}
+        throw Exception(err);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _queueActionLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Request failed: $e'), backgroundColor: const Color(0xFFEF4444)),
+        );
+      }
+    }
+  }
+
+  Future<void> _cancelTokenRequest(dynamic tokenId) async {
+    final officeId = _profileData?['id'];
+    if (officeId == null) return;
+    setState(() => _queueActionLoading = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.post(
+        Uri.parse('$_apiBaseUrl/queue/office/$officeId/tokens/$tokenId/cancel-request'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+            _queueActionLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Token request cancelled.'),
+              backgroundColor: Color(0xFF64748B),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        String err = 'Failed to cancel request';
+        try {
+          final errData = jsonDecode(response.body);
+          if (errData['message'] != null) err = errData['message'];
+        } catch (_) {}
+        throw Exception(err);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _queueActionLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cancel failed: $e'), backgroundColor: const Color(0xFFEF4444)),
+        );
+      }
+    }
+  }
+
   Future<void> _serveTokenAtDesk(dynamic tokenId) async {
     final officeId = _profileData?['id'];
     if (officeId == null) return;
@@ -495,15 +590,27 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: onDuty ? const Color(0xFF10B981).withValues(alpha: 0.1) : const Color(0xFF64748B).withValues(alpha: 0.1),
+                                          color: !onDuty
+                                              ? const Color(0xFF64748B).withValues(alpha: 0.1)
+                                              : isFull
+                                                  ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
+                                                  : const Color(0xFF10B981).withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(6),
                                         ),
                                         child: Text(
-                                          onDuty ? 'ON DUTY' : 'OFF DUTY',
+                                          !onDuty
+                                              ? 'OFF DUTY'
+                                              : isFull
+                                                  ? 'LIMIT REACHED'
+                                                  : 'ON DUTY',
                                           style: TextStyle(
                                             fontSize: 9,
                                             fontWeight: FontWeight.bold,
-                                            color: onDuty ? const Color(0xFF047857) : const Color(0xFF475569),
+                                            color: !onDuty
+                                                ? const Color(0xFF475569)
+                                                : isFull
+                                                    ? const Color(0xFFB45309)
+                                                    : const Color(0xFF047857),
                                           ),
                                         ),
                                       ),
@@ -511,8 +618,16 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    pDesig.isNotEmpty ? pDesig : (onDuty ? 'Available ($remaining left)' : 'Off duty'),
-                                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                    !onDuty
+                                        ? (pDesig.isNotEmpty ? '$pDesig • Off duty' : 'Off duty')
+                                        : isFull
+                                            ? (pDesig.isNotEmpty ? '$pDesig • Daily limit reached' : 'Daily limit reached (0 remaining)')
+                                            : (pDesig.isNotEmpty ? '$pDesig • Available ($remaining left)' : 'Available ($remaining left)'),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isFull ? const Color(0xFFD97706) : const Color(0xFF64748B),
+                                      fontWeight: isFull ? FontWeight.w600 : FontWeight.normal,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -523,16 +638,27 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                                   ? null
                                   : () {
                                       Navigator.pop(ctx);
-                                      _forwardTokenToProvider(tokenId, pId, pName);
+                                      if (isFull) {
+                                        _requestTokenToProvider(tokenId, pId, pName);
+                                      } else {
+                                        _forwardTokenToProvider(tokenId, pId, pName);
+                                      }
                                     },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: onDuty ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+                                backgroundColor: !onDuty
+                                    ? const Color(0xFF64748B)
+                                    : isFull
+                                        ? const Color(0xFFD97706)
+                                        : const Color(0xFF4F46E5),
                                 foregroundColor: Colors.white,
                                 elevation: 0,
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
-                              child: const Text('Assign', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              child: Text(
+                                isFull ? 'Request Token' : 'Assign',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
                             ),
                           ],
                         ),
@@ -1426,6 +1552,8 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                 final custPhone = (item['customerPhone'] ?? '').toString();
                 final position = item['position'] ?? (idx + 1);
                 final waitEst = item['estimatedWaitMinutes'] ?? 0;
+                final requestStatus = item['requestStatus']?.toString().toUpperCase();
+                final requestedProviderName = item['requestedProviderName']?.toString();
 
                 return Container(
                   padding: const EdgeInsets.all(12),
@@ -1475,6 +1603,28 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                                         style: TextStyle(color: Color(0xFFB45309), fontSize: 10, fontWeight: FontWeight.bold),
                                       ),
                                     ),
+                                    if (requestStatus == 'PENDING') ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFEF3C7),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: const Color(0xFFFDE68A)),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.hourglass_empty_rounded, size: 10, color: Color(0xFFD97706)),
+                                            SizedBox(width: 3),
+                                            Text(
+                                              'Request Sent',
+                                              style: TextStyle(color: Color(0xFFB45309), fontSize: 10, fontWeight: FontWeight.bold),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                                 const SizedBox(height: 2),
@@ -1493,6 +1643,60 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                             ),
                         ],
                       ),
+                      if (requestStatus == 'PENDING') ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFFDE68A)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.schedule_send_rounded, size: 16, color: Color(0xFFD97706)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Request pending with ${requestedProviderName ?? "Provider"}',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF92400E)),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _queueActionLoading ? null : () => _cancelTokenRequest(tokenId),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  visualDensity: VisualDensity.compact,
+                                  foregroundColor: const Color(0xFFDC2626),
+                                ),
+                                child: const Text('Cancel Request', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else if (requestStatus == 'REJECTED') ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFFECACA)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.cancel_outlined, size: 16, color: Color(0xFFDC2626)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Request declined by ${requestedProviderName ?? "Provider"}. Forward to another provider or call to desk.',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFB91C1C)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       Row(
                         children: [
