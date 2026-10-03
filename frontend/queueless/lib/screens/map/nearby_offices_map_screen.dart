@@ -36,6 +36,8 @@ class _NearbyOfficesMapScreenState extends State<NearbyOfficesMapScreen> {
   String _selectedCategory = 'ALL';
   dynamic _selectedOffice;
   double _currentZoom = 14.0;
+  double _visibleRadiusMeters = 0.0;
+  int _officesInRadiusCount = 0;
 
   final List<Map<String, String>> _categories = [
     {'key': 'ALL', 'label': 'All Places'},
@@ -70,7 +72,9 @@ class _NearbyOfficesMapScreenState extends State<NearbyOfficesMapScreen> {
 
     if (mounted) {
       setState(() => _loading = false);
-      _autoCenterMap();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _fitAllOffices();
+      });
     }
   }
 
@@ -122,34 +126,42 @@ class _NearbyOfficesMapScreenState extends State<NearbyOfficesMapScreen> {
     });
   }
 
-  void _autoCenterMap() {
-    LatLng? targetCenter;
-    double targetZoom = 14.0;
+  /// Fits camera to show all registered offices on the map
+  void _fitAllOffices() {
+    final officesWithCoords = _offices
+        .where((o) => o['latitude'] != null && o['longitude'] != null)
+        .toList();
 
-    if (_userPosition != null) {
-      targetCenter = LatLng(_userPosition!.latitude, _userPosition!.longitude);
-      targetZoom = 14.5;
-    } else {
-      final firstWithCoords = _offices.firstWhere(
-        (o) => o['latitude'] != null && o['longitude'] != null,
-        orElse: () => null,
-      );
-      if (firstWithCoords != null) {
-        targetCenter = LatLng(
-          (firstWithCoords['latitude'] as num).toDouble(),
-          (firstWithCoords['longitude'] as num).toDouble(),
-        );
-        targetZoom = 14.0;
-      } else {
-        // Default to center of India
-        targetCenter = const LatLng(20.5937, 78.9629);
-        targetZoom = 5.0;
+    if (officesWithCoords.isNotEmpty) {
+      final points = officesWithCoords.map((o) {
+        final double lat = (o['latitude'] as num).toDouble();
+        final double lng = (o['longitude'] as num).toDouble();
+        return LatLng(lat, lng);
+      }).toList();
+
+      if (points.length == 1) {
+        _mapController.move(points.first, 15.0);
+        _currentZoom = 15.0;
+        return;
       }
+
+      final bounds = LatLngBounds.fromPoints(points);
+      _mapController.fitCamera(
+        CameraFit.bounds(
+          bounds: bounds,
+          padding: const EdgeInsets.fromLTRB(50, 160, 50, 200),
+          maxZoom: 16.0,
+        ),
+      );
+      return;
     }
 
-    if (mounted) {
-      _currentZoom = targetZoom;
-      _mapController.move(targetCenter, targetZoom);
+    if (_userPosition != null) {
+      _mapController.move(LatLng(_userPosition!.latitude, _userPosition!.longitude), 14.5);
+      _currentZoom = 14.5;
+    } else {
+      _mapController.move(const LatLng(20.5937, 78.9629), 5.0);
+      _currentZoom = 5.0;
     }
   }
 
@@ -188,7 +200,34 @@ class _NearbyOfficesMapScreenState extends State<NearbyOfficesMapScreen> {
       _selectedCategory = catKey;
       _selectedOffice = null;
     });
-    _fetchOffices();
+    _fetchOffices().then((_) {
+      _fitAllOffices();
+    });
+  }
+
+  void _onCameraPositionChanged(MapCamera camera) {
+    _currentZoom = camera.zoom;
+    final visibleRadius = _locationService.calculateDistance(
+      camera.center.latitude,
+      camera.center.longitude,
+      camera.visibleBounds.northEast.latitude,
+      camera.visibleBounds.northEast.longitude,
+    );
+
+    final officesWithCoords = _offices
+        .where((o) => o['latitude'] != null && o['longitude'] != null)
+        .toList();
+
+    final count = officesWithCoords.where((o) {
+      final lat = (o['latitude'] as num).toDouble();
+      final lng = (o['longitude'] as num).toDouble();
+      return camera.visibleBounds.contains(LatLng(lat, lng));
+    }).length;
+
+    setState(() {
+      _visibleRadiusMeters = visibleRadius;
+      _officesInRadiusCount = count;
+    });
   }
 
   Color _getCategoryColor(String category) {
@@ -238,6 +277,7 @@ class _NearbyOfficesMapScreenState extends State<NearbyOfficesMapScreen> {
               initialZoom: _currentZoom,
               minZoom: 3,
               maxZoom: 19,
+              onPositionChanged: (camera, hasGesture) => _onCameraPositionChanged(camera),
               onTap: (tapPosition, point) {
                 if (_selectedOffice != null) {
                   setState(() => _selectedOffice = null);
@@ -273,8 +313,8 @@ class _NearbyOfficesMapScreenState extends State<NearbyOfficesMapScreen> {
 
                     return Marker(
                       point: LatLng(lat, lng),
-                      width: isSelected ? 64 : 52,
-                      height: isSelected ? 64 : 52,
+                      width: isSelected ? 66 : 54,
+                      height: isSelected ? 66 : 54,
                       alignment: Alignment.topCenter,
                       child: GestureDetector(
                         onTap: () {
@@ -393,18 +433,59 @@ class _NearbyOfficesMapScreenState extends State<NearbyOfficesMapScreen> {
                       },
                     ),
                   ),
+
+                  // Dynamic Visible Radius & Offices in View Indicator Pill
+                  if (_visibleRadiusMeters > 0) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.88),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.radar_rounded, size: 14, color: Colors.cyanAccent),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Visible Radius: ~${_locationService.formatDistance(_visibleRadiusMeters)} • $_officesInRadiusCount in view',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
           ),
 
-          // 3. Map Controls (Zoom & My Location)
+          // 3. Map Controls (Zoom In/Out, Fit All Offices, My Location)
           Positioned(
             right: 16,
-            bottom: _selectedOffice != null ? 240 : 32,
+            bottom: _selectedOffice != null ? 240 : 130,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                _buildMapControlBtn(
+                  icon: Icons.zoom_out_map_rounded,
+                  onTap: _fitAllOffices,
+                  tooltip: 'Show All Offices in View',
+                  color: const Color(0xFF0F172A),
+                ),
+                const SizedBox(height: 8),
                 _buildMapControlBtn(
                   icon: Icons.my_location_rounded,
                   onTap: _recenterOnUser,
@@ -412,7 +493,7 @@ class _NearbyOfficesMapScreenState extends State<NearbyOfficesMapScreen> {
                   isLoading: _locating,
                   color: AppColors.primary,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 _buildMapControlBtn(
                   icon: Icons.add_rounded,
                   onTap: () {
@@ -421,7 +502,7 @@ class _NearbyOfficesMapScreenState extends State<NearbyOfficesMapScreen> {
                   },
                   tooltip: 'Zoom In',
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 _buildMapControlBtn(
                   icon: Icons.remove_rounded,
                   onTap: () {
@@ -434,15 +515,146 @@ class _NearbyOfficesMapScreenState extends State<NearbyOfficesMapScreen> {
             ),
           ),
 
-          // 4. Selected Office Bottom Preview Card
-          if (_selectedOffice != null)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 24,
-              child: _buildOfficeBottomCard(_selectedOffice),
-            ),
+          // 4. Bottom Section: Selected Office Card OR Horizontal Carousel of All Offices
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 24,
+            child: _selectedOffice != null
+                ? _buildOfficeBottomCard(_selectedOffice)
+                : _buildBottomOfficeCarousel(officesWithCoords),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBottomOfficeCarousel(List<dynamic> offices) {
+    if (offices.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 20),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'No offices with GPS locations found for this category.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 94,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: offices.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final office = offices[index];
+          final name = office['name'] ?? 'Office';
+          final category = (office['category'] ?? 'OTHER').toString().toUpperCase();
+          final doctorName = office['doctorName'];
+          final salonType = office['salonType'];
+          final color = _getCategoryColor(category);
+          final distanceFormatted = office['distanceFormatted'] as String?;
+          final lat = (office['latitude'] as num).toDouble();
+          final lng = (office['longitude'] as num).toDouble();
+
+          String subtitle = category;
+          if (doctorName != null && doctorName.toString().isNotEmpty) {
+            subtitle = 'Dr. $doctorName';
+          } else if (salonType != null) {
+            subtitle = '$salonType Salon';
+          }
+
+          return InkWell(
+            onTap: () {
+              setState(() => _selectedOffice = office);
+              _mapController.move(LatLng(lat, lng), 16.0);
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              width: 230,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(_getCategoryIcon(category), color: color, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            if (distanceFormatted != null) ...[
+                              const Icon(Icons.near_me_rounded, size: 10, color: AppColors.primary),
+                              const SizedBox(width: 2),
+                              Text(
+                                distanceFormatted,
+                                style: const TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            const Text('• Tap to view', style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

@@ -142,6 +142,8 @@ public class CustomerOfficeService {
         map.put("salonType", p.getSalonType());
         map.put("verificationStatus", p.getVerificationStatus() != null ? p.getVerificationStatus().name() : "PENDING");
         map.put("isOpen", p.getIsOpen());
+        map.put("latitude", p.getLatitude());
+        map.put("longitude", p.getLongitude());
 
         Long waitingCount = tokenRepository.countByOfficeIdAndStatus(p.getId(), TokenStatus.WAITING);
         var activeToken = tokenRepository.findFirstByOfficeIdAndStatusInOrderBySequenceNumberAsc(

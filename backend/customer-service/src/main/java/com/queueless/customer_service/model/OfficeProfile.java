@@ -63,6 +63,12 @@ public class OfficeProfile {
     @Column(name = "is_open")
     private Boolean isOpen = true;
 
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getOfficeId() {
@@ -108,4 +114,8 @@ public class OfficeProfile {
     public void setDailyMaxTokens(Integer dailyMaxTokens) { this.dailyMaxTokens = dailyMaxTokens; }
     public Boolean getIsOpen() { return isOpen != null ? isOpen : true; }
     public void setIsOpen(Boolean isOpen) { this.isOpen = isOpen; }
+    public Double getLatitude() { return latitude; }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
+    public Double getLongitude() { return longitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
 }
