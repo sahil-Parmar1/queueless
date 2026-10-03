@@ -128,22 +128,22 @@ class _OfficeAuthScreenState extends State<OfficeAuthScreen> {
                 children: [
                   // Header Logo & Title
                   Container(
-                    width: 72,
-                    height: 72,
+                    width: 86,
+                    height: 86,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
-                      ),
-                      borderRadius: BorderRadius.circular(22),
+                      shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
-                          blurRadius: 24,
-                          offset: const Offset(0, 10),
+                          color: const Color(0xFF0F172A).withValues(alpha: 0.10),
+                          blurRadius: 20,
+                          offset: const Offset(0, 6),
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.business_rounded, color: Colors.white, size: 36),
+                    child: Image.asset(
+                      'assets/images/app_logo.png',
+                      fit: BoxFit.contain,
+                    ),
                   ),
                   const SizedBox(height: 20),
                   const Text(

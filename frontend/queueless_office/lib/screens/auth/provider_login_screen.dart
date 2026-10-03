@@ -146,14 +146,22 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
                   children: [
                     // Header Icon
                     Container(
-                      width: 72,
-                      height: 72,
+                      width: 86,
+                      height: 86,
                       decoration: BoxDecoration(
-                        gradient: ProviderColors.headerGradient,
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: ProviderColors.primaryGlow,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF0F172A).withValues(alpha: 0.10),
+                            blurRadius: 20,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
                       ),
-                      child: const Icon(Icons.badge_rounded, color: Colors.white, size: 36),
+                      child: Image.asset(
+                        'assets/images/app_logo.png',
+                        fit: BoxFit.contain,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     const Text(

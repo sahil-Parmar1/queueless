@@ -297,23 +297,21 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
                 children: [
                   // App Logo with gradient background and glow
                   Container(
-                    width: 76,
-                    height: 76,
+                    width: 86,
+                    height: 86,
                     decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.35),
+                          color: const Color(0xFF3B82F6).withValues(alpha: 0.25),
                           blurRadius: 24,
-                          offset: const Offset(0, 10),
+                          offset: const Offset(0, 8),
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.access_time_filled_rounded,
-                      color: Colors.white,
-                      size: 40,
+                    child: Image.asset(
+                      'assets/images/app_logo.png',
+                      fit: BoxFit.contain,
                     ),
                   ),
                   const SizedBox(height: 22),

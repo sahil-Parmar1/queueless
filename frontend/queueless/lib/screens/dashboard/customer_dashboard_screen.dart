@@ -120,13 +120,13 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
         elevation: 0.5,
         title: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                gradient: AppColors.tealCyanGradient,
-                borderRadius: BorderRadius.circular(10),
+            SizedBox(
+              width: 34,
+              height: 34,
+              child: Image.asset(
+                'assets/images/app_logo.png',
+                fit: BoxFit.contain,
               ),
-              child: const Icon(Icons.timer_outlined, color: Colors.white, size: 20),
             ),
             const SizedBox(width: 10),
             const Text(
