@@ -6,6 +6,7 @@ import '../auth/customer_login_screen.dart';
 import '../search/office_search_screen.dart';
 import '../queue/active_token_screen.dart';
 import '../history/token_history_screen.dart';
+import '../map/nearby_offices_map_screen.dart';
 import '../scan/qr_scanner_screen.dart';
 
 class CustomerDashboardScreen extends StatefulWidget {
@@ -140,6 +141,16 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NearbyOfficesMapScreen()),
+              );
+            },
+            icon: const Icon(Icons.map_rounded, color: AppColors.primary),
+            tooltip: 'Nearby Places on Map',
+          ),
           IconButton(
             onPressed: () {},
             icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF475569)),
@@ -335,7 +346,11 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
                                 onTap: () {
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(builder: (context) => const OfficeSearchScreen()),
+                                    MaterialPageRoute(
+                                      builder: (context) => const OfficeSearchScreen(
+                                        initialFilterNearest: true,
+                                      ),
+                                    ),
                                   ).then((_) => _loadActiveToken());
                                 },
                               ),

@@ -1,18 +1,23 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import '../../services/location_service.dart';
 import '../../services/office_service.dart';
 import '../../services/provider_status_websocket_service.dart';
 import '../../theme/app_theme.dart';
+import '../map/nearby_offices_map_screen.dart';
 import '../office_details/office_details_screen.dart';
 
 class OfficeSearchScreen extends StatefulWidget {
   final String? initialQuery;
   final String? initialCategory;
+  final bool initialFilterNearest;
 
   const OfficeSearchScreen({
     super.key,
     this.initialQuery,
     this.initialCategory,
+    this.initialFilterNearest = false,
   });
 
   @override
@@ -21,11 +26,15 @@ class OfficeSearchScreen extends StatefulWidget {
 
 class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
   final OfficeService _officeService = OfficeService();
+  final LocationService _locationService = LocationService();
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounceTimer;
   ProviderStatusWebSocketService? _webSocketService;
 
   bool _loading = true;
+  bool _locating = false;
+  bool _filterNearest = false;
+  Position? _userPosition;
   List<dynamic> _offices = [];
   String _selectedCategory = 'ALL';
 
@@ -46,8 +55,18 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
     if (widget.initialCategory != null) {
       _selectedCategory = widget.initialCategory!;
     }
-    _loadOffices();
+    _filterNearest = widget.initialFilterNearest;
+    _initData();
     _initWebSocket();
+  }
+
+  Future<void> _initData() async {
+    if (_filterNearest) {
+      _userPosition = await _locationService.getCurrentLocation(requestPermission: true);
+    } else {
+      _userPosition = _locationService.lastKnownPosition;
+    }
+    _loadOffices();
   }
 
   @override
@@ -85,13 +104,66 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
     });
   }
 
+  Future<void> _toggleNearestFilter() async {
+    final nextState = !_filterNearest;
+    setState(() {
+      _filterNearest = nextState;
+      if (nextState) _locating = true;
+    });
+
+    if (nextState && _userPosition == null) {
+      final pos = await _locationService.getCurrentLocation(requestPermission: true);
+      if (mounted) {
+        setState(() {
+          _userPosition = pos;
+          _locating = false;
+        });
+      }
+    } else {
+      if (mounted) setState(() => _locating = false);
+    }
+
+    _loadOffices();
+  }
+
   Future<void> _loadOffices() async {
     setState(() => _loading = true);
+
+    if (_filterNearest && _userPosition == null) {
+      _userPosition = await _locationService.getCurrentLocation(requestPermission: true);
+    }
 
     final results = await _officeService.searchOffices(
       query: _searchController.text.trim(),
       category: _selectedCategory,
     );
+
+    if (_userPosition != null) {
+      for (var office in results) {
+        if (office is Map && office['latitude'] != null && office['longitude'] != null) {
+          try {
+            final double lat = (office['latitude'] as num).toDouble();
+            final double lng = (office['longitude'] as num).toDouble();
+            final dist = _locationService.calculateDistance(
+              _userPosition!.latitude,
+              _userPosition!.longitude,
+              lat,
+              lng,
+            );
+            office['distanceMeters'] = dist;
+            office['distanceFormatted'] = _locationService.formatDistance(dist);
+          } catch (_) {}
+        }
+      }
+
+      if (_filterNearest) {
+        results.sort((a, b) {
+          final aDist = a['distanceMeters'] as num? ?? double.infinity;
+          final bDist = b['distanceMeters'] as num? ?? double.infinity;
+          return aDist.compareTo(bDist);
+        });
+      }
+    }
 
     if (mounted) {
       setState(() {
@@ -112,6 +184,54 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
         title: const Text(
           'Find Offices & Queues',
           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: AppColors.mainText),
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => NearbyOfficesMapScreen(
+                    initialOffices: _offices,
+                    initialUserPosition: _userPosition,
+                    initialCategory: _selectedCategory,
+                  ),
+                ),
+              ).then((_) => _loadOffices());
+            },
+            icon: const Icon(Icons.map_rounded, size: 18, color: AppColors.primary),
+            label: const Text(
+              'View on Map',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => NearbyOfficesMapScreen(
+                initialOffices: _offices,
+                initialUserPosition: _userPosition,
+                initialCategory: _selectedCategory,
+              ),
+            ),
+          ).then((_) => _loadOffices());
+        },
+        backgroundColor: const Color(0xFF0F172A),
+        foregroundColor: Colors.white,
+        elevation: 4,
+        icon: const Icon(Icons.map_rounded, size: 20, color: Colors.amberAccent),
+        label: const Text(
+          'View on Map',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
         ),
       ),
       body: Column(
@@ -155,41 +275,79 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // Category Chips
+                // Filter & Category Chips
                 SizedBox(
                   height: 38,
-                  child: ListView.separated(
+                  child: ListView(
                     scrollDirection: Axis.horizontal,
-                    itemCount: _categories.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 8),
-                    itemBuilder: (context, index) {
-                      final cat = _categories[index];
-                      final isSelected = _selectedCategory == cat['key'];
-                      return ChoiceChip(
-                        label: Text(cat['label']!),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _selectedCategory = cat['key']!);
-                            _loadOffices();
-                          }
-                        },
-                        selectedColor: AppColors.primary,
-                        backgroundColor: Colors.white,
+                    children: [
+                      // Nearest Filter Chip
+                      FilterChip(
+                        avatar: _locating
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : Icon(
+                                Icons.near_me_rounded,
+                                size: 15,
+                                color: _filterNearest ? Colors.white : AppColors.primary,
+                              ),
+                        label: Text(_filterNearest ? 'Nearest Offices' : 'Nearest Offices'),
+                        selected: _filterNearest,
+                        onSelected: (_) => _toggleNearestFilter(),
+                        selectedColor: const Color(0xFF0F172A),
+                        backgroundColor: const Color(0xFFEEF2FF),
+                        elevation: _filterNearest ? 2 : 0,
                         labelStyle: TextStyle(
-                          color: isSelected ? Colors.white : AppColors.secondaryText,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          fontSize: 13,
+                          color: _filterNearest ? Colors.white : AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12.5,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                           side: BorderSide(
-                            color: isSelected ? AppColors.primary : AppColors.border,
-                            width: 1,
+                            color: _filterNearest
+                                ? const Color(0xFF0F172A)
+                                : AppColors.primary.withValues(alpha: 0.3),
                           ),
                         ),
-                      );
-                    },
+                      ),
+                      const SizedBox(width: 8),
+
+                      // Category Chips
+                      ..._categories.map((cat) {
+                        final isSelected = _selectedCategory == cat['key'];
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(cat['label']!),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              if (selected) {
+                                setState(() => _selectedCategory = cat['key']!);
+                                _loadOffices();
+                              }
+                            },
+                            selectedColor: AppColors.primary,
+                            backgroundColor: Colors.white,
+                            labelStyle: TextStyle(
+                              color: isSelected ? Colors.white : AppColors.secondaryText,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              fontSize: 12.5,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              side: BorderSide(
+                                color: isSelected ? AppColors.primary : AppColors.border,
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
                   ),
                 ),
               ],
@@ -376,6 +534,53 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (office['distanceFormatted'] != null) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEEF2FF),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.near_me_rounded, size: 11, color: AppColors.primary),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${office['distanceFormatted']} away',
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (office['latitude'] != null && office['longitude'] != null) ...[
+                              const SizedBox(width: 8),
+                              const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.pin_drop_rounded, size: 12, color: Color(0xFF10B981)),
+                                  SizedBox(width: 2),
+                                  Text(
+                                    'On Map',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF10B981),
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
