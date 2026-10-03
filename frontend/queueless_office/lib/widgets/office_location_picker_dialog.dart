@@ -12,6 +12,7 @@ class OfficeLocationPickerDialog extends StatefulWidget {
   final double? initialLongitude;
   final String officeName;
   final String? address;
+  final bool saveDirectly;
 
   const OfficeLocationPickerDialog({
     super.key,
@@ -19,6 +20,7 @@ class OfficeLocationPickerDialog extends StatefulWidget {
     this.initialLongitude,
     required this.officeName,
     this.address,
+    this.saveDirectly = true,
   });
 
   @override
@@ -153,6 +155,29 @@ class _OfficeLocationPickerDialogState extends State<OfficeLocationPickerDialog>
   }
 
   Future<void> _saveLocation() async {
+    if (!widget.saveDirectly) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('Location selected successfully!'),
+                ),
+              ],
+            ),
+            backgroundColor: Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        Navigator.pop(context, _selectedLocation);
+      }
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     try {
@@ -203,7 +228,15 @@ class _OfficeLocationPickerDialogState extends State<OfficeLocationPickerDialog>
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error saving location: $e'),
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Error saving location: $e'),
+                ),
+              ],
+            ),
             backgroundColor: const Color(0xFFEF4444),
             behavior: SnackBarBehavior.floating,
           ),
@@ -437,7 +470,9 @@ class _OfficeLocationPickerDialogState extends State<OfficeLocationPickerDialog>
                         label: FittedBox(
                           fit: BoxFit.scaleDown,
                           child: Text(
-                            _isSaving ? 'Saving...' : 'Confirm & Save Location',
+                            _isSaving
+                                ? 'Saving...'
+                                : (widget.saveDirectly ? 'Confirm & Save Location' : 'Confirm Location'),
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                         ),

@@ -55,16 +55,22 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
   bool _loading = false;
 
   Future<void> _openMapPicker() async {
+    String officeName = 'Office';
+    if (_category == 'CLINIC' && _doctorNameController.text.trim().isNotEmpty) {
+      officeName = _doctorNameController.text.trim();
+    } else if (_category == 'OTHER' && _otherBusinessTypeController.text.trim().isNotEmpty) {
+      officeName = _otherBusinessTypeController.text.trim();
+    }
+
     final result = await showDialog<LatLng>(
       context: context,
       barrierDismissible: true,
       builder: (ctx) => OfficeLocationPickerDialog(
         initialLatitude: _latitude,
         initialLongitude: _longitude,
-        officeName: _doctorNameController.text.trim().isNotEmpty
-            ? _doctorNameController.text.trim()
-            : 'Office',
+        officeName: officeName,
         address: _addressController.text.trim(),
+        saveDirectly: false,
       ),
     );
 
@@ -413,7 +419,7 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFF4F46E5).withOpacity(0.08) : Colors.white,
+            color: selected ? const Color(0xFF4F46E5).withValues(alpha: 0.08) : Colors.white,
             border: Border.all(color: selected ? const Color(0xFF4F46E5) : const Color(0xFFE2E8F0), width: selected ? 2 : 1),
             borderRadius: BorderRadius.circular(12),
           ),
