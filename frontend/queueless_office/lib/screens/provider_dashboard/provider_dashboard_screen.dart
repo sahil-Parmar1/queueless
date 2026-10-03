@@ -53,6 +53,8 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
 
   String get _providerQueueSkipUrl => '$apiBaseUrl/api/provider/queue/skip';
 
+  String get _providerQueueSwapNextUrl => '$apiBaseUrl/api/provider/queue/swap-next';
+
   String _providerRequestAcceptUrl(dynamic id) => '$apiBaseUrl/api/provider/queue/requests/$id/accept';
 
   String _providerRequestDeclineUrl(dynamic id) => '$apiBaseUrl/api/provider/queue/requests/$id/decline';
@@ -326,6 +328,96 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to skip token: $e'),
+            backgroundColor: ProviderColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _swapNextToken() async {
+    setState(() => _queueActionLoading = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.post(
+        Uri.parse(_providerQueueSwapNextUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+            _queueActionLoading = false;
+          });
+          final activeToken = data['activeToken'];
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.swap_horiz_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      activeToken != null
+                          ? 'Swapped! Now serving token #$activeToken'
+                          : 'Tokens swapped successfully!',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: ProviderColors.primaryDark,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      } else {
+        String msg = 'Failed to swap token: ${response.statusCode}';
+        try {
+          final errData = jsonDecode(response.body);
+          if (errData['message'] != null) {
+            msg = errData['message'];
+          } else if (errData['error'] != null) {
+            msg = errData['error'];
+          }
+        } catch (_) {}
+        if (mounted) {
+          setState(() => _queueActionLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(msg, style: const TextStyle(fontWeight: FontWeight.w500))),
+                ],
+              ),
+              backgroundColor: ProviderColors.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _queueActionLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Failed to swap token: $e', style: const TextStyle(fontWeight: FontWeight.w500))),
+              ],
+            ),
             backgroundColor: ProviderColors.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -2130,6 +2222,18 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                           backgroundColor: ProviderColors.primary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: (_queueActionLoading || waitingCount == 0) ? null : _swapNextToken,
+                        icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                        label: const Text('Swap to Next'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF4F46E5),
+                          side: const BorderSide(color: Color(0xFFC7D2FE), width: 1.2),
+                          backgroundColor: const Color(0xFFEEF2FF),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                       ),

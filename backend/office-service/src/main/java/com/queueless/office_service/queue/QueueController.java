@@ -156,6 +156,18 @@ public class QueueController {
     }
 
     /**
+     * Office operator swaps current customer with the next waiting customer.
+     */
+    @PostMapping("/office/{officeId}/swap-next")
+    public ResponseEntity<?> swapNext(@PathVariable("officeId") Long officeId) {
+        try {
+            return ResponseEntity.ok(queueService.swapNext(officeId));
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
+        }
+    }
+
+    /**
      * Office operator forwards an unassigned or waiting token to an available provider.
      */
     @PostMapping("/office/{officeId}/tokens/{tokenId}/forward")

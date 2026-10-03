@@ -254,10 +254,11 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
                 _inputField('Trade License / GST No.', _tradeLicenseController, 'e.g. TR-987654'),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  value: _salonType,
+                  isExpanded: true,
+                  initialValue: _salonType,
                   decoration: const InputDecoration(labelText: 'Salon Type', border: OutlineInputBorder()),
                   items: ['Unisex', 'Men Only', 'Women Only']
-                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                      .map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis, maxLines: 1)))
                       .toList(),
                   onChanged: (v) => setState(() => _salonType = v!),
                 ),

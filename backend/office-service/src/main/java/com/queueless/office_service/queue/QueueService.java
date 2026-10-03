@@ -358,6 +358,44 @@ public class QueueService {
     }
 
     /**
+     * Operator Action: Swap current active token with the next waiting customer.
+     * The next waiting token is called to counter, and the current token becomes next in line.
+     */
+    public Map<String, Object> swapNext(Long officeId) {
+        QueueToken currentToken = tokenRepository
+                .findFirstByOfficeIdAndStatusInOrderBySequenceNumberAsc(
+                        officeId,
+                        List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
+                ).orElseThrow(() -> new IllegalStateException("No customer currently called or being served to swap"));
+
+        QueueToken nextToken = tokenRepository
+                .findFirstByOfficeIdAndStatusOrderBySequenceNumberAsc(officeId, TokenStatus.WAITING)
+                .orElseThrow(() -> new IllegalStateException("No waiting customer available to swap with"));
+
+        int currentSeq = currentToken.getSequenceNumber();
+        int nextSeq = nextToken.getSequenceNumber();
+
+        if (currentSeq < nextSeq) {
+            currentToken.setSequenceNumber(nextSeq);
+            nextToken.setSequenceNumber(currentSeq);
+        } else {
+            currentToken.setSequenceNumber(nextSeq + 1);
+            nextToken.setSequenceNumber(nextSeq);
+        }
+
+        currentToken.setStatus(TokenStatus.WAITING);
+        currentToken.setCalledAt(null);
+
+        nextToken.setStatus(TokenStatus.CALLED);
+        nextToken.setCalledAt(LocalDateTime.now());
+
+        tokenRepository.save(currentToken);
+        tokenRepository.save(nextToken);
+
+        return getLiveQueue(officeId);
+    }
+
+    /**
      * Operator Action: Forward an unassigned or waiting token to an available provider.
      */
     public Map<String, Object> forwardTokenToProvider(Long officeId, Long tokenId, Long providerId) {
@@ -718,6 +756,44 @@ public class QueueService {
             curr.setStatus(TokenStatus.SKIPPED);
             tokenRepository.save(curr);
         });
+
+        return getProviderLiveQueue(providerId);
+    }
+
+    /**
+     * Provider Action: Swap current active token with the next waiting customer assigned to this provider.
+     * The next waiting token is called to counter, and the current token becomes next in line.
+     */
+    public Map<String, Object> providerSwapNext(Long providerId) {
+        QueueToken currentToken = tokenRepository
+                .findFirstByProviderIdAndStatusInOrderBySequenceNumberAsc(
+                        providerId,
+                        List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
+                ).orElseThrow(() -> new IllegalStateException("No customer currently called or being served to swap"));
+
+        QueueToken nextToken = tokenRepository
+                .findFirstByProviderIdAndStatusOrderBySequenceNumberAsc(providerId, TokenStatus.WAITING)
+                .orElseThrow(() -> new IllegalStateException("No waiting customer assigned to you to swap with"));
+
+        int currentSeq = currentToken.getSequenceNumber();
+        int nextSeq = nextToken.getSequenceNumber();
+
+        if (currentSeq < nextSeq) {
+            currentToken.setSequenceNumber(nextSeq);
+            nextToken.setSequenceNumber(currentSeq);
+        } else {
+            currentToken.setSequenceNumber(nextSeq + 1);
+            nextToken.setSequenceNumber(nextSeq);
+        }
+
+        currentToken.setStatus(TokenStatus.WAITING);
+        currentToken.setCalledAt(null);
+
+        nextToken.setStatus(TokenStatus.CALLED);
+        nextToken.setCalledAt(LocalDateTime.now());
+
+        tokenRepository.save(currentToken);
+        tokenRepository.save(nextToken);
 
         return getProviderLiveQueue(providerId);
     }

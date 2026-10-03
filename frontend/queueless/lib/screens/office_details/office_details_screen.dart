@@ -232,10 +232,11 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                 left: 24,
                 right: 24,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -264,11 +265,13 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                     ),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<int?>(
+                      isExpanded: true,
                       initialValue: selectedProviderId,
                       decoration: InputDecoration(
                         prefixIcon: const Icon(Icons.badge_outlined, size: 20, color: AppColors.primary),
                         filled: true,
                         fillColor: AppColors.background,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: const BorderSide(color: AppColors.border),
@@ -282,12 +285,34 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                           borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                         ),
                       ),
+                      selectedItemBuilder: (BuildContext context) {
+                        return [
+                          Text(
+                            isClinic ? 'Any Available Staff / Doctor' : 'Any Available Staff',
+                            style: const TextStyle(fontSize: 14, color: AppColors.mainText),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                          ..._providers.map((p) {
+                            final name = p['name'] ?? 'Provider';
+                            final desig = p['designation'] != null ? ' (${p['designation']})' : '';
+                            return Text(
+                              '$name$desig',
+                              style: const TextStyle(fontSize: 14, color: AppColors.mainText),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            );
+                          }),
+                        ];
+                      },
                       items: [
                         DropdownMenuItem<int?>(
                           value: null,
                           child: Text(
                             isClinic ? 'Any Available Staff / Doctor' : 'Any Available Staff',
                             style: const TextStyle(fontSize: 14),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
                         ),
                         ..._providers.map((p) {
@@ -317,6 +342,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                                 color: canSelect ? AppColors.mainText : AppColors.mutedText,
                               ),
                               overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
                           );
                         }),
@@ -404,7 +430,8 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                   ),
                 ],
               ),
-            );
+            ),
+          );
           },
         );
       },

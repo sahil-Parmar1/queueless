@@ -774,6 +774,67 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
     }
   }
 
+  Future<void> _handleSwapNextToken() async {
+    final officeId = _profileData?['id'];
+    if (officeId == null) return;
+    setState(() => _queueActionLoading = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.post(
+        Uri.parse('$_apiBaseUrl/queue/office/$officeId/swap-next'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+            _queueActionLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['activeToken'] != null
+                  ? 'Swapped! Now serving Token #${data['activeToken']}'
+                  : 'Tokens swapped successfully.'),
+              backgroundColor: const Color(0xFF6366F1),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        String msg = 'Failed to swap token';
+        try {
+          final errData = jsonDecode(response.body);
+          if (errData['message'] != null) {
+            msg = errData['message'];
+          } else if (errData['error'] != null) {
+            msg = errData['error'];
+          }
+        } catch (_) {}
+        if (mounted) {
+          setState(() => _queueActionLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(msg),
+              backgroundColor: const Color(0xFFEF4444),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _queueActionLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error swapping token: $e'), backgroundColor: const Color(0xFFEF4444)),
+        );
+      }
+    }
+  }
+
   void _showOfficeQrDialog() {
     final officeName = _userData?['name'] ?? _profileData?['name'] ?? 'Office';
     final officeId = _profileData?['id'] ?? _userData?['id'] ?? '---';
@@ -1244,46 +1305,54 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _queueActionLoading ? null : _handleSkipToken,
-                          icon: const Icon(Icons.pause_circle_outline, size: 18),
-                          label: const Text('Hold / Skip'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF64748B),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
+                      OutlinedButton.icon(
+                        onPressed: _queueActionLoading ? null : _handleSkipToken,
+                        icon: const Icon(Icons.pause_circle_outline, size: 18),
+                        label: const Text('Hold / Skip'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF64748B),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _queueActionLoading ? null : _handleCompleteService,
-                          icon: const Icon(Icons.check_circle_outline, size: 18),
-                          label: const Text('Complete'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF10B981),
-                            side: const BorderSide(color: Color(0xFFA7F3D0)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
+                      OutlinedButton.icon(
+                        onPressed: (_queueActionLoading || activeToken == null || waitingCount == 0)
+                            ? null
+                            : _handleSwapNextToken,
+                        icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                        label: const Text('Swap to Next'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF4F46E5),
+                          side: const BorderSide(color: Color(0xFFC7D2FE), width: 1.2),
+                          backgroundColor: const Color(0xFFEEF2FF),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _queueActionLoading ? null : _handleCallNext,
-                          icon: const Icon(Icons.skip_next_rounded, size: 20),
-                          label: const Text('Call Next'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF4F46E5),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
+                      OutlinedButton.icon(
+                        onPressed: _queueActionLoading ? null : _handleCompleteService,
+                        icon: const Icon(Icons.check_circle_outline, size: 18),
+                        label: const Text('Complete'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF10B981),
+                          side: const BorderSide(color: Color(0xFFA7F3D0)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _queueActionLoading ? null : _handleCallNext,
+                        icon: const Icon(Icons.skip_next_rounded, size: 20),
+                        label: const Text('Call Next'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4F46E5),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ],
