@@ -8,6 +8,9 @@ import 'package:queueless_office/config/api_config.dart';
 import 'package:queueless_office/screens/auth/office_auth_screen.dart';
 import 'package:queueless_office/screens/dashboad/office_onboarding_screen.dart';
 import 'package:queueless_office/screens/providers/providers_screen.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' hide Path;
+import 'package:queueless_office/widgets/office_location_picker_dialog.dart';
 import 'package:queueless_office/widgets/qr_stand_dialog.dart';
 
 class OfficeDashboardScreen extends StatefulWidget {
@@ -2123,6 +2126,10 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
             _buildLocationAndTimingsCard(),
             const SizedBox(height: 16),
 
+            // Shop Map Location Card
+            _buildShopMapCard(),
+            const SizedBox(height: 16),
+
             // Uploaded Documents
             _buildDocumentsCard(),
             const SizedBox(height: 24),
@@ -2316,8 +2323,11 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
           const SizedBox(height: 16),
 
           // Status & Contact Info
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            spacing: 8,
+            runSpacing: 10,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -2419,6 +2429,285 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
         _buildInfoRow(Icons.access_time_rounded, 'Working Hours', timings),
       ],
     );
+  }
+
+  // SHOP MAP LOCATION CARD (OpenStreetMap)
+  Widget _buildShopMapCard() {
+    final double? lat = _profileData?['latitude'] != null ? double.tryParse(_profileData!['latitude'].toString()) : null;
+    final double? lng = _profileData?['longitude'] != null ? double.tryParse(_profileData!['longitude'].toString()) : null;
+    final bool hasCoords = lat != null && lng != null;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.map_rounded, color: Color(0xFF4F46E5), size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Shop Map Location',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              'OpenStreetMap Listing',
+                              style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: hasCoords
+                        ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                        : const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: hasCoords ? const Color(0xFFA7F3D0) : const Color(0xFFFDE68A),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        hasCoords ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                        size: 13,
+                        color: hasCoords ? const Color(0xFF047857) : const Color(0xFFB45309),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        hasCoords ? 'Listed on Map' : 'Not Pinned',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: hasCoords ? const Color(0xFF047857) : const Color(0xFFB45309),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+
+          if (hasCoords) ...[
+            // Embedded Map Preview
+            ClipRRect(
+              child: SizedBox(
+                height: 200,
+                width: double.infinity,
+                child: Stack(
+                  children: [
+                    FlutterMap(
+                      options: MapOptions(
+                        initialCenter: LatLng(lat, lng),
+                        initialZoom: 15.0,
+                        interactionOptions: const InteractionOptions(
+                          flags: InteractiveFlag.none,
+                        ),
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'com.queueless.office',
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: LatLng(lat, lng),
+                              width: 44,
+                              height: 44,
+                              alignment: Alignment.topCenter,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF4F46E5),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.25),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 18),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    Positioned.fill(
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _openLocationPicker,
+                          child: Container(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 10,
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.my_location_rounded, size: 14, color: Color(0xFF4F46E5)),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1E293B)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Customers can see your shop on map & get directions',
+                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _openLocationPicker,
+                    icon: const Icon(Icons.edit_location_alt_rounded, size: 16),
+                    label: const Text('Change Location', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF4F46E5),
+                      side: const BorderSide(color: Color(0xFFC7D2FE)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEEF2FF),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.add_location_alt_rounded, size: 26, color: Color(0xFF4F46E5)),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Pin Your Shop on the Map',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Listing your shop location enables customers in the Queueless Customer App to find your queue nearby and get navigation routes.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.4),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: _openLocationPicker,
+                    icon: const Icon(Icons.pin_drop_rounded, size: 18),
+                    label: const Text('Pin Shop Location on Map', style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4F46E5),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openLocationPicker() async {
+    final double? lat = _profileData?['latitude'] != null ? double.tryParse(_profileData!['latitude'].toString()) : null;
+    final double? lng = _profileData?['longitude'] != null ? double.tryParse(_profileData!['longitude'].toString()) : null;
+    final String officeName = _userData?['name'] ?? _profileData?['name'] ?? 'My Shop';
+    final String address = _profileData?['address'] ?? '';
+
+    final result = await showDialog<LatLng>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => OfficeLocationPickerDialog(
+        initialLatitude: lat,
+        initialLongitude: lng,
+        officeName: officeName,
+        address: address,
+      ),
+    );
+
+    if (result != null) {
+      if (mounted) {
+        setState(() {
+          if (_profileData != null) {
+            _profileData!['latitude'] = result.latitude;
+            _profileData!['longitude'] = result.longitude;
+          }
+        });
+        _fetchProfile();
+      }
+    }
   }
 
   // DOCUMENTS CARD

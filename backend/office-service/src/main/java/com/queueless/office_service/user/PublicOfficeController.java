@@ -164,6 +164,8 @@ public class PublicOfficeController {
         map.put("specialization", p.getSpecialization());
         map.put("salonType", p.getSalonType());
         map.put("verificationStatus", p.getVerificationStatus().name());
+        map.put("latitude", p.getLatitude());
+        map.put("longitude", p.getLongitude());
 
         // Queue metrics
         Long waitingCount = tokenRepository.countByOfficeIdAndStatus(p.getId(), TokenStatus.WAITING);

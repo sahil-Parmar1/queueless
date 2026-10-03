@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:latlong2/latlong.dart' hide Path;
 import 'package:queueless_office/config/api_config.dart';
 import 'package:queueless_office/screens/dashboad/OfficeDashboardScreen.dart';
+import 'package:queueless_office/widgets/office_location_picker_dialog.dart';
 
 class OfficeOnboardingScreen extends StatefulWidget {
   const OfficeOnboardingScreen({super.key});
@@ -46,7 +48,33 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
   PlatformFile? _primaryDoc;
   PlatformFile? _secondaryDoc;
 
+  // Location
+  double? _latitude;
+  double? _longitude;
+
   bool _loading = false;
+
+  Future<void> _openMapPicker() async {
+    final result = await showDialog<LatLng>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => OfficeLocationPickerDialog(
+        initialLatitude: _latitude,
+        initialLongitude: _longitude,
+        officeName: _doctorNameController.text.trim().isNotEmpty
+            ? _doctorNameController.text.trim()
+            : 'Office',
+        address: _addressController.text.trim(),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _latitude = result.latitude;
+        _longitude = result.longitude;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -122,6 +150,8 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
       request.fields['openingTime'] = _openingTimeController.text.trim();
       request.fields['closingTime'] = _closingTimeController.text.trim();
       request.fields['description'] = _descriptionController.text.trim();
+      if (_latitude != null) request.fields['latitude'] = _latitude.toString();
+      if (_longitude != null) request.fields['longitude'] = _longitude.toString();
 
       // Category Specific Fields
       if (_category == 'CLINIC') {
@@ -281,6 +311,50 @@ class _OfficeOnboardingScreenState extends State<OfficeOnboardingScreen> {
                   const SizedBox(width: 10),
                   Expanded(child: _inputField('Pincode', _pincodeController, '400001')),
                 ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: _latitude != null ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _latitude != null ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _latitude != null ? Icons.check_circle_rounded : Icons.add_location_alt_rounded,
+                      color: _latitude != null ? const Color(0xFF10B981) : const Color(0xFF4F46E5),
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _latitude != null ? 'Shop Location Pinned on Map' : 'Pin Shop on Map (Optional)',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                          ),
+                          Text(
+                            _latitude != null
+                                ? 'Lat: ${_latitude!.toStringAsFixed(4)}, Lng: ${_longitude!.toStringAsFixed(4)}'
+                                : 'Help customers find your queue and navigate to your shop',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: _openMapPicker,
+                      icon: Icon(_latitude != null ? Icons.edit_rounded : Icons.pin_drop_rounded, size: 16),
+                      label: Text(_latitude != null ? 'Change' : 'Pin on Map'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF4F46E5),
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
               const SizedBox(height: 24),

@@ -140,6 +140,56 @@ public class OfficeProfileController {
         ));
     }
 
+    @org.springframework.web.bind.annotation.PutMapping("/location")
+    public ResponseEntity<?> updateOfficeLocation(
+            @RequestBody Map<String, Object> body,
+            Authentication authentication) {
+        User user = resolveAuthenticatedUser(authentication);
+        OfficeProfile profile = profileRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Office profile not found"));
+
+        if (body.get("latitude") == null || body.get("longitude") == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "latitude and longitude are required"));
+        }
+
+        try {
+            Double latitude = Double.valueOf(body.get("latitude").toString());
+            Double longitude = Double.valueOf(body.get("longitude").toString());
+
+            profile.setLatitude(latitude);
+            profile.setLongitude(longitude);
+
+            if (body.containsKey("address") && body.get("address") != null && !body.get("address").toString().isBlank()) {
+                profile.setAddress(body.get("address").toString());
+            }
+            if (body.containsKey("city") && body.get("city") != null && !body.get("city").toString().isBlank()) {
+                profile.setCity(body.get("city").toString());
+            }
+            if (body.containsKey("state") && body.get("state") != null && !body.get("state").toString().isBlank()) {
+                profile.setState(body.get("state").toString());
+            }
+            if (body.containsKey("pincode") && body.get("pincode") != null && !body.get("pincode").toString().isBlank()) {
+                profile.setPincode(body.get("pincode").toString());
+            }
+
+            OfficeProfile saved = profileRepository.save(profile);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Office location updated successfully",
+                    "officeId", saved.getId(),
+                    "latitude", saved.getLatitude(),
+                    "longitude", saved.getLongitude(),
+                    "address", saved.getAddress() != null ? saved.getAddress() : "",
+                    "city", saved.getCity() != null ? saved.getCity() : "",
+                    "state", saved.getState() != null ? saved.getState() : "",
+                    "pincode", saved.getPincode() != null ? saved.getPincode() : ""
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid coordinates: " + e.getMessage()));
+        }
+    }
+
     private User resolveAuthenticatedUser(Authentication authentication) {
         if (authentication.getPrincipal() instanceof User u) {
             return u;
@@ -171,6 +221,10 @@ public class OfficeProfileController {
             // Salon specific
             @RequestParam(value = "salonType", required = false) String salonType,
             @RequestParam(value = "tradeLicenseNumber", required = false) String tradeLicenseNumber,
+
+            // Coordinates
+            @RequestParam(value = "latitude", required = false) Double latitude,
+            @RequestParam(value = "longitude", required = false) Double longitude,
 
             // Files (Primary License + Optional ID Proof)
             @RequestParam("primaryDocument") MultipartFile primaryDocument,
@@ -206,6 +260,8 @@ public class OfficeProfileController {
         profile.setOpeningTime(openingTime);
         profile.setClosingTime(closingTime);
         profile.setDescription(description);
+        if (latitude != null) profile.setLatitude(latitude);
+        if (longitude != null) profile.setLongitude(longitude);
 
         if (category == OfficeCategory.CLINIC) {
             profile.setDoctorName(doctorName);
