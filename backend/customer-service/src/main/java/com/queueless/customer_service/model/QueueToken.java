@@ -64,6 +64,15 @@ public class QueueToken {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @Column(name = "serving_started_at")
+    private LocalDateTime servingStartedAt;
+
+    @Column(name = "service_duration_seconds")
+    private Long serviceDurationSeconds;
+
+    @Column(name = "service_duration_minutes")
+    private Integer serviceDurationMinutes;
+
     @PrePersist
     protected void onCreate() {
         if (bookedAt == null) {
@@ -99,4 +108,10 @@ public class QueueToken {
     public void setCalledAt(LocalDateTime calledAt) { this.calledAt = calledAt; }
     public LocalDateTime getCompletedAt() { return completedAt; }
     public void setCompletedAt(LocalDateTime completedAt) { this.completedAt = completedAt; }
+    public LocalDateTime getServingStartedAt() { return servingStartedAt; }
+    public void setServingStartedAt(LocalDateTime servingStartedAt) { this.servingStartedAt = servingStartedAt; }
+    public Long getServiceDurationSeconds() { return serviceDurationSeconds; }
+    public void setServiceDurationSeconds(Long serviceDurationSeconds) { this.serviceDurationSeconds = serviceDurationSeconds; }
+    public Integer getServiceDurationMinutes() { return serviceDurationMinutes; }
+    public void setServiceDurationMinutes(Integer serviceDurationMinutes) { this.serviceDurationMinutes = serviceDurationMinutes; }
 }

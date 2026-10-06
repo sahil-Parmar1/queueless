@@ -1,5 +1,6 @@
 package com.queueless.office_service.queue;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -306,11 +307,7 @@ public class QueueService {
         tokenRepository.findFirstByOfficeIdAndStatusInOrderBySequenceNumberAsc(
                 officeId,
                 List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
-        ).ifPresent(curr -> {
-            curr.setStatus(TokenStatus.COMPLETED);
-            curr.setCompletedAt(LocalDateTime.now());
-            tokenRepository.save(curr);
-        });
+        ).ifPresent(this::completeToken);
 
         // Find first waiting token
         QueueToken nextToken = tokenRepository
@@ -333,11 +330,7 @@ public class QueueService {
         tokenRepository.findFirstByOfficeIdAndStatusInOrderBySequenceNumberAsc(
                 officeId,
                 List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
-        ).ifPresent(curr -> {
-            curr.setStatus(TokenStatus.COMPLETED);
-            curr.setCompletedAt(LocalDateTime.now());
-            tokenRepository.save(curr);
-        });
+        ).ifPresent(this::completeToken);
 
         return getLiveQueue(officeId);
     }
@@ -493,11 +486,7 @@ public class QueueService {
         tokenRepository.findFirstByOfficeIdAndStatusInOrderBySequenceNumberAsc(
                 officeId,
                 List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
-        ).ifPresent(curr -> {
-            curr.setStatus(TokenStatus.COMPLETED);
-            curr.setCompletedAt(LocalDateTime.now());
-            tokenRepository.save(curr);
-        });
+        ).ifPresent(this::completeToken);
 
         QueueToken token = tokenRepository.findById(tokenId)
                 .orElseThrow(() -> new IllegalArgumentException("Token not found: " + tokenId));
@@ -508,6 +497,7 @@ public class QueueService {
 
         token.setStatus(TokenStatus.CALLED);
         token.setCalledAt(LocalDateTime.now());
+        token.setServingStartedAt(LocalDateTime.now());
         tokenRepository.save(token);
 
         return getLiveQueue(officeId);
@@ -692,11 +682,7 @@ public class QueueService {
         tokenRepository.findFirstByProviderIdAndStatusInOrderBySequenceNumberAsc(
                 providerId,
                 List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
-        ).ifPresent(curr -> {
-            curr.setStatus(TokenStatus.COMPLETED);
-            curr.setCompletedAt(LocalDateTime.now());
-            tokenRepository.save(curr);
-        });
+        ).ifPresent(this::completeToken);
 
         // Find first waiting token assigned to this provider
         QueueToken nextToken = tokenRepository
@@ -724,6 +710,9 @@ public class QueueService {
         }
 
         token.setStatus(TokenStatus.IN_SERVICE);
+        if (token.getServingStartedAt() == null) {
+            token.setServingStartedAt(LocalDateTime.now());
+        }
         tokenRepository.save(token);
 
         return getProviderLiveQueue(providerId);
@@ -736,11 +725,7 @@ public class QueueService {
         tokenRepository.findFirstByProviderIdAndStatusInOrderBySequenceNumberAsc(
                 providerId,
                 List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
-        ).ifPresent(curr -> {
-            curr.setStatus(TokenStatus.COMPLETED);
-            curr.setCompletedAt(LocalDateTime.now());
-            tokenRepository.save(curr);
-        });
+        ).ifPresent(this::completeToken);
 
         return getProviderLiveQueue(providerId);
     }
@@ -857,6 +842,29 @@ public class QueueService {
             return tokenRepository.findByCustomerEmailOrderByBookedAtDesc(email.trim());
         }
         return List.of();
+    }
+
+    private void completeToken(QueueToken token) {
+        LocalDateTime now = LocalDateTime.now();
+        token.setStatus(TokenStatus.COMPLETED);
+        token.setCompletedAt(now);
+
+        LocalDateTime servingStart = token.getServingStartedAt();
+        if (servingStart == null) {
+            servingStart = token.getCalledAt() != null ? token.getCalledAt() : token.getBookedAt();
+            token.setServingStartedAt(servingStart);
+        }
+
+        if (servingStart != null) {
+            long seconds = Duration.between(servingStart, now).getSeconds();
+            if (seconds < 0) seconds = 0;
+            token.setServiceDurationSeconds(seconds);
+            token.setServiceDurationMinutes((int) Math.round(seconds / 60.0));
+        } else {
+            token.setServiceDurationSeconds(0L);
+            token.setServiceDurationMinutes(0);
+        }
+        tokenRepository.save(token);
     }
 
     private String maskName(String name) {

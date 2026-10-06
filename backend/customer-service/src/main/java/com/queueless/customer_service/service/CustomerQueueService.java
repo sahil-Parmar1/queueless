@@ -197,6 +197,23 @@ public class CustomerQueueService {
             m.put("bookedAt", t.getBookedAt());
             m.put("calledAt", t.getCalledAt());
             m.put("completedAt", t.getCompletedAt());
+            LocalDateTime servingStartedAt = t.getServingStartedAt();
+            Long durationSeconds = t.getServiceDurationSeconds();
+            Integer durationMinutes = t.getServiceDurationMinutes();
+
+            if (t.getStatus() == TokenStatus.COMPLETED) {
+                if (servingStartedAt == null) {
+                    servingStartedAt = t.getCalledAt() != null ? t.getCalledAt() : t.getBookedAt();
+                }
+                if (durationSeconds == null && t.getCompletedAt() != null && servingStartedAt != null) {
+                    durationSeconds = Math.max(0, java.time.Duration.between(servingStartedAt, t.getCompletedAt()).getSeconds());
+                    durationMinutes = (int) Math.round(durationSeconds / 60.0);
+                }
+            }
+
+            m.put("servingStartedAt", servingStartedAt);
+            m.put("serviceDurationSeconds", durationSeconds);
+            m.put("serviceDurationMinutes", durationMinutes);
             m.put("officeId", t.getOffice().getId());
             m.put("officeName", t.getOffice().getUser() != null ? t.getOffice().getUser().getName() : "Office");
             m.put("category", t.getOffice().getCategory() != null ? t.getOffice().getCategory().name() : "OFFICE");

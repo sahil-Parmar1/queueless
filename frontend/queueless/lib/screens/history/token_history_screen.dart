@@ -90,11 +90,18 @@ class _TokenHistoryScreenState extends State<TokenHistoryScreen> {
     final tokenNumber = item['tokenNumber'] ?? '---';
     final status = item['status'] ?? 'COMPLETED';
     final office = item['office'];
-    final officeName = office != null && office['user'] != null
-        ? office['user']['name']
-        : 'Office';
-    final category = office != null ? office['category'] ?? 'OFFICE' : 'OFFICE';
+    final officeName = item['officeName'] ??
+        (office != null && office['user'] != null
+            ? office['user']['name']
+            : 'Office');
+    final category = item['category'] ??
+        (office != null ? office['category'] ?? 'OFFICE' : 'OFFICE');
     final bookedAt = item['bookedAt'] != null ? item['bookedAt'].toString().split('T').first : '';
+    final isCompleted = status == 'COMPLETED';
+    final servingStartedAt = item['servingStartedAt'] ?? item['calledAt'];
+    final completedAt = item['completedAt'];
+    final serviceDurationMinutes = item['serviceDurationMinutes'];
+    final serviceDurationSeconds = item['serviceDurationSeconds'];
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -110,48 +117,205 @@ class _TokenHistoryScreenState extends State<TokenHistoryScreen> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppColors.primarySoft,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              tokenNumber,
-              style: const TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 16,
-                color: AppColors.primaryDark,
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.primarySoft,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  tokenNumber,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                    color: AppColors.primaryDark,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      officeName,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.mainText,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$category • $bookedAt',
+                      style: const TextStyle(fontSize: 12, color: AppColors.mutedText),
+                    ),
+                  ],
+                ),
+              ),
+              _buildStatusBadge(status),
+            ],
+          ),
+          if (isCompleted) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildTimeColumn(
+                        label: 'Serving Started',
+                        time: _formatTime(servingStartedAt),
+                        icon: Icons.play_arrow_rounded,
+                        iconColor: const Color(0xFF3B82F6),
+                      ),
+                      Container(
+                        width: 1,
+                        height: 30,
+                        color: const Color(0xFFCBD5E1),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildTimeColumn(
+                        label: 'Completed',
+                        time: _formatTime(completedAt),
+                        icon: Icons.check_circle_outline_rounded,
+                        iconColor: const Color(0xFF10B981),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.successSoft,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.success.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.timer_outlined,
+                          size: 16,
+                          color: AppColors.success,
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Total Service Time: ',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.mainText,
+                          ),
+                        ),
+                        Text(
+                          _formatTotalServiceTime(serviceDurationMinutes, serviceDurationSeconds),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.success,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeColumn({
+    required String label,
+    required String time,
+    required IconData icon,
+    required Color iconColor,
+  }) {
+    return Expanded(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: iconColor),
+          const SizedBox(width: 8),
+          Flexible(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  officeName,
+                  label,
                   style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                    color: AppColors.mutedText,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  time,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.mainText,
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$category • $bookedAt',
-                  style: const TextStyle(fontSize: 12, color: AppColors.mutedText),
                 ),
               ],
             ),
           ),
-          _buildStatusBadge(status),
         ],
       ),
     );
+  }
+
+  String _formatTime(dynamic timestamp) {
+    if (timestamp == null) return '--:--';
+    try {
+      final dt = timestamp is DateTime ? timestamp : DateTime.parse(timestamp.toString());
+      final hour = dt.hour;
+      final minute = dt.minute.toString().padLeft(2, '0');
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final formattedHour = hour % 12 == 0 ? 12 : hour % 12;
+      return '$formattedHour:$minute $period';
+    } catch (_) {
+      return timestamp.toString();
+    }
+  }
+
+  String _formatTotalServiceTime(dynamic minutes, dynamic seconds) {
+    if (minutes != null) {
+      final m = int.tryParse(minutes.toString()) ?? 0;
+      if (m > 0) {
+        return '$m ${m == 1 ? "minute" : "minutes"}';
+      }
+    }
+    if (seconds != null) {
+      final totalSec = int.tryParse(seconds.toString()) ?? 0;
+      if (totalSec >= 60) {
+        final m = (totalSec / 60.0).round();
+        return '$m ${m == 1 ? "minute" : "minutes"}';
+      } else if (totalSec > 0) {
+        return '$totalSec seconds';
+      }
+    }
+    if (minutes != null && minutes.toString() == '0') {
+      return 'Less than 1 minute';
+    }
+    return '--';
   }
 
   Widget _buildStatusBadge(String status) {
