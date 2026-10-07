@@ -5,6 +5,7 @@ import '../../services/location_service.dart';
 import '../../services/office_service.dart';
 import '../../services/provider_status_websocket_service.dart';
 import '../../theme/app_theme.dart';
+import '../auth/customer_login_screen.dart';
 import '../map/nearby_offices_map_screen.dart';
 import '../office_details/office_details_screen.dart';
 
@@ -34,6 +35,7 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
   bool _loading = true;
   bool _locating = false;
   bool _filterNearest = false;
+  bool _filterFavorites = false;
   Position? _userPosition;
   List<dynamic> _offices = [];
   String _selectedCategory = 'ALL';
@@ -61,12 +63,82 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
   }
 
   Future<void> _initData() async {
+    _officeService.getFavoriteOfficeIds();
     if (_filterNearest) {
       _userPosition = await _locationService.getCurrentLocation(requestPermission: true);
     } else {
       _userPosition = _locationService.lastKnownPosition;
     }
     _loadOffices();
+  }
+
+  void _toggleFavoritesFilter() {
+    setState(() {
+      _filterFavorites = !_filterFavorites;
+    });
+    _loadOffices();
+  }
+
+  Future<void> _handleToggleFavorite(int officeId) async {
+    final res = await _officeService.toggleFavoriteOffice(officeId);
+    if (!mounted) return;
+    if (res['isAuthError'] == true) {
+      _showSignInDialog();
+      return;
+    }
+    if (res['success'] == true) {
+      final isFav = res['isFavorite'] == true;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                color: isFav ? const Color(0xFFEF4444) : Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(isFav ? 'Added to favorites' : 'Removed from favorites'),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      if (_filterFavorites && !isFav) {
+        setState(() {
+          _offices.removeWhere((o) => o['id'] == officeId);
+        });
+      }
+    }
+  }
+
+  void _showSignInDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Sign In Required'),
+        content: const Text('Please sign in to save and manage your favorite offices.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CustomerLoginScreen()),
+              );
+            },
+            child: const Text('Sign In'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -133,10 +205,14 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
       _userPosition = await _locationService.getCurrentLocation(requestPermission: true);
     }
 
-    final results = await _officeService.searchOffices(
+    var results = await _officeService.searchOffices(
       query: _searchController.text.trim(),
       category: _selectedCategory,
     );
+
+    if (_filterFavorites) {
+      results = results.where((o) => _officeService.isFavorite(o['id'] as int)).toList();
+    }
 
     if (_userPosition != null) {
       for (var office in results) {
@@ -316,6 +392,35 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
                       ),
                       const SizedBox(width: 8),
 
+                      // Favorites Filter Chip
+                      FilterChip(
+                        avatar: Icon(
+                          _filterFavorites ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          size: 15,
+                          color: _filterFavorites ? Colors.white : const Color(0xFFEF4444),
+                        ),
+                        label: const Text('Favorites'),
+                        selected: _filterFavorites,
+                        onSelected: (_) => _toggleFavoritesFilter(),
+                        selectedColor: const Color(0xFFEF4444),
+                        backgroundColor: const Color(0xFFFEF2F2),
+                        elevation: _filterFavorites ? 2 : 0,
+                        labelStyle: TextStyle(
+                          color: _filterFavorites ? Colors.white : const Color(0xFFEF4444),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12.5,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          side: BorderSide(
+                            color: _filterFavorites
+                                ? const Color(0xFFEF4444)
+                                : const Color(0xFFEF4444).withValues(alpha: 0.3),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
                       // Category Chips
                       ..._categories.map((cat) {
                         final isSelected = _selectedCategory == cat['key'];
@@ -380,6 +485,28 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
   }
 
   Widget _buildEmptyState() {
+    if (_filterFavorites) {
+      return ListView(
+        padding: const EdgeInsets.all(32),
+        children: [
+          const SizedBox(height: 40),
+          Icon(Icons.favorite_border_rounded, size: 64, color: const Color(0xFFEF4444).withValues(alpha: 0.4)),
+          const SizedBox(height: 16),
+          const Text(
+            'No Favorite Places Yet',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.mainText),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'You haven\'t added any places to your favorites. Tap the heart icon on any office to save it here for quick access.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: AppColors.secondaryText, height: 1.4),
+          ),
+        ],
+      );
+    }
+
     return ListView(
       padding: const EdgeInsets.all(32),
       children: [
@@ -517,6 +644,31 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
                                 ),
                               ],
                             ),
+                          ),
+                          const SizedBox(width: 8),
+                          ValueListenableBuilder<Set<int>>(
+                            valueListenable: _officeService.favoriteIdsNotifier,
+                            builder: (context, favIds, _) {
+                              final dynamic rawId = office['id'];
+                              final officeId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+                              final isFav = officeId != null && favIds.contains(officeId);
+                              return GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () {
+                                  if (officeId != null) {
+                                    _handleToggleFavorite(officeId);
+                                  }
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(4.0),
+                                  child: Icon(
+                                    isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                    color: isFav ? const Color(0xFFEF4444) : AppColors.mutedText,
+                                    size: 22,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),

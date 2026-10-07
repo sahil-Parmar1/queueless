@@ -87,6 +87,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
     final details = await _officeService.getOfficeDetails(widget.officeId);
     final queue = await _officeService.getLiveQueue(widget.officeId);
     final providers = await _officeService.getOfficeProviders(widget.officeId);
+    _officeService.getFavoriteOfficeIds();
 
     if (mounted) {
       setState(() {
@@ -95,6 +96,39 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
         _providers = providers;
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    final res = await _officeService.toggleFavoriteOffice(widget.officeId);
+    if (!mounted) return;
+    if (res['isAuthError'] == true) {
+      _promptSignInDialog(
+        title: 'Sign In Required',
+        message: 'Please sign in to save and manage your favorite offices.',
+      );
+      return;
+    }
+    if (res['success'] == true) {
+      final isFav = res['isFavorite'] == true;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                color: isFav ? const Color(0xFFEF4444) : Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(isFav ? 'Added to favorites' : 'Removed from favorites'),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -539,6 +573,20 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
         elevation: 0.5,
         title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: AppColors.mainText)),
         actions: [
+          ValueListenableBuilder<Set<int>>(
+            valueListenable: _officeService.favoriteIdsNotifier,
+            builder: (context, favIds, _) {
+              final isFav = favIds.contains(widget.officeId);
+              return IconButton(
+                icon: Icon(
+                  isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  color: isFav ? const Color(0xFFEF4444) : AppColors.mutedText,
+                ),
+                tooltip: isFav ? 'Remove from favorites' : 'Add to favorites',
+                onPressed: _toggleFavorite,
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
             tooltip: 'Refresh queue status',

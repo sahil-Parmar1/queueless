@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:queueless/config/api_config.dart';
 import 'google_auth_service.dart';
+import 'office_service.dart';
 
 class AuthResult {
   final bool success;
@@ -264,6 +265,8 @@ class CustomerAuthService {
     if (user != null) {
       await _storage.write(key: _keyUserData, value: jsonEncode(user));
     }
+    // Refresh favorite office IDs for this customer
+    OfficeService().getFavoriteOfficeIds(forceRefresh: true);
   }
 
   Future<String?> getToken() async {
@@ -324,6 +327,7 @@ class CustomerAuthService {
     } catch (_) {}
     await _storage.delete(key: _keyJwtToken);
     await _storage.delete(key: _keyUserData);
+    await OfficeService().clearCachedFavorites();
   }
 
   String _extractErrorMessage(http.Response response) {

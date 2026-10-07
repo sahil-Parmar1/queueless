@@ -7,17 +7,20 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.queueless.customer_service.dto.ProviderResponse;
+import com.queueless.customer_service.model.CustomerFavoriteOffice;
 import com.queueless.customer_service.model.OfficeCategory;
 import com.queueless.customer_service.model.OfficeProfile;
 import com.queueless.customer_service.model.Provider;
 import com.queueless.customer_service.model.TokenStatus;
 import com.queueless.customer_service.model.VerificationStatus;
+import com.queueless.customer_service.repository.CustomerFavoriteOfficeRepository;
 import com.queueless.customer_service.repository.OfficeProfileRepository;
 import com.queueless.customer_service.repository.ProviderRepository;
 import com.queueless.customer_service.repository.QueueTokenRepository;
@@ -29,14 +32,17 @@ public class CustomerOfficeService {
     private final OfficeProfileRepository profileRepository;
     private final QueueTokenRepository tokenRepository;
     private final ProviderRepository providerRepository;
+    private final CustomerFavoriteOfficeRepository favoriteRepository;
 
     public CustomerOfficeService(
             OfficeProfileRepository profileRepository,
             QueueTokenRepository tokenRepository,
-            ProviderRepository providerRepository) {
+            ProviderRepository providerRepository,
+            CustomerFavoriteOfficeRepository favoriteRepository) {
         this.profileRepository = profileRepository;
         this.tokenRepository = tokenRepository;
         this.providerRepository = providerRepository;
+        this.favoriteRepository = favoriteRepository;
     }
 
     public List<Map<String, Object>> searchOffices(
@@ -155,5 +161,76 @@ public class CustomerOfficeService {
         map.put("activeToken", activeToken != null ? activeToken.getTokenNumber() : null);
         map.put("estimatedWaitMinutes", (waitingCount != null ? waitingCount : 0) * 12);
         return map;
+    }
+
+    @Transactional
+    public Map<String, Object> toggleFavorite(Long customerId, String email, Long officeId) {
+        OfficeProfile office = profileRepository.findById(officeId)
+                .orElseThrow(() -> new IllegalArgumentException("Office not found with id: " + officeId));
+
+        Optional<CustomerFavoriteOffice> existing = Optional.empty();
+        if (customerId != null) {
+            existing = favoriteRepository.findByCustomerIdAndOfficeId(customerId, officeId);
+        }
+        if (existing.isEmpty() && email != null && !email.isBlank()) {
+            existing = favoriteRepository.findByCustomerEmailAndOfficeId(email.trim(), officeId);
+        }
+
+        boolean isFavorite;
+        if (existing.isPresent()) {
+            favoriteRepository.delete(existing.get());
+            isFavorite = false;
+        } else {
+            CustomerFavoriteOffice fav = new CustomerFavoriteOffice(customerId, email, office);
+            favoriteRepository.save(fav);
+            isFavorite = true;
+        }
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("success", true);
+        res.put("officeId", officeId);
+        res.put("isFavorite", isFavorite);
+        return res;
+    }
+
+    public List<Long> getFavoriteOfficeIds(Long customerId, String email) {
+        if (customerId != null) {
+            List<Long> ids = favoriteRepository.findFavoriteOfficeIdsByCustomerId(customerId);
+            if (!ids.isEmpty()) return ids;
+        }
+        if (email != null && !email.isBlank()) {
+            return favoriteRepository.findFavoriteOfficeIdsByCustomerEmail(email.trim());
+        }
+        return List.of();
+    }
+
+    public List<Map<String, Object>> getFavoriteOffices(Long customerId, String email) {
+        List<CustomerFavoriteOffice> favs = List.of();
+        if (customerId != null) {
+            favs = favoriteRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
+        }
+        if (favs.isEmpty() && email != null && !email.isBlank()) {
+            favs = favoriteRepository.findByCustomerEmailOrderByCreatedAtDesc(email.trim());
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (CustomerFavoriteOffice f : favs) {
+            if (f.getOffice() != null) {
+                Map<String, Object> map = formatOfficeSummary(f.getOffice());
+                map.put("isFavorite", true);
+                result.add(map);
+            }
+        }
+        return result;
+    }
+
+    public boolean isFavorite(Long customerId, String email, Long officeId) {
+        if (customerId != null && favoriteRepository.existsByCustomerIdAndOfficeId(customerId, officeId)) {
+            return true;
+        }
+        if (email != null && !email.isBlank() && favoriteRepository.existsByCustomerEmailAndOfficeId(email.trim(), officeId)) {
+            return true;
+        }
+        return false;
     }
 }
