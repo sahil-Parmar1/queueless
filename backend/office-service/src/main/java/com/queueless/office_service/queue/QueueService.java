@@ -52,9 +52,6 @@ public class QueueService {
         return bookToken(officeId, null, customerId, customerName, customerPhone, customerEmail);
     }
 
-    /**
-     * Book a new token for an office with optional provider assignment and availability validation.
-     */
     public Map<String, Object> bookToken(
             Long officeId,
             Long providerId,
@@ -62,6 +59,20 @@ public class QueueService {
             String customerName,
             String customerPhone,
             String customerEmail) {
+        return bookToken(officeId, providerId, customerId, customerName, customerPhone, customerEmail, null);
+    }
+
+    /**
+     * Book a new token for an office with optional provider assignment, task description and availability validation.
+     */
+    public Map<String, Object> bookToken(
+            Long officeId,
+            Long providerId,
+            Long customerId,
+            String customerName,
+            String customerPhone,
+            String customerEmail,
+            String taskDescription) {
 
         // 1. Acquire pessimistic write lock on the office row to serialize all token generation requests for this office
         OfficeProfile office = officeProfileRepository.findByIdForUpdate(officeId)
@@ -121,6 +132,10 @@ public class QueueService {
         token.setStatus(TokenStatus.WAITING);
         token.setEstimatedWaitMinutes(waitTime);
         token.setBookedAt(LocalDateTime.now());
+        if (taskDescription != null && !taskDescription.isBlank()) {
+            String trimmed = taskDescription.trim();
+            token.setTaskDescription(trimmed.length() > 25 ? trimmed.substring(0, 25) : trimmed);
+        }
 
         QueueToken saved = tokenRepository.save(token);
 
@@ -134,6 +149,7 @@ public class QueueService {
         response.put("officeName", office.getUser() != null ? office.getUser().getName() : "Office");
         response.put("category", office.getCategory() != null ? office.getCategory().name() : "OFFICE");
         response.put("status", saved.getStatus().name());
+        response.put("taskDescription", saved.getTaskDescription());
         if (provider != null) {
             response.put("providerId", provider.getId());
             response.put("providerName", provider.getName());
@@ -208,6 +224,7 @@ public class QueueService {
             item.put("requestedProviderId", t.getRequestedProvider() != null ? t.getRequestedProvider().getId() : null);
             item.put("requestedProviderName", t.getRequestedProvider() != null ? t.getRequestedProvider().getName() : null);
             item.put("requestStatus", t.getRequestStatus() != null ? t.getRequestStatus() : "NONE");
+            item.put("taskDescription", t.getTaskDescription() != null ? t.getTaskDescription() : "");
             unassignedList.add(item);
         }
 
@@ -225,6 +242,7 @@ public class QueueService {
             item.put("estimatedWaitMinutes", t.getEstimatedWaitMinutes());
             item.put("position", i + 1);
             item.put("bookedAt", t.getBookedAt() != null ? t.getBookedAt().toString() : "");
+            item.put("taskDescription", t.getTaskDescription() != null ? t.getTaskDescription() : "");
             if (t.getProvider() != null) {
                 item.put("providerId", t.getProvider().getId());
                 item.put("providerName", t.getProvider().getName());

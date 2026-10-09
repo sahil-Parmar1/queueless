@@ -48,6 +48,17 @@ public class CustomerQueueService {
             String customerName,
             String customerPhone,
             String customerEmail) {
+        return bookToken(officeId, providerId, customerId, customerName, customerPhone, customerEmail, null);
+    }
+
+    public Map<String, Object> bookToken(
+            Long officeId,
+            Long providerId,
+            Long customerId,
+            String customerName,
+            String customerPhone,
+            String customerEmail,
+            String taskDescription) {
 
         OfficeProfile office = officeProfileRepository.findByIdForUpdate(officeId)
                 .orElseThrow(() -> new IllegalArgumentException("Office not found with id: " + officeId));
@@ -110,6 +121,10 @@ public class CustomerQueueService {
         token.setStatus(TokenStatus.WAITING);
         token.setEstimatedWaitMinutes(waitTime);
         token.setBookedAt(LocalDateTime.now());
+        if (taskDescription != null && !taskDescription.isBlank()) {
+            String trimmed = taskDescription.trim();
+            token.setTaskDescription(trimmed.length() > 25 ? trimmed.substring(0, 25) : trimmed);
+        }
 
         QueueToken saved = tokenRepository.save(token);
 
@@ -123,6 +138,7 @@ public class CustomerQueueService {
         response.put("officeName", office.getUser() != null ? office.getUser().getName() : "Office");
         response.put("category", office.getCategory() != null ? office.getCategory().name() : "OFFICE");
         response.put("status", saved.getStatus().name());
+        response.put("taskDescription", saved.getTaskDescription());
         if (provider != null) {
             response.put("providerId", provider.getId());
             response.put("providerName", provider.getName());

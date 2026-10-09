@@ -231,6 +231,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
     final user = await _officeService.getCurrentUser();
     final nameController = TextEditingController(text: user?['name'] ?? '');
     final phoneController = TextEditingController();
+    final taskDescriptionController = TextEditingController();
 
     // Reset preselected provider if that provider is marked full or off duty
     final preselectedProvider = _providers.firstWhere(
@@ -390,6 +391,49 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                     const SizedBox(height: 14),
                   ],
 
+                  // Task / Service Description (when Any Available Staff is selected)
+                  if (selectedProviderId == null) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          'Task / Service Needed',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
+                        ),
+                        Text(
+                          'Max 25 chars',
+                          style: TextStyle(fontSize: 11, color: AppColors.mutedText),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: taskDescriptionController,
+                      maxLength: 25,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: InputDecoration(
+                        hintText: 'e.g. Haircut, Consultation',
+                        prefixIcon: const Icon(Icons.edit_note_rounded, size: 22, color: AppColors.primary),
+                        filled: true,
+                        fillColor: AppColors.background,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
                   // Name Field
                   const Text('Full Name', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondaryText)),
                   const SizedBox(height: 6),
@@ -480,6 +524,9 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
         customerName: nameController.text.trim(),
         customerPhone: phoneController.text.trim().isNotEmpty ? phoneController.text.trim() : null,
         customerEmail: user?['email'],
+        taskDescription: selectedProviderId == null && taskDescriptionController.text.trim().isNotEmpty
+            ? taskDescriptionController.text.trim()
+            : null,
       );
 
       if (mounted) {

@@ -485,6 +485,7 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
     final tokenId = tokenItem['id'];
     final tokenNumber = tokenItem['tokenNumber'] ?? '---';
     final customerName = tokenItem['customerName'] ?? 'Customer';
+    final taskDescription = (tokenItem['taskDescription'] ?? '').toString().trim();
 
     showModalBottomSheet(
       context: context,
@@ -519,6 +520,8 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                         children: [
                           Text('Forward Token #$tokenNumber', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A))),
                           Text('Customer: $customerName', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                          if (taskDescription.isNotEmpty)
+                            Text('Need: $taskDescription', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF4F46E5))),
                         ],
                       ),
                     ],
@@ -1578,6 +1581,7 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                 final waitEst = item['estimatedWaitMinutes'] ?? 0;
                 final requestStatus = item['requestStatus']?.toString().toUpperCase();
                 final requestedProviderName = item['requestedProviderName']?.toString();
+                final taskDescription = (item['taskDescription'] ?? '').toString().trim();
 
                 return Container(
                   padding: const EdgeInsets.all(12),
@@ -1657,6 +1661,36 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                                   style: const TextStyle(fontSize: 13, color: Color(0xFF475569), fontWeight: FontWeight.w500),
                                   overflow: TextOverflow.ellipsis,
                                 ),
+                                if (taskDescription.isNotEmpty) ...[
+                                  const SizedBox(height: 5),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEEF2FF),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: const Color(0xFFC7D2FE), width: 0.8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.assignment_outlined, size: 12, color: Color(0xFF4F46E5)),
+                                        const SizedBox(width: 4),
+                                        Flexible(
+                                          child: Text(
+                                            'Need: $taskDescription',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF3730A3),
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),

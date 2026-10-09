@@ -73,6 +73,9 @@ public class QueueToken {
     @Column(name = "service_duration_minutes")
     private Integer serviceDurationMinutes;
 
+    @Column(name = "task_description", length = 25)
+    private String taskDescription;
+
     @PrePersist
     protected void onCreate() {
         if (bookedAt == null) {
@@ -114,4 +117,6 @@ public class QueueToken {
     public void setServiceDurationSeconds(Long serviceDurationSeconds) { this.serviceDurationSeconds = serviceDurationSeconds; }
     public Integer getServiceDurationMinutes() { return serviceDurationMinutes; }
     public void setServiceDurationMinutes(Integer serviceDurationMinutes) { this.serviceDurationMinutes = serviceDurationMinutes; }
+    public String getTaskDescription() { return taskDescription; }
+    public void setTaskDescription(String taskDescription) { this.taskDescription = taskDescription; }
 }

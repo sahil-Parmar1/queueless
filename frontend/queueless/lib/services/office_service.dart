@@ -149,6 +149,7 @@ class OfficeService {
     required String customerName,
     String? customerPhone,
     String? customerEmail,
+    String? taskDescription,
   }) async {
     try {
       final uri = Uri.parse('$_baseUrl/queue/tokens/book');
@@ -162,6 +163,10 @@ class OfficeService {
       };
       if (providerId != null) {
         body['providerId'] = providerId;
+      }
+      if (taskDescription != null && taskDescription.trim().isNotEmpty) {
+        final trimmed = taskDescription.trim();
+        body['taskDescription'] = trimmed.length > 25 ? trimmed.substring(0, 25) : trimmed;
       }
 
       final response = await http.post(
