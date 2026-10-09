@@ -24,6 +24,8 @@ public interface QueueTokenRepository extends JpaRepository<QueueToken, Long> {
 
     Optional<QueueToken> findFirstByOfficeIdAndStatusOrderBySequenceNumberAsc(Long officeId, TokenStatus status);
 
+    Optional<QueueToken> findFirstByOfficeIdAndStatusOrderByIsPriorityDescSequenceNumberAsc(Long officeId, TokenStatus status);
+
     Optional<QueueToken> findFirstByOfficeIdAndStatusInOrderBySequenceNumberAsc(Long officeId, List<TokenStatus> statuses);
 
     Long countByOfficeIdAndStatus(Long officeId, TokenStatus status);
@@ -71,4 +73,14 @@ public interface QueueTokenRepository extends JpaRepository<QueueToken, Long> {
 
     List<QueueToken> findByRequestedProviderIdAndRequestStatusAndStatusInOrderBySequenceNumberAsc(
             Long requestedProviderId, String requestStatus, List<TokenStatus> statuses);
+
+    Optional<QueueToken> findFirstByProviderIdAndStatusOrderByIsPriorityDescSequenceNumberAsc(Long providerId, TokenStatus status);
+
+    List<QueueToken> findByProviderIdAndStatusInOrderByIsPriorityDescSequenceNumberAsc(Long providerId, List<TokenStatus> statuses);
+
+    List<QueueToken> findByOfficeIdAndPriorityStatusAndStatusInOrderByPriorityRequestedAtAsc(
+            Long officeId, String priorityStatus, List<TokenStatus> statuses);
+
+    List<QueueToken> findByRequestedProviderIdAndPriorityStatusAndStatusInOrderByPriorityRequestedAtAsc(
+            Long requestedProviderId, String priorityStatus, List<TokenStatus> statuses);
 }

@@ -243,6 +243,9 @@ public class QueueService {
             item.put("position", i + 1);
             item.put("bookedAt", t.getBookedAt() != null ? t.getBookedAt().toString() : "");
             item.put("taskDescription", t.getTaskDescription() != null ? t.getTaskDescription() : "");
+            item.put("isPriority", Boolean.TRUE.equals(t.getIsPriority()));
+            item.put("priorityStatus", t.getPriorityStatus() != null ? t.getPriorityStatus() : "NONE");
+            item.put("priorityReason", t.getPriorityReason() != null ? t.getPriorityReason() : "");
             if (t.getProvider() != null) {
                 item.put("providerId", t.getProvider().getId());
                 item.put("providerName", t.getProvider().getName());
@@ -253,6 +256,39 @@ public class QueueService {
                 item.put("providerDesignation", "Desk Counter");
             }
             allWaitingList.add(item);
+        }
+
+        // Pending Priority Requests from customers waiting for Office review
+        List<QueueToken> pendingPriorityTokens = tokenRepository.findByOfficeIdAndPriorityStatusAndStatusInOrderByPriorityRequestedAtAsc(
+                officeId, "PENDING_OFFICE", List.of(TokenStatus.WAITING)
+        );
+
+        List<Map<String, Object>> priorityRequestList = new ArrayList<>();
+        for (QueueToken pt : pendingPriorityTokens) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", pt.getId());
+            item.put("tokenNumber", pt.getTokenNumber());
+            item.put("customerName", pt.getCustomerName());
+            item.put("customerPhone", pt.getCustomerPhone() != null ? pt.getCustomerPhone() : "");
+            item.put("customerEmail", pt.getCustomerEmail() != null ? pt.getCustomerEmail() : "");
+            item.put("sequenceNumber", pt.getSequenceNumber());
+            item.put("priorityReason", pt.getPriorityReason() != null ? pt.getPriorityReason() : "");
+            item.put("priorityRequestedAt", pt.getPriorityRequestedAt() != null ? pt.getPriorityRequestedAt().toString() : "");
+            item.put("taskDescription", pt.getTaskDescription() != null ? pt.getTaskDescription() : "");
+            if (pt.getProvider() != null) {
+                item.put("providerId", pt.getProvider().getId());
+                item.put("providerName", pt.getProvider().getName());
+                item.put("providerDesignation", pt.getProvider().getDesignation());
+            } else if (pt.getRequestedProvider() != null) {
+                item.put("providerId", pt.getRequestedProvider().getId());
+                item.put("providerName", pt.getRequestedProvider().getName());
+                item.put("providerDesignation", pt.getRequestedProvider().getDesignation());
+            } else {
+                item.put("providerId", null);
+                item.put("providerName", null);
+                item.put("providerDesignation", null);
+            }
+            priorityRequestList.add(item);
         }
 
         int dailyMaxTokens = office.getDailyMaxTokens();
@@ -306,6 +342,8 @@ public class QueueService {
         response.put("unassignedTokens", unassignedList);
         response.put("unassignedCount", unassignedList.size());
         response.put("waitingTokens", allWaitingList);
+        response.put("priorityRequests", priorityRequestList);
+        response.put("priorityRequestsCount", priorityRequestList.size());
         response.put("availableProviders", providerSummaries);
         response.put("openingTime", office.getOpeningTime());
         response.put("closingTime", office.getClosingTime());
@@ -327,9 +365,9 @@ public class QueueService {
                 List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
         ).ifPresent(this::completeToken);
 
-        // Find first waiting token
+        // Find first waiting token (priority tokens first)
         QueueToken nextToken = tokenRepository
-                .findFirstByOfficeIdAndStatusOrderBySequenceNumberAsc(officeId, TokenStatus.WAITING)
+                .findFirstByOfficeIdAndStatusOrderByIsPriorityDescSequenceNumberAsc(officeId, TokenStatus.WAITING)
                 .orElse(null);
 
         if (nextToken != null) {
@@ -497,6 +535,49 @@ public class QueueService {
     }
 
     /**
+     * Operator Action: Office forwards customer's priority request to a provider.
+     */
+    public Map<String, Object> officeForwardPriority(Long officeId, Long tokenId, Long providerId) {
+        QueueToken token = tokenRepository.findById(tokenId)
+                .orElseThrow(() -> new IllegalArgumentException("Token not found: " + tokenId));
+
+        if (!token.getOffice().getId().equals(officeId)) {
+            throw new IllegalArgumentException("Token does not belong to this office");
+        }
+
+        if (token.getStatus() != TokenStatus.WAITING) {
+            throw new IllegalStateException("Only WAITING tokens can have priority requests forwarded");
+        }
+
+        Provider provider = providerRepository.findByIdAndOfficeId(providerId, officeId)
+                .orElseThrow(() -> new IllegalArgumentException("Provider not found or does not belong to this office"));
+
+        token.setRequestedProvider(provider);
+        token.setPriorityStatus("PENDING_PROVIDER");
+        tokenRepository.save(token);
+
+        return getLiveQueue(officeId);
+    }
+
+    /**
+     * Operator Action: Office rejects customer's priority request.
+     */
+    public Map<String, Object> officeRejectPriority(Long officeId, Long tokenId) {
+        QueueToken token = tokenRepository.findById(tokenId)
+                .orElseThrow(() -> new IllegalArgumentException("Token not found: " + tokenId));
+
+        if (!token.getOffice().getId().equals(officeId)) {
+            throw new IllegalArgumentException("Token does not belong to this office");
+        }
+
+        token.setIsPriority(false);
+        token.setPriorityStatus("REJECTED");
+        tokenRepository.save(token);
+
+        return getLiveQueue(officeId);
+    }
+
+    /**
      * Operator Action: Directly call / serve a specific unassigned token at the front desk.
      */
     public Map<String, Object> serveTokenAtDesk(Long officeId, Long tokenId) {
@@ -616,9 +697,9 @@ public class QueueService {
                         List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
                 ).orElse(null);
 
-        // Waiting tokens assigned to this provider
+        // Waiting tokens assigned to this provider (priority tokens first!)
         List<QueueToken> waitingTokens = tokenRepository
-                .findByProviderIdAndStatusInOrderBySequenceNumberAsc(providerId, List.of(TokenStatus.WAITING));
+                .findByProviderIdAndStatusInOrderByIsPriorityDescSequenceNumberAsc(providerId, List.of(TokenStatus.WAITING));
 
         LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
         LocalDateTime endOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MAX);
@@ -647,6 +728,10 @@ public class QueueService {
             item.put("estimatedWaitMinutes", t.getEstimatedWaitMinutes());
             item.put("position", i + 1);
             item.put("bookedAt", t.getBookedAt() != null ? t.getBookedAt().toString() : "");
+            item.put("isPriority", Boolean.TRUE.equals(t.getIsPriority()));
+            item.put("priorityStatus", t.getPriorityStatus() != null ? t.getPriorityStatus() : "NONE");
+            item.put("priorityReason", t.getPriorityReason() != null ? t.getPriorityReason() : "");
+            item.put("taskDescription", t.getTaskDescription() != null ? t.getTaskDescription() : "");
             waitingTokenList.add(item);
         }
 
@@ -681,6 +766,28 @@ public class QueueService {
             incomingRequestList.add(reqMap);
         }
 
+        // Incoming Priority Requests forwarded by office
+        List<QueueToken> incomingPriorityRequests = tokenRepository
+                .findByRequestedProviderIdAndPriorityStatusAndStatusInOrderByPriorityRequestedAtAsc(
+                        providerId, "PENDING_PROVIDER", List.of(TokenStatus.WAITING)
+                );
+
+        List<Map<String, Object>> priorityRequestList = new ArrayList<>();
+        for (QueueToken req : incomingPriorityRequests) {
+            Map<String, Object> reqMap = new HashMap<>();
+            reqMap.put("id", req.getId());
+            reqMap.put("tokenNumber", req.getTokenNumber());
+            reqMap.put("customerName", req.getCustomerName());
+            reqMap.put("customerPhone", req.getCustomerPhone() != null ? req.getCustomerPhone() : "");
+            reqMap.put("customerEmail", req.getCustomerEmail() != null ? req.getCustomerEmail() : "");
+            reqMap.put("sequenceNumber", req.getSequenceNumber());
+            reqMap.put("priorityReason", req.getPriorityReason() != null ? req.getPriorityReason() : "");
+            reqMap.put("priorityRequestedAt", req.getPriorityRequestedAt() != null ? req.getPriorityRequestedAt().toString() : "");
+            reqMap.put("taskDescription", req.getTaskDescription() != null ? req.getTaskDescription() : "");
+            reqMap.put("officeName", req.getOffice().getUser() != null ? req.getOffice().getUser().getName() : "Office");
+            priorityRequestList.add(reqMap);
+        }
+
         response.put("waitingCount", waitingTokens.size());
         response.put("completedCount", completedCount);
         response.put("skippedCount", skippedCount);
@@ -688,6 +795,8 @@ public class QueueService {
         response.put("todayTotalTokens", todayTokens.size());
         response.put("incomingRequests", incomingRequestList);
         response.put("incomingRequestsCount", incomingRequestList.size());
+        response.put("priorityRequests", priorityRequestList);
+        response.put("priorityRequestsCount", priorityRequestList.size());
 
         return response;
     }
@@ -702,9 +811,9 @@ public class QueueService {
                 List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
         ).ifPresent(this::completeToken);
 
-        // Find first waiting token assigned to this provider
+        // Find first waiting token assigned to this provider (priority tokens first!)
         QueueToken nextToken = tokenRepository
-                .findFirstByProviderIdAndStatusOrderBySequenceNumberAsc(providerId, TokenStatus.WAITING)
+                .findFirstByProviderIdAndStatusOrderByIsPriorityDescSequenceNumberAsc(providerId, TokenStatus.WAITING)
                 .orElse(null);
 
         if (nextToken != null) {
@@ -844,6 +953,51 @@ public class QueueService {
 
         token.setRequestedProvider(null);
         token.setRequestStatus("REJECTED");
+        tokenRepository.save(token);
+
+        return getProviderLiveQueue(providerId);
+    }
+
+    /**
+     * Provider Action: Accept a priority request.
+     */
+    public Map<String, Object> providerAcceptPriority(Long providerId, Long tokenId) {
+        QueueToken token = tokenRepository.findById(tokenId)
+                .orElseThrow(() -> new IllegalArgumentException("Token not found: " + tokenId));
+
+        if ((token.getRequestedProvider() == null || !token.getRequestedProvider().getId().equals(providerId))
+                && (token.getProvider() == null || !token.getProvider().getId().equals(providerId))) {
+            throw new IllegalArgumentException("This priority request is not assigned to you");
+        }
+
+        Provider provider = providerRepository.findById(providerId)
+                .orElseThrow(() -> new IllegalArgumentException("Provider not found: " + providerId));
+
+        token.setIsPriority(true);
+        token.setPriorityStatus("ACCEPTED");
+        token.setProvider(provider);
+        token.setRequestedProvider(null);
+        tokenRepository.save(token);
+
+        return getProviderLiveQueue(providerId);
+    }
+
+    /**
+     * Provider Action: Reject a priority request.
+     * Token remains in normal queue preserving existing order.
+     */
+    public Map<String, Object> providerRejectPriority(Long providerId, Long tokenId) {
+        QueueToken token = tokenRepository.findById(tokenId)
+                .orElseThrow(() -> new IllegalArgumentException("Token not found: " + tokenId));
+
+        if ((token.getRequestedProvider() == null || !token.getRequestedProvider().getId().equals(providerId))
+                && (token.getProvider() == null || !token.getProvider().getId().equals(providerId))) {
+            throw new IllegalArgumentException("This priority request is not assigned to you");
+        }
+
+        token.setIsPriority(false);
+        token.setPriorityStatus("REJECTED");
+        token.setRequestedProvider(null);
         tokenRepository.save(token);
 
         return getProviderLiveQueue(providerId);

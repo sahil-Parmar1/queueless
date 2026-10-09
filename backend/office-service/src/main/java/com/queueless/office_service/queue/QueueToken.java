@@ -86,6 +86,18 @@ public class QueueToken {
     @Column(name = "task_description", length = 25)
     private String taskDescription;
 
+    @Column(name = "is_priority")
+    private Boolean isPriority = false;
+
+    @Column(name = "priority_reason")
+    private String priorityReason;
+
+    @Column(name = "priority_status")
+    private String priorityStatus = "NONE";
+
+    @Column(name = "priority_requested_at")
+    private LocalDateTime priorityRequestedAt;
+
     @PrePersist
     protected void onCreate() {
         if (bookedAt == null) {
@@ -252,5 +264,37 @@ public class QueueToken {
 
     public void setTaskDescription(String taskDescription) {
         this.taskDescription = taskDescription;
+    }
+
+    public Boolean getIsPriority() {
+        return isPriority;
+    }
+
+    public void setIsPriority(Boolean isPriority) {
+        this.isPriority = isPriority;
+    }
+
+    public String getPriorityReason() {
+        return priorityReason;
+    }
+
+    public void setPriorityReason(String priorityReason) {
+        this.priorityReason = priorityReason;
+    }
+
+    public String getPriorityStatus() {
+        return priorityStatus;
+    }
+
+    public void setPriorityStatus(String priorityStatus) {
+        this.priorityStatus = priorityStatus;
+    }
+
+    public LocalDateTime getPriorityRequestedAt() {
+        return priorityRequestedAt;
+    }
+
+    public void setPriorityRequestedAt(LocalDateTime priorityRequestedAt) {
+        this.priorityRequestedAt = priorityRequestedAt;
     }
 }

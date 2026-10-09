@@ -277,6 +277,38 @@ class OfficeService {
     }
   }
 
+  /// Request priority service for a waiting token
+  Future<Map<String, dynamic>> requestPriority(int tokenId, String reason) async {
+    try {
+      final uri = Uri.parse('$_baseUrl/queue/tokens/$tokenId/priority-request');
+      final headers = await _getHeaders();
+      final response = await http.post(
+        uri,
+        headers: headers,
+        body: jsonEncode({'reason': reason.trim()}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Priority request submitted successfully',
+          'data': data,
+        };
+      } else {
+        String msg = 'Failed to submit priority request';
+        try {
+          final err = jsonDecode(response.body);
+          if (err['message'] != null) msg = err['message'];
+        } catch (_) {}
+        return {'success': false, 'errorMessage': msg};
+      }
+    } catch (e) {
+      debugPrint('Error requesting priority: $e');
+      return {'success': false, 'errorMessage': 'Network error: $e'};
+    }
+  }
+
   /// Fetch and cache customer's favorite office IDs
   Future<Set<int>> getFavoriteOfficeIds({bool forceRefresh = false}) async {
     // Load cached favorites from storage first

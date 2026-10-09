@@ -176,9 +176,16 @@ public class CustomerQueueService {
         Map<String, Object> response = new HashMap<>();
         response.put("hasActiveToken", true);
         response.put("token", activeToken);
+        response.put("id", activeToken.getId());
+        response.put("tokenId", activeToken.getId());
         response.put("tokenNumber", activeToken.getTokenNumber());
         response.put("sequenceNumber", activeToken.getSequenceNumber());
         response.put("status", activeToken.getStatus().name());
+        response.put("isPriority", Boolean.TRUE.equals(activeToken.getIsPriority()));
+        response.put("priorityStatus", activeToken.getPriorityStatus() != null ? activeToken.getPriorityStatus() : "NONE");
+        response.put("priorityReason", activeToken.getPriorityReason());
+        response.put("priorityRequestedAt", activeToken.getPriorityRequestedAt());
+        response.put("taskDescription", activeToken.getTaskDescription());
         response.put("peopleAhead", peopleAhead);
         response.put("estimatedWaitMinutes", estimatedWait);
         response.put("officeId", activeToken.getOffice().getId());
@@ -259,6 +266,47 @@ public class CustomerQueueService {
         token.setStatus(TokenStatus.CANCELLED);
         tokenRepository.save(token);
         return true;
+    }
+
+    @Transactional
+    public Map<String, Object> requestPriority(Long tokenId, String reason, Long customerId, String email) {
+        QueueToken token = tokenRepository.findById(tokenId)
+                .orElseThrow(() -> new IllegalArgumentException("Token not found: " + tokenId));
+
+        if (token.getStatus() != TokenStatus.WAITING) {
+            throw new IllegalStateException("Priority can only be requested for waiting tokens");
+        }
+
+        if (customerId != null && !customerId.equals(token.getCustomerId())) {
+            if (email == null || !email.equalsIgnoreCase(token.getCustomerEmail())) {
+                throw new IllegalStateException("You are not authorized to request priority for this token");
+            }
+        }
+
+        if ("PENDING_OFFICE".equalsIgnoreCase(token.getPriorityStatus()) || "PENDING_PROVIDER".equalsIgnoreCase(token.getPriorityStatus())) {
+            throw new IllegalStateException("A priority request is already pending review");
+        }
+
+        if (Boolean.TRUE.equals(token.getIsPriority()) || "ACCEPTED".equalsIgnoreCase(token.getPriorityStatus())) {
+            throw new IllegalStateException("This token has already been granted priority");
+        }
+
+        token.setPriorityReason(reason != null ? reason.trim() : "");
+        token.setPriorityStatus("PENDING_OFFICE");
+        token.setPriorityRequestedAt(LocalDateTime.now());
+        QueueToken saved = tokenRepository.save(token);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Priority request submitted successfully");
+        response.put("id", saved.getId());
+        response.put("tokenId", saved.getId());
+        response.put("tokenNumber", saved.getTokenNumber());
+        response.put("isPriority", Boolean.TRUE.equals(saved.getIsPriority()));
+        response.put("priorityStatus", saved.getPriorityStatus());
+        response.put("priorityReason", saved.getPriorityReason());
+        response.put("priorityRequestedAt", saved.getPriorityRequestedAt());
+        return response;
     }
 
     @Transactional(readOnly = true)

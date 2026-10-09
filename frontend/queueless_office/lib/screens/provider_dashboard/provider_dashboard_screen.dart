@@ -59,6 +59,10 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
 
   String _providerRequestDeclineUrl(dynamic id) => '$apiBaseUrl/api/provider/queue/requests/$id/decline';
 
+  String _providerPriorityAcceptUrl(dynamic id) => '$apiBaseUrl/api/provider/queue/priority-requests/$id/accept';
+
+  String _providerPriorityRejectUrl(dynamic id) => '$apiBaseUrl/api/provider/queue/priority-requests/$id/reject';
+
   @override
   void initState() {
     super.initState();
@@ -540,6 +544,117 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to decline request: $e'),
+            backgroundColor: ProviderColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _acceptPriorityRequest(dynamic tokenId) async {
+    setState(() => _queueActionLoading = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.post(
+        Uri.parse(_providerPriorityAcceptUrl(tokenId)),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+            _queueActionLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.bolt_rounded, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Priority granted! This customer is prioritized and will be called next.',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFFD97706),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      } else {
+        String err = 'Server error: ${response.statusCode}';
+        try {
+          final errData = jsonDecode(response.body);
+          if (errData['message'] != null) err = errData['message'];
+        } catch (_) {}
+        throw Exception(err);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _queueActionLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Accept failed: $e'),
+            backgroundColor: ProviderColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _rejectPriorityRequest(dynamic tokenId) async {
+    setState(() => _queueActionLoading = true);
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final response = await http.post(
+        Uri.parse(_providerPriorityRejectUrl(tokenId)),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _liveQueueData = data;
+            _queueActionLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Priority request declined. Customer remains in normal queue.'),
+              backgroundColor: ProviderColors.mutedText,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      } else {
+        String err = 'Server error: ${response.statusCode}';
+        try {
+          final errData = jsonDecode(response.body);
+          if (errData['message'] != null) err = errData['message'];
+        } catch (_) {}
+        throw Exception(err);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _queueActionLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Decline failed: $e'),
             backgroundColor: ProviderColors.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1246,6 +1361,9 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                           _buildDeskQrActionCard(),
                           const SizedBox(height: 20),
 
+                          // Section: Incoming Priority Requests from Customers (forwarded by Office)
+                          _buildIncomingPriorityRequestsSection(),
+
                           // Section: Incoming Token Requests from Office (when limit reached)
                           _buildIncomingRequestsSection(),
 
@@ -1802,6 +1920,211 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           const Text(
             'Cannot exceed office maximum limit. Sum of all providers cannot exceed office limit.',
             style: TextStyle(fontSize: 11, color: ProviderColors.mutedText, height: 1.3),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIncomingPriorityRequestsSection() {
+    final priorityRequests = (_liveQueueData?['priorityRequests'] as List<dynamic>?) ?? [];
+    if (priorityRequests.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFD97706).withValues(alpha: 0.10),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD97706),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'Incoming Priority Request',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF92400E),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD97706),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${priorityRequests.length} Priority',
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Customer has requested priority service. Accepting will prioritize calling this customer next.',
+                      style: TextStyle(fontSize: 11, color: Color(0xFFB45309)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: priorityRequests.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            itemBuilder: (ctx, idx) {
+              final req = priorityRequests[idx] as Map<String, dynamic>;
+              final reqId = req['id'];
+              final reqTokenNum = req['tokenNumber'] ?? '---';
+              final reqCust = req['customerName'] ?? 'Customer';
+              final reqPhone = (req['customerPhone'] ?? '').toString();
+              final priorityReason = req['priorityReason'] ?? '';
+              final taskDescription = (req['taskDescription'] ?? '').toString();
+
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            reqTokenNum,
+                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF92400E)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                reqCust,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: ProviderColors.mainText),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (reqPhone.isNotEmpty) ...[
+                                const SizedBox(height: 1),
+                                Text(
+                                  reqPhone,
+                                  style: const TextStyle(fontSize: 11, color: ProviderColors.mutedText),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          onPressed: _queueActionLoading ? null : () => _rejectPriorityRequest(reqId),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: ProviderColors.error,
+                            side: const BorderSide(color: Color(0xFFFECACA)),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('Reject', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                        const SizedBox(width: 6),
+                        ElevatedButton(
+                          onPressed: _queueActionLoading ? null : () => _acceptPriorityRequest(reqId),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFD97706),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('Accept', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.bolt_rounded, size: 14, color: Color(0xFFD97706)),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: RichText(
+                              text: TextSpan(
+                                children: [
+                                  const TextSpan(
+                                    text: 'Priority Reason: ',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF92400E)),
+                                  ),
+                                  TextSpan(
+                                    text: priorityReason.isNotEmpty ? priorityReason : 'None specified',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF78350F)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (taskDescription.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Service/Task: $taskDescription',
+                        style: const TextStyle(fontSize: 11, color: ProviderColors.mutedText, fontStyle: FontStyle.italic),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -2385,13 +2708,43 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              tokenNum,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                color: ProviderColors.mainText,
-                              ),
+                            Row(
+                              children: [
+                                Text(
+                                  tokenNum,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: ProviderColors.mainText,
+                                  ),
+                                ),
+                                if (item['isPriority'] == true) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFEF3C7),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: const Color(0xFFFDE68A)),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.bolt_rounded, size: 11, color: Color(0xFFD97706)),
+                                        SizedBox(width: 1),
+                                        Text(
+                                          'PRIORITY',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w900,
+                                            color: Color(0xFF92400E),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                             Text(
                               custName,

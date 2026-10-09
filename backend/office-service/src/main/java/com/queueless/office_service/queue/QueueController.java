@@ -236,5 +236,38 @@ public class QueueController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
         }
     }
+
+    /**
+     * Office operator forwards a priority request to a provider.
+     */
+    @PostMapping("/office/{officeId}/priority-requests/{tokenId}/forward")
+    public ResponseEntity<?> forwardPriorityRequest(
+            @PathVariable("officeId") Long officeId,
+            @PathVariable("tokenId") Long tokenId,
+            @RequestBody Map<String, Object> body) {
+        if (!body.containsKey("providerId") || body.get("providerId") == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "providerId is required", "message", "Provider ID is required"));
+        }
+        Long providerId = Long.valueOf(body.get("providerId").toString());
+        try {
+            return ResponseEntity.ok(queueService.officeForwardPriority(officeId, tokenId, providerId));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * Office operator rejects a priority request.
+     */
+    @PostMapping("/office/{officeId}/priority-requests/{tokenId}/reject")
+    public ResponseEntity<?> rejectPriorityRequest(
+            @PathVariable("officeId") Long officeId,
+            @PathVariable("tokenId") Long tokenId) {
+        try {
+            return ResponseEntity.ok(queueService.officeRejectPriority(officeId, tokenId));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
+        }
+    }
 }
 

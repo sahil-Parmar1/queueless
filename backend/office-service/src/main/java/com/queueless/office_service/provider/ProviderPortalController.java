@@ -162,5 +162,33 @@ public class ProviderPortalController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
         }
     }
+
+    @PostMapping("/api/provider/queue/priority-requests/{tokenId}/accept")
+    public ResponseEntity<?> providerAcceptPriorityRequest(
+            @org.springframework.web.bind.annotation.PathVariable("tokenId") Long tokenId,
+            Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof Provider provider)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized provider access"));
+        }
+        try {
+            return ResponseEntity.ok(queueService.providerAcceptPriority(provider.getId(), tokenId));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/api/provider/queue/priority-requests/{tokenId}/reject")
+    public ResponseEntity<?> providerRejectPriorityRequest(
+            @org.springframework.web.bind.annotation.PathVariable("tokenId") Long tokenId,
+            Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof Provider provider)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized provider access"));
+        }
+        try {
+            return ResponseEntity.ok(queueService.providerRejectPriority(provider.getId(), tokenId));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "message", e.getMessage()));
+        }
+    }
 }
 

@@ -143,6 +143,42 @@ public class CustomerQueueController {
         }
     }
 
+    @PostMapping("/tokens/{id}/priority-request")
+    public ResponseEntity<?> requestPriority(
+            @PathVariable("id") Long id,
+            @RequestBody Map<String, Object> body,
+            Authentication authentication) {
+
+        Long customerId = null;
+        String email = null;
+        if (authentication != null) {
+            if (authentication.getPrincipal() instanceof User user) {
+                customerId = user.getId();
+                email = user.getEmail();
+            } else {
+                email = authentication.getName();
+            }
+        }
+
+        String reason = body.get("reason") != null ? body.get("reason").toString() : null;
+        if (reason == null || reason.trim().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Reason is required",
+                    "message", "Please provide a reason for the priority request."
+            ));
+        }
+
+        try {
+            Map<String, Object> result = queueService.requestPriority(id, reason, customerId, email);
+            return ResponseEntity.ok(result);
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", e.getMessage(),
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
     @GetMapping("/office/{id}/live")
     public ResponseEntity<?> getOfficeLiveQueue(@PathVariable("id") Long id) {
         try {

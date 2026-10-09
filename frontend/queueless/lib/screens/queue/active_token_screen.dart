@@ -141,6 +141,176 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
     }
   }
 
+  Future<void> _handleRequestPriority() async {
+    final token = _tokenData?['token'];
+    final tokenId = _tokenData?['id'] ?? token?['id'];
+    if (tokenId == null) return;
+
+    final reasonController = TextEditingController();
+    bool isSubmitting = false;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+            top: 24,
+            left: 20,
+            right: 20,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFEF3C7),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.bolt_rounded, color: Color(0xFFD97706), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Request Priority Service',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.mainText,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'If you need urgent assistance (e.g., medical emergency, senior citizen, severe condition), submit your reason below. The office and service provider will review your request.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.secondaryText,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: reasonController,
+                maxLines: 3,
+                maxLength: 150,
+                decoration: InputDecoration(
+                  hintText: 'Describe why you need priority service...',
+                  hintStyle: const TextStyle(fontSize: 13, color: AppColors.mutedText),
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFD97706), width: 1.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        side: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      child: const Text('Cancel', style: TextStyle(color: AppColors.secondaryText)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: isSubmitting
+                          ? null
+                          : () async {
+                              final reason = reasonController.text.trim();
+                              if (reason.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Please enter a reason for priority.'),
+                                    backgroundColor: AppColors.error,
+                                  ),
+                                );
+                                return;
+                              }
+                              setModalState(() => isSubmitting = true);
+                              final res = await _officeService.requestPriority(tokenId, reason);
+                              if (mounted) {
+                                Navigator.pop(context);
+                                if (res['success'] == true) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Priority request submitted! Awaiting review.'),
+                                      backgroundColor: Color(0xFF059669),
+                                    ),
+                                  );
+                                  _fetchActiveToken();
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(res['errorMessage'] ?? 'Failed to submit request.'),
+                                      backgroundColor: AppColors.error,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD97706),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: isSubmitting
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : const Text('Submit Request', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -251,6 +421,11 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
     final city = _tokenData?['city'] ?? '';
     final providerName = _tokenData?['providerName'] ?? '';
     final providerDesignation = _tokenData?['providerDesignation'] ?? '';
+
+    final tokenObj = _tokenData?['token'];
+    final isPriority = _tokenData?['isPriority'] == true || tokenObj?['isPriority'] == true;
+    final priorityStatus = (_tokenData?['priorityStatus'] ?? tokenObj?['priorityStatus'] ?? 'NONE').toString().toUpperCase();
+    final priorityReason = (_tokenData?['priorityReason'] ?? tokenObj?['priorityReason'] ?? '').toString();
 
     final isTurnNow = status == 'CALLED' || status == 'IN_SERVICE';
     final isAlmostTurn =
@@ -379,6 +554,181 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
             ),
           ],
 
+          // Priority Live Status Banners
+          if (isPriority || priorityStatus == 'ACCEPTED') ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFD97706).withValues(alpha: 0.15),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFD97706),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 24),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'HIGH PRIORITY SERVICE GRANTED ⚡',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF92400E),
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Your provider accepted your priority request! You are prioritized to be called first.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFB45309),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (priorityStatus == 'PENDING_OFFICE') ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF93C5FD), width: 1.5),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF3B82F6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.hourglass_top_rounded, color: Colors.white, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'PRIORITY REQUEST UNDER REVIEW',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF1E40AF),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          priorityReason.isNotEmpty
+                              ? 'Reason: "$priorityReason"\nWaiting for office desk review.'
+                              : 'Your priority request is being reviewed by the office desk.',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF1E3A8A),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (priorityStatus == 'PENDING_PROVIDER') ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFAF5FF),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFD8B4FE), width: 1.5),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF9333EA),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.forward_to_inbox_rounded, color: Colors.white, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'FORWARDED TO PROVIDER',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF6B21A8),
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'The office approved and forwarded your request to your service provider for final acceptance.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF581C87),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (priorityStatus == 'REJECTED') ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline_rounded, color: Color(0xFF64748B), size: 20),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Priority request was not approved. Your token remains safely in the queue with your original position preserved.',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF475569), fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           // Digital Boarding / Token Pass Card
           Container(
             decoration: BoxDecoration(
@@ -427,7 +777,38 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                               ),
                             ),
                           ),
-                          _buildStatusBadge(status),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isPriority) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  margin: const EdgeInsets.only(right: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF59E0B),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.bolt_rounded, color: Colors.white, size: 14),
+                                      SizedBox(width: 2),
+                                      Text(
+                                        'PRIORITY',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              _buildStatusBadge(status),
+                            ],
+                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -645,6 +1026,29 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
             ),
           ),
           const SizedBox(height: 24),
+
+          // Priority Service Request Action (when waiting and not pending/accepted)
+          if (status == 'WAITING' && (priorityStatus == 'NONE' || priorityStatus == 'REJECTED')) ...[
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _handleRequestPriority,
+                icon: const Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
+                label: const Text(
+                  'Request Priority Service',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD97706),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
 
           // Action Buttons
           Row(
