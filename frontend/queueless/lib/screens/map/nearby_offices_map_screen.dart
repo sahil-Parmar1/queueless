@@ -570,15 +570,22 @@ class _NearbyOfficesMapScreenState extends State<NearbyOfficesMapScreen> {
           final name = office['name'] ?? 'Office';
           final category = (office['category'] ?? 'OTHER').toString().toUpperCase();
           final doctorName = office['doctorName'];
+          final specialization = office['specialization'];
           final salonType = office['salonType'];
           final color = _getCategoryColor(category);
           final distanceFormatted = office['distanceFormatted'] as String?;
           final lat = (office['latitude'] as num).toDouble();
           final lng = (office['longitude'] as num).toDouble();
 
+          final String primaryTitle = (category == 'CLINIC' && doctorName != null && doctorName.toString().trim().isNotEmpty)
+              ? doctorName.toString().trim()
+              : name;
+
           String subtitle = category;
-          if (doctorName != null && doctorName.toString().isNotEmpty) {
-            subtitle = 'Dr. $doctorName';
+          if (category == 'CLINIC') {
+            subtitle = (specialization != null && specialization.toString().trim().isNotEmpty)
+                ? 'Clinic ($specialization)'
+                : 'Clinic';
           } else if (salonType != null) {
             subtitle = '$salonType Salon';
           }
@@ -621,7 +628,7 @@ class _NearbyOfficesMapScreenState extends State<NearbyOfficesMapScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          name,
+                          primaryTitle,
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -744,9 +751,17 @@ class _NearbyOfficesMapScreenState extends State<NearbyOfficesMapScreen> {
     final distanceFormatted = office['distanceFormatted'] as String?;
     final color = _getCategoryColor(category);
 
+    final String primaryTitle = (category == 'CLINIC' && doctorName != null && doctorName.toString().trim().isNotEmpty)
+        ? doctorName.toString().trim()
+        : name;
+
     String subInfo = '';
-    if (category == 'CLINIC' && doctorName != null && doctorName.toString().isNotEmpty) {
-      subInfo = '👨‍⚕️ $doctorName ${specialization != null ? '($specialization)' : ''}';
+    if (category == 'CLINIC') {
+      if (specialization != null && specialization.toString().trim().isNotEmpty) {
+        subInfo = '🏥 Clinic ($specialization)';
+      } else {
+        subInfo = '🏥 Clinic';
+      }
     } else if (salonType != null && salonType.toString().isNotEmpty) {
       subInfo = '✂️ $salonType Salon';
     } else if (specialization != null && specialization.toString().isNotEmpty) {
@@ -859,7 +874,7 @@ class _NearbyOfficesMapScreenState extends State<NearbyOfficesMapScreen> {
 
           // Office Title & Sub-info
           Text(
-            name,
+            primaryTitle,
             style: const TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w800,

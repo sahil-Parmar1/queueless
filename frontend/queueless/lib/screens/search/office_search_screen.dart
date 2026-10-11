@@ -542,17 +542,23 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
     final activeToken = office['activeToken'];
     final bool isOpen = office['isOpen'] != false;
 
+    final String primaryTitle = (category == 'CLINIC' && doctorName != null && doctorName.toString().trim().isNotEmpty)
+        ? doctorName.toString().trim()
+        : name;
+
     String subInfo = '';
-    if (category == 'CLINIC' && doctorName != null && doctorName.toString().isNotEmpty) {
-      subInfo = '👨‍⚕️ $doctorName ${specialization != null ? '($specialization)' : ''}';
+    if (category == 'CLINIC') {
+      if (specialization != null && specialization.toString().trim().isNotEmpty) {
+        subInfo = '🏥 Clinic ($specialization)';
+      } else {
+        subInfo = '🏥 Clinic';
+      }
     } else if (salonType != null && salonType.toString().isNotEmpty) {
       subInfo = '✂️ $salonType Salon';
     } else if (category == 'SALON') {
       subInfo = '✂️ Salon';
-    } else if (category == 'CLINIC' && specialization != null && specialization.toString().isNotEmpty) {
-      subInfo = '👨‍⚕️ $specialization';
     } else if (specialization != null && specialization.toString().isNotEmpty) {
-      subInfo = specialization;
+      subInfo = specialization.toString();
     }
 
     return InkWell(
@@ -602,7 +608,7 @@ class _OfficeSearchScreenState extends State<OfficeSearchScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              name,
+                              primaryTitle,
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,

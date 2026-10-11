@@ -247,6 +247,10 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
 
     final String category = (_officeDetails?['category'] ?? 'OTHER').toString().toUpperCase();
     final bool isClinic = category == 'CLINIC';
+    final docName = _officeDetails?['doctorName']?.toString().trim();
+    final String bookingOfficeName = (isClinic && docName != null && docName.isNotEmpty)
+        ? docName
+        : (_officeDetails?['name'] ?? 'this office');
 
     if (!mounted) return;
 
@@ -287,7 +291,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'You will receive a live digital token for ${_officeDetails?['name'] ?? 'this office'}.',
+                    'You will receive a live digital token for $bookingOfficeName.',
                     style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
                   ),
                   const SizedBox(height: 20),
@@ -587,7 +591,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
       );
     }
 
-    final name = _officeDetails?['name'] ?? 'Office';
+    final rawName = _officeDetails?['name'] ?? 'Office';
     final category = (_officeDetails?['category'] ?? 'OTHER').toString().toUpperCase();
     final bool isClinic = category == 'CLINIC';
     final address = _officeDetails?['address'] ?? '';
@@ -601,6 +605,11 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
     final doctorName = _officeDetails?['doctorName'];
     final specialization = _officeDetails?['specialization'];
     final salonType = _officeDetails?['salonType'];
+    final medicalRegistrationNumber = _officeDetails?['medicalRegistrationNumber'];
+
+    final String displayName = (isClinic && doctorName != null && doctorName.toString().trim().isNotEmpty)
+        ? doctorName.toString().trim()
+        : rawName;
 
     final waitingCount = _liveQueue?['waitingCount'] ?? _officeDetails?['waitingCount'] ?? 0;
     final activeToken = _liveQueue?['activeToken'] ?? _officeDetails?['activeToken'];
@@ -618,7 +627,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
         backgroundColor: Colors.white,
         foregroundColor: AppColors.mainText,
         elevation: 0.5,
-        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: AppColors.mainText)),
+        title: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: AppColors.mainText)),
         actions: [
           ValueListenableBuilder<Set<int>>(
             valueListenable: _officeService.favoriteIdsNotifier,
@@ -788,7 +797,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    name,
+                    displayName,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 22,
@@ -969,11 +978,14 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
             // Category Details
             if (isClinic) ...[
               _buildSectionCard(
-                title: 'Doctor Information',
-                icon: Icons.medical_services_outlined,
+                title: 'Clinic Information',
+                icon: Icons.local_hospital_outlined,
                 items: [
-                  {'label': 'Doctor Name', 'value': doctorName ?? 'Available on site'},
-                  if (specialization != null) {'label': 'Specialization', 'value': specialization},
+                  {'label': 'Clinic Name', 'value': displayName},
+                  if (specialization != null && specialization.toString().trim().isNotEmpty)
+                    {'label': 'Specialization', 'value': specialization.toString().trim()},
+                  if (medicalRegistrationNumber != null && medicalRegistrationNumber.toString().trim().isNotEmpty)
+                    {'label': 'Medical Reg. No.', 'value': medicalRegistrationNumber.toString().trim()},
                 ],
               ),
               const SizedBox(height: 16),
