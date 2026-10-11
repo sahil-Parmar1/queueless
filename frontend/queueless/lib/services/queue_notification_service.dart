@@ -37,13 +37,27 @@ class QueueNotificationService with WidgetsBindingObserver {
     }
   }
 
-  static const String _turnChannelId = 'queueless_turn_alerts_custom_sound';
+  static const String _turnChannelId = 'queueless_turn_alerts_v2';
   static const String _turnChannelName = 'Customer Turn Arrived Alerts';
   static const String _turnChannelDescription = 'Plays custom voice alert when your turn arrives in queue';
 
-  static const String _proximityChannelId = 'queueless_proximity_alerts_custom_sound';
+  static const String _proximityChannelId = 'queueless_proximity_alerts_v2';
   static const String _proximityChannelName = 'Queue Proximity Alerts';
   static const String _proximityChannelDescription = 'Plays voice alert when you are almost next in queue';
+
+  /// Request runtime notification permission (especially on Android 13+)
+  Future<bool?> requestPermission() async {
+    try {
+      final androidImpl = _notificationsPlugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (androidImpl != null) {
+        return await androidImpl.requestNotificationsPermission();
+      }
+    } catch (e) {
+      debugPrint('Error requesting notification permission: $e');
+    }
+    return null;
+  }
 
   /// Initialize the notification plugin, channel, permissions, and app lifecycle observer
   Future<void> initialize() async {
@@ -262,6 +276,7 @@ class QueueNotificationService with WidgetsBindingObserver {
         channelId,
         channelName,
         channelDescription: channelDesc,
+        icon: '@mipmap/ic_launcher',
         importance: urgent ? Importance.max : Importance.high,
         priority: urgent ? Priority.max : Priority.high,
         sound: RawResourceAndroidNotificationSound(soundName),

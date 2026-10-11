@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/customer_auth_service.dart';
 import '../../services/office_service.dart';
+import '../../services/queue_notification_service.dart';
 import '../../theme/app_theme.dart';
 import '../auth/customer_login_screen.dart';
 import '../search/office_search_screen.dart';
@@ -31,6 +32,7 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    QueueNotificationService().requestPermission();
     _loadUserData();
   }
 
