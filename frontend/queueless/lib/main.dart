@@ -6,10 +6,13 @@ import 'package:queueless/services/customer_auth_service.dart';
 import 'package:queueless/services/queue_notification_service.dart';
 import 'package:queueless/theme/app_theme.dart';
 
+import 'config/api_config.dart';
 import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await ApiConfig.init();
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,

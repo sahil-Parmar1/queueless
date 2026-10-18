@@ -3,6 +3,7 @@ import '../../services/customer_auth_service.dart';
 import '../../services/office_service.dart';
 import '../../services/queue_notification_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/server_config_dialog.dart';
 import '../auth/customer_login_screen.dart';
 import '../search/office_search_screen.dart';
 import '../queue/active_token_screen.dart';
@@ -157,6 +158,11 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
             onPressed: () {},
             icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF475569)),
             tooltip: 'Notifications',
+          ),
+          IconButton(
+            onPressed: () => ServerConfigDialog.show(context),
+            icon: const Icon(Icons.dns_outlined, color: Color(0xFF475569)),
+            tooltip: 'Server Settings',
           ),
           IconButton(
             onPressed: _handleLogout,

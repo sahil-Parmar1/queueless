@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/customer_auth_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/server_config_dialog.dart';
 import '../dashboard/customer_dashboard_screen.dart';
 
 class CustomerLoginScreen extends StatefulWidget {
@@ -286,6 +287,18 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, color: Color(0xFF64748B)),
+            tooltip: 'Server Settings',
+            onPressed: () => ServerConfigDialog.show(context),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

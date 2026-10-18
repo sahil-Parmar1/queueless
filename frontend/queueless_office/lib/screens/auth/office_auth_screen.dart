@@ -8,6 +8,7 @@ import 'package:queueless_office/config/api_config.dart';
 import 'package:queueless_office/screens/auth/provider_login_screen.dart';
 import 'package:queueless_office/screens/dashboad/OfficeDashboardScreen.dart';
 import 'package:queueless_office/services/google_auth_service.dart';
+import 'package:queueless_office/widgets/server_config_dialog.dart';
 
 class OfficeAuthScreen extends StatefulWidget {
   const OfficeAuthScreen({super.key});
@@ -117,6 +118,17 @@ class _OfficeAuthScreenState extends State<OfficeAuthScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, color: Color(0xFF64748B)),
+            tooltip: 'Server Settings',
+            onPressed: () => ServerConfigDialog.show(context),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

@@ -8,6 +8,7 @@ import 'package:queueless_office/config/api_config.dart';
 import 'package:queueless_office/screens/auth/office_auth_screen.dart';
 import 'package:queueless_office/theme/provider_theme.dart';
 import 'package:queueless_office/widgets/qr_stand_dialog.dart';
+import 'package:queueless_office/widgets/server_config_dialog.dart';
 
 class ProviderDashboardScreen extends StatefulWidget {
   const ProviderDashboardScreen({super.key});
@@ -1154,6 +1155,15 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
               constraints: const BoxConstraints(),
               visualDensity: VisualDensity.compact,
               onPressed: _loadProviderProfile,
+            ),
+            const SizedBox(width: 2),
+            IconButton(
+              icon: const Icon(Icons.settings_outlined, color: ProviderColors.mutedText, size: 21),
+              tooltip: 'Server Settings',
+              padding: const EdgeInsets.all(6),
+              constraints: const BoxConstraints(),
+              visualDensity: VisualDensity.compact,
+              onPressed: () => ServerConfigDialog.show(context),
             ),
             const SizedBox(width: 2),
             IconButton(

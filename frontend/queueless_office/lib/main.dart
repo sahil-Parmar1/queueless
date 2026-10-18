@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:queueless_office/config/api_config.dart';
 import 'package:queueless_office/firebase_options.dart';
 import 'package:queueless_office/screens/auth/office_auth_screen.dart';
 import 'package:queueless_office/screens/dashboad/OfficeDashboardScreen.dart';
@@ -8,6 +9,7 @@ import 'package:queueless_office/screens/provider_dashboard/provider_dashboard_s
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ApiConfig.init();
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,

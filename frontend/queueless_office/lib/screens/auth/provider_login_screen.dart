@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:queueless_office/config/api_config.dart';
 import 'package:queueless_office/screens/provider_dashboard/provider_dashboard_screen.dart';
 import 'package:queueless_office/theme/provider_theme.dart';
+import 'package:queueless_office/widgets/server_config_dialog.dart';
 
 class ProviderLoginScreen extends StatefulWidget {
   const ProviderLoginScreen({super.key});
@@ -134,6 +135,13 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
             onPressed: () => Navigator.pop(context),
             tooltip: 'Back to Office Login',
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings_outlined, color: ProviderColors.mainText),
+              tooltip: 'Server Settings',
+              onPressed: () => ServerConfigDialog.show(context),
+            ),
+          ],
         ),
         body: SafeArea(
           child: Center(

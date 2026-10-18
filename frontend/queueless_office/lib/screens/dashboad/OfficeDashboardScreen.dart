@@ -12,6 +12,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:queueless_office/widgets/office_location_picker_dialog.dart';
 import 'package:queueless_office/widgets/qr_stand_dialog.dart';
+import 'package:queueless_office/widgets/server_config_dialog.dart';
 
 class OfficeDashboardScreen extends StatefulWidget {
   const OfficeDashboardScreen({super.key});
@@ -1229,6 +1230,11 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh',
             onPressed: _fetchProfile,
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Server Settings',
+            onPressed: () => ServerConfigDialog.show(context),
           ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
