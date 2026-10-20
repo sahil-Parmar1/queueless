@@ -337,7 +337,10 @@ public class QueueService {
         ) : null);
         response.put("waitingCount", waitingCount);
         response.put("completedCount", completedCount);
-        response.put("avgWaitTimeMinutes", DEFAULT_SERVICE_TIME_MINUTES);
+        Double avgServ = tokenRepository.findAvgServiceDurationMinutesByOffice(officeId);
+        int effectiveAvg = (avgServ != null && avgServ > 0) ? (int) Math.round(avgServ) : DEFAULT_SERVICE_TIME_MINUTES;
+        response.put("avgWaitTimeMinutes", effectiveAvg);
+        response.put("isNewOffice", (avgServ == null || avgServ <= 0));
         response.put("nextTokens", nextTokens);
         response.put("unassignedTokens", unassignedList);
         response.put("unassignedCount", unassignedList.size());

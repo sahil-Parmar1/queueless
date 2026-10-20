@@ -1310,51 +1310,59 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                                 const SizedBox(height: 14),
 
                                 // Office ID pill inside header
-                                Row(
+                                Wrap(
+                                  alignment: WrapAlignment.spaceBetween,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 8,
+                                  runSpacing: 8,
                                   children: [
-                                    const Icon(Icons.domain_rounded, color: Colors.white70, size: 16),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Office ID: $officeCode',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 13,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    InkWell(
-                                      onTap: () {
-                                        Clipboard.setData(ClipboardData(text: officeCode));
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: const Text('Office ID copied to clipboard!'),
-                                            behavior: SnackBarBehavior.floating,
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.domain_rounded, color: Colors.white70, size: 15),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Office ID: $officeCode',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 12.5,
+                                            letterSpacing: 0.3,
                                           ),
-                                        );
-                                      },
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.18),
-                                          borderRadius: BorderRadius.circular(6),
                                         ),
-                                        child: const Icon(Icons.copy_rounded, color: Colors.white, size: 14),
-                                      ),
+                                        const SizedBox(width: 6),
+                                        InkWell(
+                                          onTap: () {
+                                            Clipboard.setData(ClipboardData(text: officeCode));
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: const Text('Office ID copied to clipboard!'),
+                                                behavior: SnackBarBehavior.floating,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                              ),
+                                            );
+                                          },
+                                          borderRadius: BorderRadius.circular(6),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withValues(alpha: 0.18),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: const Icon(Icons.copy_rounded, color: Colors.white, size: 13),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const Spacer(),
                                     OutlinedButton.icon(
                                       onPressed: _showProviderQrDialog,
-                                      icon: const Icon(Icons.qr_code_2_rounded, size: 15),
-                                      label: const Text('Show QR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                      icon: const Icon(Icons.qr_code_2_rounded, size: 14),
+                                      label: const Text('Show QR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
                                       style: OutlinedButton.styleFrom(
                                         foregroundColor: Colors.white,
-                                        side: const BorderSide(color: Colors.white70, width: 1.2),
+                                        side: const BorderSide(color: Colors.white70, width: 1.1),
                                         backgroundColor: Colors.white.withValues(alpha: 0.15),
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                         minimumSize: Size.zero,
                                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -1544,91 +1552,103 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           onTap: _showProviderQrDialog,
           borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    gradient: ProviderColors.primaryGradient,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: ProviderColors.primary.withValues(alpha: 0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.qr_code_2_rounded, color: Colors.white, size: 28),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Flexible(
-                            child: Text(
-                              'My Desk QR Stand',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: ProviderColors.mainText,
-                                letterSpacing: -0.2,
-                              ),
-                            ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: ProviderColors.primaryGradient,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: ProviderColors.primary.withValues(alpha: 0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
                           ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: ProviderColors.primarySoft,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text(
-                              'DIRECT CHECK-IN',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                color: ProviderColors.primaryDark,
-                                letterSpacing: 0.5,
+                        ],
+                      ),
+                      child: const Icon(Icons.qr_code_2_rounded, color: Colors.white, size: 26),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              const Text(
+                                'My Desk QR Stand',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: ProviderColors.mainText,
+                                  letterSpacing: -0.2,
+                                ),
                               ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: ProviderColors.primarySoft,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'DIRECT CHECK-IN',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    color: ProviderColors.primaryDark,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 5),
+                          const Text(
+                            'Display or print your QR code. Walk-in clients scan to book tokens directly with you.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: ProviderColors.secondaryText,
+                              height: 1.35,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 5),
-                      const Text(
-                        'Display or print your QR code. Walk-in clients scan to book tokens directly with you.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: ProviderColors.secondaryText,
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: _showProviderQrDialog,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ProviderColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('View QR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      SizedBox(width: 4),
-                      Icon(Icons.arrow_forward_rounded, size: 14),
-                    ],
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  height: 42,
+                  child: ElevatedButton(
+                    onPressed: _showProviderQrDialog,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ProviderColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.qr_code_rounded, size: 16),
+                        SizedBox(width: 8),
+                        Text('View & Print Desk QR Stand', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        SizedBox(width: 6),
+                        Icon(Icons.arrow_forward_rounded, size: 14),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -2325,33 +2345,39 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
         children: [
           // Section Header
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: ProviderColors.primarySoft,
-                      borderRadius: BorderRadius.circular(10),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        color: ProviderColors.primarySoft,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.people_alt_rounded, color: ProviderColors.primary, size: 18),
                     ),
-                    child: const Icon(Icons.people_alt_rounded, color: ProviderColors.primary, size: 20),
-                  ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'Live Queue Counter',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: ProviderColors.mainText,
+                    const SizedBox(width: 8),
+                    const Flexible(
+                      child: Text(
+                        'Live Queue Counter',
+                        style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                          color: ProviderColors.mainText,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 6),
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
                       color: ProviderColors.success.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
@@ -2359,20 +2385,21 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.circle, color: ProviderColors.success, size: 8),
+                        Icon(Icons.circle, color: ProviderColors.success, size: 7),
                         SizedBox(width: 4),
                         Text(
                           'LIVE',
-                          style: TextStyle(color: Color(0xFF059669), fontSize: 10, fontWeight: FontWeight.w800),
+                          style: TextStyle(color: Color(0xFF059669), fontSize: 9.5, fontWeight: FontWeight.w800),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 2),
                   IconButton(
-                    icon: const Icon(Icons.sync_rounded, color: ProviderColors.mutedText, size: 20),
+                    icon: const Icon(Icons.sync_rounded, color: ProviderColors.mutedText, size: 19),
                     tooltip: 'Refresh Queue',
-                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(4),
                     onPressed: () => _fetchLiveQueue(),
                   ),
                 ],

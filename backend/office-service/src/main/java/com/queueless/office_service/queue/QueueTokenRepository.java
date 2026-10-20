@@ -83,4 +83,10 @@ public interface QueueTokenRepository extends JpaRepository<QueueToken, Long> {
 
     List<QueueToken> findByRequestedProviderIdAndPriorityStatusAndStatusInOrderByPriorityRequestedAtAsc(
             Long requestedProviderId, String priorityStatus, List<TokenStatus> statuses);
+
+    @Query("SELECT AVG(t.serviceDurationMinutes) FROM QueueToken t WHERE t.office.id = :officeId AND t.status = com.queueless.office_service.queue.TokenStatus.COMPLETED AND t.serviceDurationMinutes IS NOT NULL AND t.serviceDurationMinutes > 0")
+    Double findAvgServiceDurationMinutesByOffice(@Param("officeId") Long officeId);
+
+    @Query("SELECT AVG(t.serviceDurationMinutes) FROM QueueToken t WHERE t.provider.id = :providerId AND t.status = com.queueless.office_service.queue.TokenStatus.COMPLETED AND t.serviceDurationMinutes IS NOT NULL AND t.serviceDurationMinutes > 0")
+    Double findAvgServiceDurationMinutesByProvider(@Param("providerId") Long providerId);
 }

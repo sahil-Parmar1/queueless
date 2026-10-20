@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:queueless/screens/search/office_search_screen.dart';
 import '../../services/office_service.dart';
+import '../../services/queue_estimation_service.dart';
 import '../../services/queue_notification_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -19,6 +20,8 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
   bool _loading = true;
   Map<String, dynamic>? _tokenData;
   Timer? _pollingTimer;
+  Timer? _countdownTicker;
+  DateTime? _lastSyncTime;
 
   @override
   void initState() {
@@ -27,6 +30,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
     if (widget.initialTokenData != null) {
       _tokenData = widget.initialTokenData;
       _loading = false;
+      _lastSyncTime = DateTime.now();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _tokenData != null) {
           QueueNotificationService().processTokenData(_tokenData!);
@@ -36,13 +40,24 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
       _fetchActiveToken();
     }
     _startPolling();
+    _startCountdownTicker();
   }
 
   @override
   void dispose() {
     QueueNotificationService.unregisterTokenScreen();
     _pollingTimer?.cancel();
+    _countdownTicker?.cancel();
     super.dispose();
+  }
+
+  void _startCountdownTicker() {
+    _countdownTicker?.cancel();
+    _countdownTicker = Timer.periodic(const Duration(seconds: 15), (timer) {
+      if (mounted && _tokenData != null) {
+        setState(() {}); // Smoothly recalculates countdown between server polls
+      }
+    });
   }
 
   void _startPolling() {
@@ -63,6 +78,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
       setState(() {
         _tokenData = data;
         _loading = false;
+        _lastSyncTime = DateTime.now();
       });
       if (data != null) {
         QueueNotificationService().processTokenData(data);
@@ -414,8 +430,6 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
     final officeName = _tokenData?['officeName'] ?? 'Office';
     final category = _tokenData?['category'] ?? 'OFFICE';
     final status = _tokenData?['status'] ?? 'WAITING';
-    final peopleAhead = _tokenData?['peopleAhead'] ?? 0;
-    final waitMins = _tokenData?['estimatedWaitMinutes'] ?? (peopleAhead * 12);
     final currentlyServing = _tokenData?['currentlyServing'] ?? 'None';
     final address = _tokenData?['address'] ?? '';
     final city = _tokenData?['city'] ?? '';
@@ -423,9 +437,17 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
     final providerDesignation = _tokenData?['providerDesignation'] ?? '';
 
     final tokenObj = _tokenData?['token'];
-    final isPriority = _tokenData?['isPriority'] == true || tokenObj?['isPriority'] == true;
-    final priorityStatus = (_tokenData?['priorityStatus'] ?? tokenObj?['priorityStatus'] ?? 'NONE').toString().toUpperCase();
     final priorityReason = (_tokenData?['priorityReason'] ?? tokenObj?['priorityReason'] ?? '').toString();
+
+    final elapsed = _lastSyncTime != null ? DateTime.now().difference(_lastSyncTime!) : Duration.zero;
+    final estResult = QueueEstimationService.calculate(
+      tokenData: _tokenData ?? {},
+      elapsedSinceSync: elapsed,
+    );
+
+    final peopleAhead = estResult.peopleAhead;
+    final isPriority = estResult.isPriorityCustomer;
+    final priorityStatus = estResult.priorityStatus;
 
     final isTurnNow = status == 'CALLED' || status == 'IN_SERVICE';
     final isAlmostTurn =
@@ -962,31 +984,104 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                 // Metrics Grid
                 Padding(
                   padding: const EdgeInsets.all(20),
-                  child: Row(
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: _buildMetricTile(
-                          label: 'Est. Wait',
-                          value: '$waitMins min',
-                          icon: Icons.timer_outlined,
-                          color: AppColors.warning,
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildMetricTile(
+                              label: 'Est. Wait',
+                              value: estResult.formattedWaitTime,
+                              icon: Icons.timer_outlined,
+                              color: estResult.isPriorityCustomer ? const Color(0xFFD97706) : AppColors.warning,
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 40,
+                            color: AppColors.border,
+                          ),
+                          Expanded(
+                            child: _buildMetricTile(
+                              label: 'Now Serving',
+                              value: currentlyServing != 'None'
+                                  ? '#$currentlyServing'
+                                  : '--',
+                              icon: Icons.notifications_active_outlined,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 12),
+                      // Estimation details & dynamic history pill
                       Container(
-                        width: 1,
-                        height: 40,
-                        color: AppColors.border,
-                      ),
-                      Expanded(
-                        child: _buildMetricTile(
-                          label: 'Now Serving',
-                          value: currentlyServing != 'None'
-                              ? '#$currentlyServing'
-                              : '--',
-                          icon: Icons.notifications_active_outlined,
-                          color: AppColors.primary,
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: estResult.isPriorityCustomer
+                              ? const Color(0xFFFEF3C7)
+                              : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: estResult.isPriorityCustomer
+                                ? const Color(0xFFFCD34D)
+                                : const Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              estResult.isPriorityCustomer
+                                  ? Icons.bolt_rounded
+                                  : Icons.auto_graph_rounded,
+                              size: 15,
+                              color: estResult.isPriorityCustomer
+                                  ? const Color(0xFFB45309)
+                                  : const Color(0xFF64748B),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                estResult.estimationSubtitle,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: estResult.isPriorityCustomer
+                                      ? const Color(0xFF92400E)
+                                      : const Color(0xFF475569),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+                      if (estResult.priorityTokensAhead > 0 && !estResult.isPriorityCustomer) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFFDE68A)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.info_outline_rounded, color: Color(0xFFD97706), size: 15),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  '${estResult.priorityTokensAhead} priority customer${estResult.priorityTokensAhead == 1 ? '' : 's'} ahead. Wait time dynamically adjusted.',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF92400E)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

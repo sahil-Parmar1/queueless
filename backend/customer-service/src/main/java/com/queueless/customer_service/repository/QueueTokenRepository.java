@@ -49,4 +49,33 @@ public interface QueueTokenRepository extends JpaRepository<QueueToken, Long> {
 
     @Query("SELECT COUNT(t) FROM QueueToken t WHERE t.provider.id = :providerId AND t.status = 'WAITING' AND t.sequenceNumber < :sequenceNumber")
     Long countTokensAheadOfProvider(@Param("providerId") Long providerId, @Param("sequenceNumber") Integer sequenceNumber);
+
+    @Query("SELECT AVG(t.serviceDurationMinutes) FROM QueueToken t WHERE t.office.id = :officeId AND t.status = com.queueless.customer_service.model.TokenStatus.COMPLETED AND t.serviceDurationMinutes IS NOT NULL AND t.serviceDurationMinutes > 0")
+    Double findAvgServiceDurationMinutesByOffice(@Param("officeId") Long officeId);
+
+    @Query("SELECT AVG(t.serviceDurationMinutes) FROM QueueToken t WHERE t.provider.id = :providerId AND t.status = com.queueless.customer_service.model.TokenStatus.COMPLETED AND t.serviceDurationMinutes IS NOT NULL AND t.serviceDurationMinutes > 0")
+    Double findAvgServiceDurationMinutesByProvider(@Param("providerId") Long providerId);
+
+    @Query("SELECT COUNT(t) FROM QueueToken t WHERE t.office.id = :officeId AND t.status = com.queueless.customer_service.model.TokenStatus.COMPLETED")
+    Long countCompletedTokensByOffice(@Param("officeId") Long officeId);
+
+    @Query("SELECT COUNT(t) FROM QueueToken t WHERE t.office.id = :officeId AND t.status = com.queueless.customer_service.model.TokenStatus.WAITING AND t.isPriority = true AND t.sequenceNumber < :sequenceNumber")
+    Long countPriorityTokensAheadOfOffice(@Param("officeId") Long officeId, @Param("sequenceNumber") Integer sequenceNumber);
+
+    @Query("SELECT COUNT(t) FROM QueueToken t WHERE t.provider.id = :providerId AND t.status = com.queueless.customer_service.model.TokenStatus.WAITING AND t.isPriority = true AND t.sequenceNumber < :sequenceNumber")
+    Long countPriorityTokensAheadOfProvider(@Param("providerId") Long providerId, @Param("sequenceNumber") Integer sequenceNumber);
+
+    @Query("SELECT COUNT(t) FROM QueueToken t WHERE t.office.id = :officeId AND t.status = com.queueless.customer_service.model.TokenStatus.WAITING AND (t.isPriority = true OR t.sequenceNumber < :sequenceNumber)")
+    Long countStandardTokensAheadOfOffice(@Param("officeId") Long officeId, @Param("sequenceNumber") Integer sequenceNumber);
+
+    @Query("SELECT COUNT(t) FROM QueueToken t WHERE t.provider.id = :providerId AND t.status = com.queueless.customer_service.model.TokenStatus.WAITING AND (t.isPriority = true OR t.sequenceNumber < :sequenceNumber)")
+    Long countStandardTokensAheadOfProvider(@Param("providerId") Long providerId, @Param("sequenceNumber") Integer sequenceNumber);
+
+    @Query("SELECT COUNT(t) FROM QueueToken t WHERE t.office.id = :officeId AND t.status = com.queueless.customer_service.model.TokenStatus.WAITING AND t.isPriority = true")
+    Long countWaitingPriorityTokensInOffice(@Param("officeId") Long officeId);
+
+    @Query("SELECT COUNT(t) FROM QueueToken t WHERE t.provider.id = :providerId AND t.status = com.queueless.customer_service.model.TokenStatus.WAITING AND t.isPriority = true")
+    Long countWaitingPriorityTokensInProvider(@Param("providerId") Long providerId);
+
+    Long countByProviderIdAndStatusIn(Long providerId, List<TokenStatus> statuses);
 }

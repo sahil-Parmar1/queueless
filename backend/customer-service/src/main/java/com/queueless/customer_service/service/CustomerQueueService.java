@@ -106,8 +106,9 @@ public class CustomerQueueService {
         }
         String tokenNumber = prefix + String.format("%03d", nextSeq);
 
+        int avgServiceTime = getEffectiveAverageServiceMinutes(officeId, provider != null ? provider.getId() : null);
         Long currentWaiting = tokenRepository.countByOfficeIdAndStatus(officeId, TokenStatus.WAITING);
-        int waitTime = (int) (currentWaiting * DEFAULT_SERVICE_TIME_MINUTES);
+        int waitTime = (int) (currentWaiting * avgServiceTime);
 
         QueueToken token = new QueueToken();
         token.setOffice(office);
@@ -134,6 +135,8 @@ public class CustomerQueueService {
         response.put("sequenceNumber", saved.getSequenceNumber());
         response.put("peopleAhead", currentWaiting);
         response.put("estimatedWaitMinutes", waitTime);
+        response.put("avgServiceTimeMinutes", avgServiceTime);
+        response.put("isNewOffice", isOfficeNew(officeId));
         response.put("officeId", office.getId());
         response.put("officeName", office.getUser() != null ? office.getUser().getName() : "Office");
         response.put("category", office.getCategory() != null ? office.getCategory().name() : "OFFICE");
@@ -164,14 +167,45 @@ public class CustomerQueueService {
         }
 
         QueueToken activeToken = tokens.get(0);
-        Long peopleAhead;
-        if (activeToken.getProvider() != null) {
-            peopleAhead = tokenRepository.countTokensAheadOfProvider(activeToken.getProvider().getId(), activeToken.getSequenceNumber());
+        Long officeId = activeToken.getOffice().getId();
+        Long providerId = activeToken.getProvider() != null ? activeToken.getProvider().getId() : null;
+        int avgServiceTime = getEffectiveAverageServiceMinutes(officeId, providerId);
+        boolean isNew = isOfficeNew(officeId);
+
+        boolean isTokenPriority = Boolean.TRUE.equals(activeToken.getIsPriority());
+        Long waitingAhead;
+        Long deskOccupied;
+        Long priorityTokensAhead = 0L;
+
+        if (providerId != null) {
+            deskOccupied = tokenRepository.countByProviderIdAndStatusIn(providerId, List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED));
+            if (isTokenPriority) {
+                waitingAhead = tokenRepository.countPriorityTokensAheadOfProvider(providerId, activeToken.getSequenceNumber());
+                priorityTokensAhead = waitingAhead;
+            } else {
+                waitingAhead = tokenRepository.countStandardTokensAheadOfProvider(providerId, activeToken.getSequenceNumber());
+                priorityTokensAhead = tokenRepository.countWaitingPriorityTokensInProvider(providerId);
+            }
         } else {
-            peopleAhead = tokenRepository.countTokensAheadOf(activeToken.getOffice().getId(), activeToken.getSequenceNumber());
+            deskOccupied = tokenRepository.countByOfficeIdAndStatusIn(officeId, List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED));
+            if (isTokenPriority) {
+                waitingAhead = tokenRepository.countPriorityTokensAheadOfOffice(officeId, activeToken.getSequenceNumber());
+                priorityTokensAhead = waitingAhead;
+            } else {
+                waitingAhead = tokenRepository.countStandardTokensAheadOfOffice(officeId, activeToken.getSequenceNumber());
+                priorityTokensAhead = tokenRepository.countWaitingPriorityTokensInOffice(officeId);
+            }
         }
 
-        int estimatedWait = (int) (peopleAhead * DEFAULT_SERVICE_TIME_MINUTES);
+        long totalPeopleAhead = (waitingAhead != null ? waitingAhead : 0L) + (deskOccupied != null ? deskOccupied : 0L);
+
+        int estimatedWait;
+        if (activeToken.getStatus() == TokenStatus.CALLED || activeToken.getStatus() == TokenStatus.IN_SERVICE) {
+            estimatedWait = 0;
+            totalPeopleAhead = 0;
+        } else {
+            estimatedWait = (int) (totalPeopleAhead * avgServiceTime);
+        }
 
         Map<String, Object> response = new HashMap<>();
         response.put("hasActiveToken", true);
@@ -186,8 +220,12 @@ public class CustomerQueueService {
         response.put("priorityReason", activeToken.getPriorityReason());
         response.put("priorityRequestedAt", activeToken.getPriorityRequestedAt());
         response.put("taskDescription", activeToken.getTaskDescription());
-        response.put("peopleAhead", peopleAhead);
+        response.put("peopleAhead", totalPeopleAhead);
         response.put("estimatedWaitMinutes", estimatedWait);
+        response.put("avgServiceTimeMinutes", avgServiceTime);
+        response.put("isNewOffice", isNew);
+        response.put("priorityTokensAhead", priorityTokensAhead != null ? priorityTokensAhead : 0L);
+        response.put("isDeskOccupied", deskOccupied != null && deskOccupied > 0);
         response.put("officeId", activeToken.getOffice().getId());
         response.put("officeName", activeToken.getOffice().getUser() != null ? activeToken.getOffice().getUser().getName() : "Office");
         response.put("officeAddress", activeToken.getOffice().getAddress());
@@ -198,6 +236,25 @@ public class CustomerQueueService {
             response.put("providerDesignation", activeToken.getProvider().getDesignation());
         }
         return response;
+    }
+
+    private int getEffectiveAverageServiceMinutes(Long officeId, Long providerId) {
+        Double avg = null;
+        if (providerId != null) {
+            avg = tokenRepository.findAvgServiceDurationMinutesByProvider(providerId);
+        }
+        if (avg == null || avg <= 0) {
+            avg = tokenRepository.findAvgServiceDurationMinutesByOffice(officeId);
+        }
+        if (avg != null && avg > 0) {
+            return Math.max(1, (int) Math.round(avg));
+        }
+        return DEFAULT_SERVICE_TIME_MINUTES; // 12 default if office is new / no completion history
+    }
+
+    private boolean isOfficeNew(Long officeId) {
+        Long completedCount = tokenRepository.countCompletedTokensByOffice(officeId);
+        return completedCount == null || completedCount == 0;
     }
 
     @Transactional(readOnly = true)
@@ -328,13 +385,18 @@ public class CustomerQueueService {
         int dailyMax = office.getDailyMaxTokens() != null ? office.getDailyMaxTokens() : 60;
         boolean isFull = tokensBookedToday >= dailyMax;
 
+        int avgServiceTime = getEffectiveAverageServiceMinutes(officeId, null);
+        boolean isNew = isOfficeNew(officeId);
+
         Map<String, Object> live = new HashMap<>();
         live.put("officeId", officeId);
         live.put("officeName", office.getUser() != null ? office.getUser().getName() : "Office");
         live.put("isOpen", office.getIsOpen());
         live.put("waitingCount", waitingCount != null ? waitingCount : 0);
         live.put("activeToken", activeToken != null ? activeToken.getTokenNumber() : null);
-        live.put("estimatedWaitMinutes", (waitingCount != null ? waitingCount : 0) * DEFAULT_SERVICE_TIME_MINUTES);
+        live.put("avgServiceTimeMinutes", avgServiceTime);
+        live.put("isNewOffice", isNew);
+        live.put("estimatedWaitMinutes", (waitingCount != null ? waitingCount : 0) * avgServiceTime);
         live.put("dailyMaxTokens", dailyMax);
         live.put("tokensBookedToday", tokensBookedToday);
         live.put("isOfficeFull", isFull);

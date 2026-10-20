@@ -613,7 +613,14 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
 
     final waitingCount = _liveQueue?['waitingCount'] ?? _officeDetails?['waitingCount'] ?? 0;
     final activeToken = _liveQueue?['activeToken'] ?? _officeDetails?['activeToken'];
-    final estWait = waitingCount * 12;
+    final rawAvg = _liveQueue?['avgServiceTimeMinutes'] ?? _officeDetails?['avgServiceTimeMinutes'];
+    final int avgMins = (rawAvg is int && rawAvg > 0)
+        ? rawAvg
+        : (rawAvg is num && rawAvg > 0)
+            ? rawAvg.round()
+            : 12;
+    final bool isNewOffice = (_liveQueue?['isNewOffice'] ?? _officeDetails?['isNewOffice']) == true || rawAvg == null;
+    final estWait = waitingCount * avgMins;
 
     final int dailyMaxTokens = _liveQueue?['dailyMaxTokens'] ?? 60;
     final int todayTokensCount = _liveQueue?['todayTokensCount'] ?? 0;
@@ -927,12 +934,32 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                   const Divider(height: 1, color: AppColors.borderLight),
                   const SizedBox(height: 14),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.timer_outlined, color: AppColors.warning, size: 18),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Icon(Icons.timer_outlined, color: AppColors.warning, size: 18),
+                      ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Estimated wait time: ~${estWait > 0 ? estWait : 5} minutes',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              waitingCount == 0
+                                  ? 'Estimated wait time: < 1 min (Counter available)'
+                                  : 'Estimated wait time: ~$estWait minutes ($waitingCount in line)',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.mainText),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              isNewOffice
+                                  ? 'Default estimation: ~12 min/turn (New office)'
+                                  : 'Based on completion history: ~$avgMins min/turn',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.mutedText),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),

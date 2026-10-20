@@ -157,9 +157,15 @@ public class CustomerOfficeService {
                 List.of(TokenStatus.IN_SERVICE, TokenStatus.CALLED)
         ).orElse(null);
 
+        Double avgMinutes = tokenRepository.findAvgServiceDurationMinutesByOffice(p.getId());
+        boolean isNew = (avgMinutes == null || avgMinutes <= 0);
+        int avgServiceTime = isNew ? 12 : Math.max(1, (int) Math.round(avgMinutes));
+
         map.put("waitingCount", waitingCount != null ? waitingCount : 0);
         map.put("activeToken", activeToken != null ? activeToken.getTokenNumber() : null);
-        map.put("estimatedWaitMinutes", (waitingCount != null ? waitingCount : 0) * 12);
+        map.put("avgServiceTimeMinutes", avgServiceTime);
+        map.put("isNewOffice", isNew);
+        map.put("estimatedWaitMinutes", (waitingCount != null ? waitingCount : 0) * avgServiceTime);
         return map;
     }
 
