@@ -1,5 +1,6 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LocationService {
   static final LocationService _instance = LocationService._internal();
@@ -64,5 +65,39 @@ class LocationService {
   LatLng? get currentLatLng {
     if (_lastKnownPosition == null) return null;
     return LatLng(_lastKnownPosition!.latitude, _lastKnownPosition!.longitude);
+  }
+
+  /// Opens Google Maps (or native maps) with turn-by-turn navigation to the specified latitude/longitude
+  static Future<bool> openMapDirections({
+    required double latitude,
+    required double longitude,
+    String? destinationTitle,
+  }) async {
+    // Official Google Maps Directions Universal URL (works on Android, iOS, and Web)
+    final googleMapsUrl = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude');
+
+    // Geo URI fallback for native Android map apps
+    final label = (destinationTitle != null && destinationTitle.trim().isNotEmpty)
+        ? '(${Uri.encodeComponent(destinationTitle.trim())})'
+        : '';
+    final geoUrl = Uri.parse('geo:$latitude,$longitude?q=$latitude,$longitude$label');
+
+    try {
+      if (await canLaunchUrl(googleMapsUrl)) {
+        return await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+
+    try {
+      if (await canLaunchUrl(geoUrl)) {
+        return await launchUrl(geoUrl, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+
+    try {
+      return await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      return false;
+    }
   }
 }
