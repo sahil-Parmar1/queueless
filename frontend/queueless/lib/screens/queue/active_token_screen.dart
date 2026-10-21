@@ -53,9 +53,9 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
 
   void _startCountdownTicker() {
     _countdownTicker?.cancel();
-    _countdownTicker = Timer.periodic(const Duration(seconds: 15), (timer) {
+    _countdownTicker = Timer.periodic(const Duration(seconds: 4), (timer) {
       if (mounted && _tokenData != null) {
-        setState(() {}); // Smoothly recalculates countdown between server polls
+        setState(() {}); // Smoothly recalculates countdown & live AI predictor
       }
     });
   }
@@ -115,7 +115,10 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
             onPressed: () => Navigator.pop(context, false),
             child: const Text(
               'Keep Token',
-              style: TextStyle(color: AppColors.mutedText, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: AppColors.mutedText,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           ElevatedButton(
@@ -204,7 +207,11 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                       color: Color(0xFFFEF3C7),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.bolt_rounded, color: Color(0xFFD97706), size: 22),
+                    child: const Icon(
+                      Icons.bolt_rounded,
+                      color: Color(0xFFD97706),
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   const Text(
@@ -233,7 +240,10 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                 maxLength: 150,
                 decoration: InputDecoration(
                   hintText: 'Describe why you need priority service...',
-                  hintStyle: const TextStyle(fontSize: 13, color: AppColors.mutedText),
+                  hintStyle: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.mutedText,
+                  ),
                   filled: true,
                   fillColor: const Color(0xFFF8FAFC),
                   border: OutlineInputBorder(
@@ -246,7 +256,10 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFD97706), width: 1.5),
+                    borderSide: const BorderSide(
+                      color: Color(0xFFD97706),
+                      width: 1.5,
+                    ),
                   ),
                 ),
               ),
@@ -255,13 +268,20 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                      onPressed: isSubmitting
+                          ? null
+                          : () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         side: BorderSide(color: Colors.grey.shade300),
                       ),
-                      child: const Text('Cancel', style: TextStyle(color: AppColors.secondaryText)),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(color: AppColors.secondaryText),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -274,20 +294,27 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                               if (reason.isEmpty) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('Please enter a reason for priority.'),
+                                    content: Text(
+                                      'Please enter a reason for priority.',
+                                    ),
                                     backgroundColor: AppColors.error,
                                   ),
                                 );
                                 return;
                               }
                               setModalState(() => isSubmitting = true);
-                              final res = await _officeService.requestPriority(tokenId, reason);
+                              final res = await _officeService.requestPriority(
+                                tokenId,
+                                reason,
+                              );
                               if (mounted) {
                                 Navigator.pop(context);
                                 if (res['success'] == true) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Priority request submitted! Awaiting review.'),
+                                      content: Text(
+                                        'Priority request submitted! Awaiting review.',
+                                      ),
                                       backgroundColor: Color(0xFF059669),
                                     ),
                                   );
@@ -295,7 +322,10 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text(res['errorMessage'] ?? 'Failed to submit request.'),
+                                      content: Text(
+                                        res['errorMessage'] ??
+                                            'Failed to submit request.',
+                                      ),
                                       backgroundColor: AppColors.error,
                                     ),
                                   );
@@ -306,16 +336,24 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                         backgroundColor: const Color(0xFFD97706),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         elevation: 0,
                       ),
                       child: isSubmitting
                           ? const SizedBox(
                               height: 18,
                               width: 18,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
                             )
-                          : const Text('Submit Request', style: TextStyle(fontWeight: FontWeight.bold)),
+                          : const Text(
+                              'Submit Request',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                     ),
                   ),
                 ],
@@ -437,9 +475,13 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
     final providerDesignation = _tokenData?['providerDesignation'] ?? '';
 
     final tokenObj = _tokenData?['token'];
-    final priorityReason = (_tokenData?['priorityReason'] ?? tokenObj?['priorityReason'] ?? '').toString();
+    final priorityReason =
+        (_tokenData?['priorityReason'] ?? tokenObj?['priorityReason'] ?? '')
+            .toString();
 
-    final elapsed = _lastSyncTime != null ? DateTime.now().difference(_lastSyncTime!) : Duration.zero;
+    final elapsed = _lastSyncTime != null
+        ? DateTime.now().difference(_lastSyncTime!)
+        : Duration.zero;
     final estResult = QueueEstimationService.calculate(
       tokenData: _tokenData ?? {},
       elapsedSinceSync: elapsed,
@@ -601,7 +643,11 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                       color: Color(0xFFD97706),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 24),
+                    child: const Icon(
+                      Icons.bolt_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   const Expanded(
@@ -648,7 +694,11 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                       color: Color(0xFF3B82F6),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.hourglass_top_rounded, color: Colors.white, size: 22),
+                    child: const Icon(
+                      Icons.hourglass_top_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -697,7 +747,11 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                       color: Color(0xFF9333EA),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.forward_to_inbox_rounded, color: Colors.white, size: 22),
+                    child: const Icon(
+                      Icons.forward_to_inbox_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   const Expanded(
@@ -738,12 +792,20 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.info_outline_rounded, color: Color(0xFF64748B), size: 20),
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFF64748B),
+                    size: 20,
+                  ),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Priority request was not approved. Your token remains safely in the queue with your original position preserved.',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF475569), fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF475569),
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
@@ -804,7 +866,10 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                             children: [
                               if (isPriority) ...[
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
                                   margin: const EdgeInsets.only(right: 6),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFF59E0B),
@@ -813,7 +878,11 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                                   child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.bolt_rounded, color: Colors.white, size: 14),
+                                      Icon(
+                                        Icons.bolt_rounded,
+                                        color: Colors.white,
+                                        size: 14,
+                                      ),
                                       SizedBox(width: 2),
                                       Text(
                                         'PRIORITY',
@@ -972,10 +1041,7 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                     (index) => Expanded(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: Container(
-                          height: 2,
-                          color: AppColors.border,
-                        ),
+                        child: Container(height: 2, color: AppColors.border),
                       ),
                     ),
                   ),
@@ -993,7 +1059,9 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                               label: 'Est. Wait',
                               value: estResult.formattedWaitTime,
                               icon: Icons.timer_outlined,
-                              color: estResult.isPriorityCustomer ? const Color(0xFFD97706) : AppColors.warning,
+                              color: estResult.isPriorityCustomer
+                                  ? const Color(0xFFD97706)
+                                  : AppColors.warning,
                             ),
                           ),
                           Container(
@@ -1017,7 +1085,10 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                       // Estimation details & dynamic history pill
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: estResult.isPriorityCustomer
                               ? const Color(0xFFFEF3C7)
@@ -1058,11 +1129,15 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                           ],
                         ),
                       ),
-                      if (estResult.priorityTokensAhead > 0 && !estResult.isPriorityCustomer) ...[
+                      if (estResult.priorityTokensAhead > 0 &&
+                          !estResult.isPriorityCustomer) ...[
                         const SizedBox(height: 8),
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 7,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFFBEB),
                             borderRadius: BorderRadius.circular(10),
@@ -1070,18 +1145,29 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.info_outline_rounded, color: Color(0xFFD97706), size: 15),
+                              const Icon(
+                                Icons.info_outline_rounded,
+                                color: Color(0xFFD97706),
+                                size: 15,
+                              ),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
                                   '${estResult.priorityTokensAhead} priority customer${estResult.priorityTokensAhead == 1 ? '' : 's'} ahead. Wait time dynamically adjusted.',
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF92400E)),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF92400E),
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
                       ],
+                      const SizedBox(height: 12),
+                      // AI Smart Rush & Wait-Time Forecast
+                      _buildAiRushInsightBanner(estResult.aiRush),
                     ],
                   ),
                 ),
@@ -1096,7 +1182,9 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
             decoration: BoxDecoration(
               color: AppColors.primarySoft.withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.primaryLight.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: AppColors.primaryLight.withValues(alpha: 0.3),
+              ),
             ),
             child: const Row(
               children: [
@@ -1123,12 +1211,17 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
           const SizedBox(height: 24),
 
           // Priority Service Request Action (when waiting and not pending/accepted)
-          if (status == 'WAITING' && (priorityStatus == 'NONE' || priorityStatus == 'REJECTED')) ...[
+          if (status == 'WAITING' &&
+              (priorityStatus == 'NONE' || priorityStatus == 'REJECTED')) ...[
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: _handleRequestPriority,
-                icon: const Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
+                icon: const Icon(
+                  Icons.bolt_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 label: const Text(
                   'Request Priority Service',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
@@ -1137,7 +1230,9 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                   backgroundColor: const Color(0xFFD97706),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   elevation: 0,
                 ),
               ),
@@ -1272,6 +1367,102 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAiRushInsightBanner(AiRushPrediction rush) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: rush.softBgColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: rush.borderColor, width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: rush.borderColor),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.auto_awesome,
+                      size: 12,
+                      color: Color(0xFF6366F1),
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'AI PREDICTOR',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF4F46E5),
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: rush.color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(rush.icon, size: 12, color: rush.color),
+                    const SizedBox(width: 4),
+                    Text(
+                      rush.levelLabel,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        color: rush.color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  rush.bufferNote,
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: rush.color,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            rush.insightDescription,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: Color(0xFF334155),
+              height: 1.35,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
