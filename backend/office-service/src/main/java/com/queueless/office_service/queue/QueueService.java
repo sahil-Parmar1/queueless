@@ -82,7 +82,25 @@ public class QueueService {
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
 
-        // 2. Enforce Office Daily Maximum Token Limit
+        // 2. Enforce One Active Token Per Office Limit
+        List<TokenStatus> activeStatuses = List.of(TokenStatus.WAITING, TokenStatus.CALLED, TokenStatus.IN_SERVICE);
+        QueueToken existingActiveToken = null;
+        if (customerId != null) {
+            existingActiveToken = tokenRepository
+                    .findFirstByOfficeIdAndCustomerIdAndStatusInOrderByBookedAtDesc(officeId, customerId, activeStatuses)
+                    .orElse(null);
+        }
+        if (existingActiveToken == null && customerEmail != null && !customerEmail.isBlank()) {
+            existingActiveToken = tokenRepository
+                    .findFirstByOfficeIdAndCustomerEmailAndStatusInOrderByBookedAtDesc(officeId, customerEmail.trim(), activeStatuses)
+                    .orElse(null);
+        }
+
+        if (existingActiveToken != null) {
+            throw new IllegalStateException("You already have an active token (" + existingActiveToken.getTokenNumber() + ") for this office. Please complete or cancel your current token before booking a new one.");
+        }
+
+        // 3. Enforce Office Daily Maximum Token Limit
         long officeTokensToday = tokenRepository.countValidTokensTodayByOffice(officeId, startOfDay, endOfDay);
         int officeDailyMax = office.getDailyMaxTokens();
         if (officeTokensToday >= officeDailyMax) {
@@ -623,17 +641,36 @@ public class QueueService {
      */
     @Transactional(readOnly = true)
     public Map<String, Object> getMyActiveToken(Long customerId, String email) {
-        List<QueueToken> activeList;
+        return getMyActiveToken(null, customerId, email);
+    }
 
-        if (customerId != null) {
+    /**
+     * Get active token for a customer, optionally filtered to a specific office.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getMyActiveToken(Long targetOfficeId, Long customerId, String email) {
+        List<QueueToken> activeList;
+        List<TokenStatus> activeStatuses = List.of(TokenStatus.WAITING, TokenStatus.CALLED, TokenStatus.IN_SERVICE);
+
+        if (targetOfficeId != null) {
+            if (customerId != null) {
+                activeList = tokenRepository.findByOfficeIdAndCustomerIdAndStatusInOrderByBookedAtDesc(
+                        targetOfficeId, customerId, activeStatuses
+                );
+            } else if (email != null && !email.isBlank()) {
+                activeList = tokenRepository.findByOfficeIdAndCustomerEmailAndStatusInOrderByBookedAtDesc(
+                        targetOfficeId, email.trim(), activeStatuses
+                );
+            } else {
+                return Map.of("hasActiveToken", false);
+            }
+        } else if (customerId != null) {
             activeList = tokenRepository.findByCustomerIdAndStatusInOrderByBookedAtDesc(
-                    customerId,
-                    List.of(TokenStatus.WAITING, TokenStatus.CALLED, TokenStatus.IN_SERVICE)
+                    customerId, activeStatuses
             );
         } else if (email != null && !email.isBlank()) {
             activeList = tokenRepository.findByCustomerEmailAndStatusInOrderByBookedAtDesc(
-                    email.trim(),
-                    List.of(TokenStatus.WAITING, TokenStatus.CALLED, TokenStatus.IN_SERVICE)
+                    email.trim(), activeStatuses
             );
         } else {
             return Map.of("hasActiveToken", false);

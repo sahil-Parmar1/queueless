@@ -8,8 +8,9 @@ import '../../theme/app_theme.dart';
 
 class ActiveTokenScreen extends StatefulWidget {
   final Map<String, dynamic>? initialTokenData;
+  final int? officeId;
 
-  const ActiveTokenScreen({super.key, this.initialTokenData});
+  const ActiveTokenScreen({super.key, this.initialTokenData, this.officeId});
 
   @override
   State<ActiveTokenScreen> createState() => _ActiveTokenScreenState();
@@ -69,11 +70,19 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
     });
   }
 
+  int? get _effectiveOfficeId {
+    if (widget.officeId != null) return widget.officeId;
+    final dynamic raw = _tokenData?['officeId'];
+    if (raw is num) return raw.toInt();
+    if (raw is String) return int.tryParse(raw);
+    return null;
+  }
+
   Future<void> _fetchActiveToken({bool silent = false}) async {
     if (!silent) {
       setState(() => _loading = true);
     }
-    final data = await _officeService.getMyActiveToken();
+    final data = await _officeService.getMyActiveToken(officeId: _effectiveOfficeId);
     if (mounted) {
       setState(() {
         _tokenData = data;
@@ -1382,10 +1391,13 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
@@ -1412,9 +1424,8 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
                 decoration: BoxDecoration(
                   color: rush.color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
@@ -1435,20 +1446,36 @@ class _ActiveTokenScreenState extends State<ActiveTokenScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  rush.bufferNote,
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w700,
-                    color: rush.color,
+              if (rush.bufferNote.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: rush.color.withValues(alpha: 0.3),
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.schedule_rounded,
+                        size: 11,
+                        color: rush.color,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        rush.bufferNote,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: rush.color,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 8),

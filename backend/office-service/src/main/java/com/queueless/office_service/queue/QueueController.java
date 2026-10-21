@@ -1,5 +1,6 @@
 package com.queueless.office_service.queue;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
@@ -73,10 +74,14 @@ public class QueueController {
             );
             return ResponseEntity.ok(result);
         } catch (IllegalStateException | IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "error", e.getMessage(),
-                    "message", e.getMessage()
-            ));
+            boolean isDuplicate = e.getMessage() != null && e.getMessage().toLowerCase().contains("already have an active token");
+            Map<String, Object> errResponse = new HashMap<>();
+            errResponse.put("error", e.getMessage());
+            errResponse.put("message", e.getMessage());
+            if (isDuplicate) {
+                errResponse.put("alreadyHasActiveToken", true);
+            }
+            return ResponseEntity.badRequest().body(errResponse);
         }
     }
 
@@ -87,6 +92,7 @@ public class QueueController {
     public ResponseEntity<?> getMyActiveToken(
             @RequestParam(value = "email", required = false) String email,
             @RequestParam(value = "customerId", required = false) Long customerId,
+            @RequestParam(value = "officeId", required = false) Long officeId,
             Authentication authentication) {
 
         if (authentication != null && authentication.getPrincipal() instanceof User user) {
@@ -96,7 +102,7 @@ public class QueueController {
             email = authentication.getName();
         }
 
-        Map<String, Object> result = queueService.getMyActiveToken(customerId, email);
+        Map<String, Object> result = queueService.getMyActiveToken(officeId, customerId, email);
         return ResponseEntity.ok(result);
     }
 

@@ -71,6 +71,24 @@ public class CustomerQueueService {
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
 
+        // Enforce One Active Token Per Office Limit
+        List<TokenStatus> activeStatuses = List.of(TokenStatus.WAITING, TokenStatus.CALLED, TokenStatus.IN_SERVICE);
+        QueueToken existingActiveToken = null;
+        if (customerId != null) {
+            existingActiveToken = tokenRepository
+                    .findFirstByOfficeIdAndCustomerIdAndStatusInOrderByBookedAtDesc(officeId, customerId, activeStatuses)
+                    .orElse(null);
+        }
+        if (existingActiveToken == null && customerEmail != null && !customerEmail.isBlank()) {
+            existingActiveToken = tokenRepository
+                    .findFirstByOfficeIdAndCustomerEmailAndStatusInOrderByBookedAtDesc(officeId, customerEmail.trim(), activeStatuses)
+                    .orElse(null);
+        }
+
+        if (existingActiveToken != null) {
+            throw new IllegalStateException("You already have an active token (" + existingActiveToken.getTokenNumber() + ") for this office. Please complete or cancel your current token before booking a new one.");
+        }
+
         // Daily limit check
         long officeTokensToday = tokenRepository.countValidTokensTodayByOffice(officeId, startOfDay, endOfDay);
         int officeDailyMax = office.getDailyMaxTokens() != null ? office.getDailyMaxTokens() : 60;
@@ -152,14 +170,28 @@ public class CustomerQueueService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> getMyActiveToken(Long customerId, String email) {
+        return getMyActiveToken(null, customerId, email);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getMyActiveToken(Long targetOfficeId, Long customerId, String email) {
         List<QueueToken> tokens = new ArrayList<>();
         List<TokenStatus> activeStatuses = List.of(TokenStatus.WAITING, TokenStatus.CALLED, TokenStatus.IN_SERVICE);
 
-        if (customerId != null) {
-            tokens = tokenRepository.findByCustomerIdAndStatusInOrderByBookedAtDesc(customerId, activeStatuses);
-        }
-        if (tokens.isEmpty() && email != null && !email.isBlank()) {
-            tokens = tokenRepository.findByCustomerEmailAndStatusInOrderByBookedAtDesc(email.trim(), activeStatuses);
+        if (targetOfficeId != null) {
+            if (customerId != null) {
+                tokens = tokenRepository.findByOfficeIdAndCustomerIdAndStatusInOrderByBookedAtDesc(targetOfficeId, customerId, activeStatuses);
+            }
+            if (tokens.isEmpty() && email != null && !email.isBlank()) {
+                tokens = tokenRepository.findByOfficeIdAndCustomerEmailAndStatusInOrderByBookedAtDesc(targetOfficeId, email.trim(), activeStatuses);
+            }
+        } else {
+            if (customerId != null) {
+                tokens = tokenRepository.findByCustomerIdAndStatusInOrderByBookedAtDesc(customerId, activeStatuses);
+            }
+            if (tokens.isEmpty() && email != null && !email.isBlank()) {
+                tokens = tokenRepository.findByCustomerEmailAndStatusInOrderByBookedAtDesc(email.trim(), activeStatuses);
+            }
         }
 
         if (tokens.isEmpty()) {

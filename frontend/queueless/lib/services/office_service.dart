@@ -182,6 +182,7 @@ class OfficeService {
         };
       } else {
         bool isAuthError = response.statusCode == 401;
+        bool alreadyHasActiveToken = false;
         String msg = 'Booking failed with status ${response.statusCode}';
         try {
           final errBody = jsonDecode(response.body);
@@ -189,6 +190,10 @@ class OfficeService {
             msg = errBody['error'];
           } else if (errBody['message'] != null) {
             msg = errBody['message'];
+          }
+          if (errBody['alreadyHasActiveToken'] == true ||
+              msg.toLowerCase().contains('already have an active token')) {
+            alreadyHasActiveToken = true;
           }
         } catch (_) {}
         if (msg.toLowerCase().contains('authentication') ||
@@ -199,6 +204,7 @@ class OfficeService {
         return {
           'success': false,
           'isAuthError': isAuthError,
+          'alreadyHasActiveToken': alreadyHasActiveToken,
           'errorMessage': msg,
         };
       }
@@ -210,18 +216,24 @@ class OfficeService {
     }
   }
 
-  /// Get currently active token for logged in user
-  Future<Map<String, dynamic>?> getMyActiveToken() async {
+  /// Get currently active token for logged in user (optionally filtered by officeId)
+  Future<Map<String, dynamic>?> getMyActiveToken({int? officeId}) async {
     try {
       final user = await getCurrentUser();
       String? email = user?['email'];
 
-      String url = '$_baseUrl/queue/tokens/my-active';
+      final queryParams = <String, String>{};
       if (email != null && email.isNotEmpty) {
-        url += '?email=${Uri.encodeComponent(email)}';
+        queryParams['email'] = email;
+      }
+      if (officeId != null) {
+        queryParams['officeId'] = officeId.toString();
       }
 
-      final uri = Uri.parse(url);
+      final baseUri = Uri.parse('$_baseUrl/queue/tokens/my-active');
+      final uri = baseUri.replace(
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
       final headers = await _getHeaders();
       final response = await http.get(uri, headers: headers);
 

@@ -16,6 +16,14 @@ public interface QueueTokenRepository extends JpaRepository<QueueToken, Long> {
 
     List<QueueToken> findByCustomerIdAndStatusInOrderByBookedAtDesc(Long customerId, List<TokenStatus> statuses);
 
+    List<QueueToken> findByOfficeIdAndCustomerIdAndStatusInOrderByBookedAtDesc(Long officeId, Long customerId, List<TokenStatus> statuses);
+
+    List<QueueToken> findByOfficeIdAndCustomerEmailAndStatusInOrderByBookedAtDesc(Long officeId, String customerEmail, List<TokenStatus> statuses);
+
+    Optional<QueueToken> findFirstByOfficeIdAndCustomerIdAndStatusInOrderByBookedAtDesc(Long officeId, Long customerId, List<TokenStatus> statuses);
+
+    Optional<QueueToken> findFirstByOfficeIdAndCustomerEmailAndStatusInOrderByBookedAtDesc(Long officeId, String customerEmail, List<TokenStatus> statuses);
+
     List<QueueToken> findByCustomerEmailAndStatusInOrderByBookedAtDesc(String customerEmail, List<TokenStatus> statuses);
 
     List<QueueToken> findByCustomerIdOrderByBookedAtDesc(Long customerId);

@@ -30,6 +30,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
 
   Map<String, dynamic>? _officeDetails;
   Map<String, dynamic>? _liveQueue;
+  Map<String, dynamic>? _myActiveTokenForOffice;
   List<dynamic> _providers = [];
   ProviderStatusWebSocketService? _webSocketService;
   Timer? _liveRefreshTimer;
@@ -49,6 +50,23 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
     super.dispose();
   }
 
+  void _navigateToActiveToken([Map<String, dynamic>? tokenData]) {
+    final data = tokenData ?? _myActiveTokenForOffice;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ActiveTokenScreen(
+          initialTokenData: data,
+          officeId: widget.officeId,
+        ),
+      ),
+    ).then((_) {
+      if (mounted) {
+        _loadDetails();
+      }
+    });
+  }
+
   void _startLiveRefresh() {
     _liveRefreshTimer?.cancel();
     _liveRefreshTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
@@ -60,9 +78,11 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
     if (!mounted) return;
     try {
       final queue = await _officeService.getLiveQueue(widget.officeId);
-      if (mounted && queue != null) {
+      final active = await _officeService.getMyActiveToken(officeId: widget.officeId);
+      if (mounted) {
         setState(() {
-          _liveQueue = queue;
+          if (queue != null) _liveQueue = queue;
+          _myActiveTokenForOffice = active;
         });
       }
     } catch (_) {}
@@ -133,6 +153,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
     final details = await _officeService.getOfficeDetails(widget.officeId);
     final queue = await _officeService.getLiveQueue(widget.officeId);
     final providers = await _officeService.getOfficeProviders(widget.officeId);
+    final active = await _officeService.getMyActiveToken(officeId: widget.officeId);
     _officeService.getFavoriteOfficeIds();
 
     if (mounted) {
@@ -140,6 +161,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
         _officeDetails = details;
         _liveQueue = queue;
         _providers = providers;
+        _myActiveTokenForOffice = active;
         _loading = false;
       });
     }
@@ -271,6 +293,19 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
         message:
             'Your login session has expired or you are not signed in. Please sign in to join the queue and book a token.',
       );
+      return;
+    }
+
+    if (_myActiveTokenForOffice != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'You already have an active token (#${_myActiveTokenForOffice!['tokenNumber']}) for this office.',
+          ),
+          backgroundColor: AppColors.primaryDark,
+        ),
+      );
+      _navigateToActiveToken();
       return;
     }
 
@@ -737,14 +772,29 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
           );
 
           // Navigate to Active Token Screen
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  ActiveTokenScreen(initialTokenData: tokenData),
-            ),
-          );
+          _navigateToActiveToken(tokenData);
         } else {
+          final bool alreadyHasActive = result['alreadyHasActiveToken'] == true ||
+              (result['errorMessage'] != null &&
+                  result['errorMessage'].toString().toLowerCase().contains('already have an active token'));
+
+          if (alreadyHasActive) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(result['errorMessage'] ?? 'You already have an active token for this office.'),
+                backgroundColor: AppColors.primaryDark,
+              ),
+            );
+            final existingToken = await _officeService.getMyActiveToken(officeId: widget.officeId);
+            if (mounted && existingToken != null) {
+              setState(() {
+                _myActiveTokenForOffice = existingToken;
+              });
+              _navigateToActiveToken(existingToken);
+              return;
+            }
+          }
+
           final isAuthError =
               result['isAuthError'] == true ||
               (result['errorMessage'] != null &&
@@ -757,7 +807,7 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
               message:
                   'Your login session has expired. Please sign in again to book your token.',
             );
-          } else {
+          } else if (!alreadyHasActive && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(result['errorMessage'] ?? 'Failed to book token'),
@@ -924,14 +974,18 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
         child: SafeArea(
           child: Builder(
             builder: (context) {
-              final bool canJoinQueue =
-                  !_booking && !isOfficeFull && isOfficeOpen;
+              final bool hasActiveToken = _myActiveTokenForOffice != null;
+              final bool canJoinQueue = hasActiveToken || (!_booking && !isOfficeFull && isOfficeOpen);
               String joinButtonText = 'Join Queue / Book Token';
               IconData joinButtonIcon = Icons.confirmation_number_rounded;
               Color joinButtonColor = AppColors.primary;
 
               if (_booking) {
                 joinButtonText = 'Booking...';
+              } else if (hasActiveToken) {
+                joinButtonText = 'View Active Token (#${_myActiveTokenForOffice!['tokenNumber']})';
+                joinButtonIcon = Icons.qr_code_2_rounded;
+                joinButtonColor = AppColors.primary;
               } else if (!isOfficeOpen) {
                 joinButtonText = 'Office is Closed';
                 joinButtonIcon = Icons.lock_clock_rounded;
@@ -944,7 +998,9 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
 
               return ElevatedButton.icon(
                 onPressed: canJoinQueue
-                    ? () => _showBookingSheet(widget.initialProviderId)
+                    ? (hasActiveToken
+                        ? () => _navigateToActiveToken()
+                        : () => _showBookingSheet(widget.initialProviderId))
                     : null,
                 icon: _booking
                     ? const SizedBox(
@@ -1229,6 +1285,11 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
               ),
             ],
 
+            if (_myActiveTokenForOffice != null) ...[
+              _buildMyActiveTokenBanner(),
+              const SizedBox(height: 16),
+            ],
+
             // Live Queue Status Box
             const Text(
               'Live Queue Overview',
@@ -1487,6 +1548,99 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildMyActiveTokenBanner() {
+    final tokenNum = _myActiveTokenForOffice?['tokenNumber'] ?? '';
+    final status = _myActiveTokenForOffice?['status'] ?? 'WAITING';
+    final ahead = _myActiveTokenForOffice?['peopleAhead'] ?? 0;
+    final waitMins = _myActiveTokenForOffice?['estimatedWaitMinutes'] ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primarySoft,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.35),
+          width: 1.2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.confirmation_number_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Your Active Token for this Office',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: AppColors.primaryDark,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '#$tokenNum',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Status: $status • $ahead ahead in line (~$waitMins min)',
+            style: const TextStyle(
+              color: AppColors.secondaryText,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _navigateToActiveToken(),
+              icon: const Icon(Icons.open_in_new_rounded, size: 16),
+              label: const Text('View Active Token Screen'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 11),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1755,17 +1909,20 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
                   ),
                 ),
                 const SizedBox(height: 3),
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 4,
                   children: [
-                    Text(
-                      desig,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.primaryDark,
-                        fontWeight: FontWeight.w600,
+                    if (desig.isNotEmpty)
+                      Text(
+                        desig,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.primaryDark,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 6,
@@ -1830,51 +1987,62 @@ class _OfficeDetailsScreenState extends State<OfficeDetailsScreen> {
               ],
             ),
           ),
-          InkWell(
-            onTap: canBook ? () => _showBookingSheet(id) : null,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: canBook
-                    ? AppColors.primarySoft
-                    : (!isOfficeOpen || isProviderFull
-                          ? AppColors.errorSoft
-                          : AppColors.borderLight),
+          const SizedBox(width: 8),
+          Builder(
+            builder: (context) {
+              final bool hasActive = _myActiveTokenForOffice != null;
+              final bool canAction = hasActive || canBook;
+              return InkWell(
+                onTap: hasActive
+                    ? () => _navigateToActiveToken()
+                    : (canBook ? () => _showBookingSheet(id) : null),
                 borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    canBook
-                        ? 'Book'
-                        : (!isOfficeOpen
-                              ? 'Closed'
-                              : (isProviderFull
-                                    ? 'Full'
-                                    : (!onDuty ? 'Off duty' : 'Off hours'))),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: canBook
-                          ? AppColors.primaryDark
-                          : (!isOfficeOpen || isProviderFull
-                                ? AppColors.error
-                                : AppColors.secondaryText),
-                    ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: canAction
+                        ? AppColors.primarySoft
+                        : (!isOfficeOpen || isProviderFull
+                              ? AppColors.errorSoft
+                              : AppColors.borderLight),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  if (canBook) ...[
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 12,
-                      color: AppColors.primaryDark,
-                    ),
-                  ],
-                ],
-              ),
-            ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        hasActive
+                            ? 'My Token'
+                            : (canBook
+                                ? 'Book'
+                                : (!isOfficeOpen
+                                      ? 'Closed'
+                                      : (isProviderFull
+                                            ? 'Full'
+                                            : (!onDuty ? 'Off duty' : 'Off hours')))),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: canAction
+                              ? AppColors.primaryDark
+                              : (!isOfficeOpen || isProviderFull
+                                    ? AppColors.error
+                                    : AppColors.secondaryText),
+                        ),
+                      ),
+                      if (canAction) ...[
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 12,
+                          color: AppColors.primaryDark,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
