@@ -77,6 +77,62 @@ public class ProviderPortalController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/api/provider/tokens/history")
+    public ResponseEntity<?> getProviderTokenHistory(
+            @org.springframework.web.bind.annotation.RequestParam(value = "search", required = false) String search,
+            @org.springframework.web.bind.annotation.RequestParam(value = "status", required = false) String status,
+            @org.springframework.web.bind.annotation.RequestParam(value = "date", required = false) String date,
+            @org.springframework.web.bind.annotation.RequestParam(value = "startDate", required = false) String startDateStr,
+            @org.springframework.web.bind.annotation.RequestParam(value = "endDate", required = false) String endDateStr,
+            @org.springframework.web.bind.annotation.RequestParam(value = "page", defaultValue = "0") int page,
+            @org.springframework.web.bind.annotation.RequestParam(value = "size", defaultValue = "20") int size,
+            Authentication authentication) {
+
+        if (authentication == null || !(authentication.getPrincipal() instanceof Provider provider)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized provider access"));
+        }
+
+        java.time.LocalDate startDate = null;
+        java.time.LocalDate endDate = null;
+
+        if (date != null && !date.isBlank()) {
+            String d = date.trim().toLowerCase();
+            if ("today".equals(d)) {
+                startDate = java.time.LocalDate.now();
+                endDate = startDate;
+            } else if ("yesterday".equals(d)) {
+                startDate = java.time.LocalDate.now().minusDays(1);
+                endDate = startDate;
+            } else if ("7_days".equals(d) || "this_week".equals(d)) {
+                startDate = java.time.LocalDate.now().minusDays(7);
+                endDate = java.time.LocalDate.now();
+            } else if ("this_month".equals(d)) {
+                startDate = java.time.LocalDate.now().withDayOfMonth(1);
+                endDate = java.time.LocalDate.now();
+            } else {
+                try {
+                    startDate = java.time.LocalDate.parse(date.trim());
+                    endDate = startDate;
+                } catch (Exception ignored) {}
+            }
+        }
+        if (startDateStr != null && !startDateStr.isBlank()) {
+            try {
+                startDate = java.time.LocalDate.parse(startDateStr.trim());
+            } catch (Exception ignored) {}
+        }
+        if (endDateStr != null && !endDateStr.isBlank()) {
+            try {
+                endDate = java.time.LocalDate.parse(endDateStr.trim());
+            } catch (Exception ignored) {}
+        }
+
+        Map<String, Object> result = queueService.getProviderTokenHistory(
+                provider.getId(), search, status, startDate, endDate, page, size
+        );
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/api/provider/queue/live")
     public ResponseEntity<?> getProviderLiveQueue(Authentication authentication) {
         if (authentication == null || !(authentication.getPrincipal() instanceof Provider provider)) {

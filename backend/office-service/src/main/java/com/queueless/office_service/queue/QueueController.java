@@ -126,6 +126,75 @@ public class QueueController {
     }
 
     /**
+     * Get paginated token history for an office across all providers.
+     */
+    @GetMapping({"/office/{officeId}/tokens/history", "/office/{officeId}/history"})
+    public ResponseEntity<?> getOfficeTokenHistory(
+            @PathVariable("officeId") String officeIdStr,
+            @RequestParam(value = "providerId", required = false) Long providerId,
+            @RequestParam(value = "search", required = false) String search,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "date", required = false) String date,
+            @RequestParam(value = "startDate", required = false) String startDateStr,
+            @RequestParam(value = "endDate", required = false) String endDateStr,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            Authentication authentication) {
+
+        Long officeId = queueService.resolveOfficeProfileId(officeIdStr);
+        if (officeId == null && authentication != null && authentication.getPrincipal() instanceof User user) {
+            officeId = queueService.resolveOfficeProfileIdForUser(user.getId());
+        }
+
+        if (officeId == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Office not found",
+                    "message", "Office not found for identifier: " + officeIdStr
+            ));
+        }
+
+        java.time.LocalDate startDate = null;
+        java.time.LocalDate endDate = null;
+
+        if (date != null && !date.isBlank()) {
+            String d = date.trim().toLowerCase();
+            if ("today".equals(d)) {
+                startDate = java.time.LocalDate.now();
+                endDate = startDate;
+            } else if ("yesterday".equals(d)) {
+                startDate = java.time.LocalDate.now().minusDays(1);
+                endDate = startDate;
+            } else if ("7_days".equals(d) || "this_week".equals(d)) {
+                startDate = java.time.LocalDate.now().minusDays(7);
+                endDate = java.time.LocalDate.now();
+            } else if ("this_month".equals(d)) {
+                startDate = java.time.LocalDate.now().withDayOfMonth(1);
+                endDate = java.time.LocalDate.now();
+            } else {
+                try {
+                    startDate = java.time.LocalDate.parse(date.trim());
+                    endDate = startDate;
+                } catch (Exception ignored) {}
+            }
+        }
+        if (startDateStr != null && !startDateStr.isBlank()) {
+            try {
+                startDate = java.time.LocalDate.parse(startDateStr.trim());
+            } catch (Exception ignored) {}
+        }
+        if (endDateStr != null && !endDateStr.isBlank()) {
+            try {
+                endDate = java.time.LocalDate.parse(endDateStr.trim());
+            } catch (Exception ignored) {}
+        }
+
+        Map<String, Object> result = queueService.getOfficeTokenHistory(
+                officeId, providerId, search, status, startDate, endDate, page, size
+        );
+        return ResponseEntity.ok(result);
+    }
+
+    /**
      * Cancel a booked token.
      */
     @PostMapping("/tokens/{id}/cancel")

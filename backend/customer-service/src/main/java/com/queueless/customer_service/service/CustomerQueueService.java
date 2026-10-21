@@ -28,6 +28,9 @@ public class CustomerQueueService {
     private final ProviderRepository providerRepository;
     private final ProviderAvailabilityService providerAvailabilityService;
 
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
+
     private static final int DEFAULT_SERVICE_TIME_MINUTES = 12;
 
     public CustomerQueueService(
@@ -336,6 +339,123 @@ public class CustomerQueueService {
             history.add(m);
         }
         return history;
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getCustomerTokenHistory(
+            Long customerId,
+            String email,
+            String search,
+            String status,
+            LocalDate startDate,
+            LocalDate endDate,
+            int page,
+            int size) {
+
+        StringBuilder jpql = new StringBuilder("SELECT t FROM QueueToken t WHERE ");
+        Map<String, Object> params = new HashMap<>();
+
+        if (customerId != null) {
+            jpql.append("t.customerId = :customerId");
+            params.put("customerId", customerId);
+        } else if (email != null && !email.isBlank()) {
+            jpql.append("LOWER(t.customerEmail) = :email");
+            params.put("email", email.trim().toLowerCase());
+        } else {
+            return Map.of("content", List.of(), "totalElements", 0, "totalPages", 0, "page", page, "size", size, "hasMore", false);
+        }
+
+        if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status.trim())) {
+            try {
+                TokenStatus ts = TokenStatus.valueOf(status.trim().toUpperCase());
+                jpql.append(" AND t.status = :status");
+                params.put("status", ts);
+            } catch (Exception ignored) {}
+        }
+
+        if (startDate != null) {
+            jpql.append(" AND t.bookedAt >= :startDateTime");
+            params.put("startDateTime", startDate.atStartOfDay());
+        }
+        if (endDate != null) {
+            jpql.append(" AND t.bookedAt <= :endDateTime");
+            params.put("endDateTime", endDate.atTime(LocalTime.MAX));
+        }
+
+        if (search != null && !search.isBlank()) {
+            jpql.append(" AND (LOWER(t.tokenNumber) LIKE :search OR LOWER(t.office.user.name) LIKE :search OR LOWER(t.taskDescription) LIKE :search)");
+            params.put("search", "%" + search.trim().toLowerCase() + "%");
+        }
+
+        // Count query
+        String countJpql = jpql.toString().replaceFirst("SELECT t FROM", "SELECT COUNT(t) FROM");
+        jakarta.persistence.Query countQuery = entityManager.createQuery(countJpql);
+        params.forEach(countQuery::setParameter);
+        long totalElements = ((Number) countQuery.getSingleResult()).longValue();
+
+        // Data query
+        jpql.append(" ORDER BY t.bookedAt DESC");
+        jakarta.persistence.TypedQuery<QueueToken> query = entityManager.createQuery(jpql.toString(), QueueToken.class);
+        params.forEach(query::setParameter);
+
+        int pageNum = Math.max(0, page);
+        int pageSize = (size > 0 && size <= 100) ? size : 20;
+        query.setFirstResult(pageNum * pageSize);
+        query.setMaxResults(pageSize);
+
+        List<QueueToken> tokens = query.getResultList();
+        List<Map<String, Object>> content = new ArrayList<>();
+        for (QueueToken t : tokens) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", t.getId());
+            m.put("tokenNumber", t.getTokenNumber());
+            m.put("sequenceNumber", t.getSequenceNumber());
+            m.put("status", t.getStatus().name());
+            m.put("taskDescription", t.getTaskDescription());
+            m.put("bookedAt", t.getBookedAt() != null ? t.getBookedAt().toString() : null);
+            m.put("calledAt", t.getCalledAt() != null ? t.getCalledAt().toString() : null);
+            m.put("completedAt", t.getCompletedAt() != null ? t.getCompletedAt().toString() : null);
+
+            LocalDateTime servingStartedAt = t.getServingStartedAt();
+            Long durationSeconds = t.getServiceDurationSeconds();
+            Integer durationMinutes = t.getServiceDurationMinutes();
+
+            if (t.getStatus() == TokenStatus.COMPLETED) {
+                if (servingStartedAt == null) {
+                    servingStartedAt = t.getCalledAt() != null ? t.getCalledAt() : t.getBookedAt();
+                }
+                if (durationSeconds == null && t.getCompletedAt() != null && servingStartedAt != null) {
+                    durationSeconds = Math.max(0, java.time.Duration.between(servingStartedAt, t.getCompletedAt()).getSeconds());
+                    durationMinutes = (int) Math.round(durationSeconds / 60.0);
+                }
+            }
+
+            m.put("servingStartedAt", servingStartedAt != null ? servingStartedAt.toString() : null);
+            m.put("serviceDurationSeconds", durationSeconds != null ? durationSeconds : 0L);
+            m.put("serviceDurationMinutes", durationMinutes != null ? durationMinutes : 0);
+            if (t.getOffice() != null) {
+                m.put("officeId", t.getOffice().getId());
+                m.put("officeName", t.getOffice().getUser() != null ? t.getOffice().getUser().getName() : "Office");
+                m.put("category", t.getOffice().getCategory() != null ? t.getOffice().getCategory().name() : "OFFICE");
+            }
+            if (t.getProvider() != null) {
+                m.put("providerId", t.getProvider().getId());
+                m.put("providerName", t.getProvider().getName());
+                m.put("providerDesignation", t.getProvider().getDesignation());
+            }
+            content.add(m);
+        }
+
+        int totalPages = pageSize > 0 ? (int) Math.ceil((double) totalElements / pageSize) : 0;
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("content", content);
+        res.put("page", pageNum);
+        res.put("size", pageSize);
+        res.put("totalElements", totalElements);
+        res.put("totalPages", totalPages);
+        res.put("hasMore", (pageNum + 1) < totalPages);
+        return res;
     }
 
     public boolean cancelToken(Long tokenId, Long customerId, String email) {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/office_service.dart';
 import '../../theme/app_theme.dart';
@@ -11,25 +12,173 @@ class TokenHistoryScreen extends StatefulWidget {
 
 class _TokenHistoryScreenState extends State<TokenHistoryScreen> {
   final OfficeService _officeService = OfficeService();
+  final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
+
   bool _loading = true;
+  bool _loadingMore = false;
+  bool _hasMore = false;
+  int _currentPage = 0;
+  final int _pageSize = 20;
+
   List<dynamic> _history = [];
+  int _totalElements = 0;
+
+  // Filter state
+  String _selectedStatus = 'ALL';
+  String _selectedDateFilter = 'all'; // all, today, yesterday, 7_days, this_month, custom
+  DateTimeRange? _customDateRange;
+
+  final List<Map<String, String>> _statusOptions = [
+    {'label': 'All', 'value': 'ALL'},
+    {'label': 'Completed', 'value': 'COMPLETED'},
+    {'label': 'Waiting', 'value': 'WAITING'},
+    {'label': 'Cancelled', 'value': 'CANCELLED'},
+    {'label': 'Skipped', 'value': 'SKIPPED'},
+  ];
+
+  final List<Map<String, String>> _dateOptions = [
+    {'label': 'All Time', 'value': 'all'},
+    {'label': 'Today', 'value': 'today'},
+    {'label': 'Yesterday', 'value': 'yesterday'},
+    {'label': 'Last 7 Days', 'value': '7_days'},
+    {'label': 'This Month', 'value': 'this_month'},
+    {'label': 'Custom Range', 'value': 'custom'},
+  ];
 
   @override
   void initState() {
     super.initState();
-    _loadHistory();
+    _scrollController.addListener(_onScroll);
+    _loadHistory(reset: true);
   }
 
-  Future<void> _loadHistory() async {
-    setState(() => _loading = true);
-    final list = await _officeService.getMyTokenHistory();
-    if (mounted) {
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _searchController.dispose();
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (!_loading && !_loadingMore && _hasMore) {
+        _loadHistory(reset: false);
+      }
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (mounted) {
+        _loadHistory(reset: true);
+      }
+    });
+  }
+
+  Future<void> _loadHistory({bool reset = false}) async {
+    if (reset) {
       setState(() {
-        _history = list;
+        _loading = true;
+        _currentPage = 0;
+      });
+    } else {
+      setState(() {
+        _loadingMore = true;
+      });
+    }
+
+    final pageToLoad = reset ? 0 : _currentPage + 1;
+
+    String? startDateStr;
+    String? endDateStr;
+    if (_selectedDateFilter == 'custom' && _customDateRange != null) {
+      startDateStr = _customDateRange!.start.toIso8601String().split('T').first;
+      endDateStr = _customDateRange!.end.toIso8601String().split('T').first;
+    }
+
+    final res = await _officeService.getMyTokenHistoryPaginated(
+      page: pageToLoad,
+      size: _pageSize,
+      search: _searchController.text.trim().isEmpty ? null : _searchController.text.trim(),
+      status: _selectedStatus,
+      date: _selectedDateFilter == 'custom' ? null : _selectedDateFilter,
+      startDate: startDateStr,
+      endDate: endDateStr,
+    );
+
+    if (mounted) {
+      final List<dynamic> content = (res['content'] as List?) ?? [];
+      final total = (res['totalElements'] as num?)?.toInt() ?? content.length;
+      final hasMore = res['hasMore'] == true;
+
+      setState(() {
+        if (reset) {
+          _history = content;
+          _currentPage = 0;
+        } else {
+          _history.addAll(content);
+          _currentPage = pageToLoad;
+        }
+        _totalElements = total;
+        _hasMore = hasMore;
         _loading = false;
+        _loadingMore = false;
       });
     }
   }
+
+  Future<void> _pickCustomDateRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2023, 1, 1),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+      initialDateRange: _customDateRange ??
+          DateTimeRange(
+            start: DateTime.now().subtract(const Duration(days: 7)),
+            end: DateTime.now(),
+          ),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: AppColors.mainText,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _customDateRange = picked;
+        _selectedDateFilter = 'custom';
+      });
+      _loadHistory(reset: true);
+    }
+  }
+
+  void _resetAllFilters() {
+    setState(() {
+      _searchController.clear();
+      _selectedStatus = 'ALL';
+      _selectedDateFilter = 'all';
+      _customDateRange = null;
+    });
+    _loadHistory(reset: true);
+  }
+
+  bool get _hasActiveFilters =>
+      _searchController.text.trim().isNotEmpty ||
+      _selectedStatus != 'ALL' ||
+      _selectedDateFilter != 'all';
 
   @override
   Widget build(BuildContext context) {
@@ -43,24 +192,208 @@ class _TokenHistoryScreenState extends State<TokenHistoryScreen> {
           'Queue History',
           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: AppColors.mainText),
         ),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : RefreshIndicator(
-              onRefresh: _loadHistory,
-              color: AppColors.primary,
-              child: _history.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(20),
-                      itemCount: _history.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final item = _history[index];
-                        return _buildHistoryCard(item);
-                      },
-                    ),
+        actions: [
+          if (_hasActiveFilters)
+            TextButton(
+              onPressed: _resetAllFilters,
+              child: const Text(
+                'Reset',
+                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13),
+              ),
             ),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh',
+            onPressed: () => _loadHistory(reset: true),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          _buildFilterHeader(),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                : RefreshIndicator(
+                    onRefresh: () => _loadHistory(reset: true),
+                    color: AppColors.primary,
+                    child: _history.isEmpty
+                        ? _buildEmptyState()
+                        : ListView.separated(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                            itemCount: _history.length + (_loadingMore ? 1 : 0),
+                            separatorBuilder: (_, _) => const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              if (index >= _history.length) {
+                                return const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 16),
+                                    child: SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.2,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+                              final item = _history[index];
+                              return _buildHistoryCard(item);
+                            },
+                          ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterHeader() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Search Input
+          Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Search token, office, or service...',
+                hintStyle: const TextStyle(fontSize: 13, color: AppColors.mutedText),
+                prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.mutedText),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.mutedText),
+                        onPressed: () {
+                          _searchController.clear();
+                          _loadHistory(reset: true);
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              style: const TextStyle(fontSize: 14, color: AppColors.mainText),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Horizontal Status Chips Row
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _statusOptions.map((opt) {
+                final isSelected = _selectedStatus == opt['value'];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(opt['label']!),
+                    labelStyle: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected ? Colors.white : AppColors.secondaryText,
+                    ),
+                    selected: isSelected,
+                    selectedColor: AppColors.primary,
+                    backgroundColor: const Color(0xFFF1F5F9),
+                    side: BorderSide(
+                      color: isSelected ? AppColors.primary : const Color(0xFFE2E8F0),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                    visualDensity: VisualDensity.compact,
+                    onSelected: (selected) {
+                      if (selected) {
+                        setState(() => _selectedStatus = opt['value']!);
+                        _loadHistory(reset: true);
+                      }
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Date Filter Selector Row
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.mutedText),
+                const SizedBox(width: 6),
+                ..._dateOptions.map((opt) {
+                  final isSelected = _selectedDateFilter == opt['value'];
+                  String label = opt['label']!;
+                  if (opt['value'] == 'custom' && _customDateRange != null) {
+                    final s = _customDateRange!.start;
+                    final e = _customDateRange!.end;
+                    label = '${s.day}/${s.month} - ${e.day}/${e.month}';
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () {
+                        if (opt['value'] == 'custom') {
+                          _pickCustomDateRange();
+                        } else {
+                          setState(() {
+                            _selectedDateFilter = opt['value']!;
+                            _customDateRange = null;
+                          });
+                          _loadHistory(reset: true);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppColors.primarySoft : Colors.transparent,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isSelected ? AppColors.primary : const Color(0xFFE2E8F0),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected ? AppColors.primaryDark : AppColors.secondaryText,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+
+          // Count info bar
+          if (!_loading) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Showing ${_history.length} of $_totalElements ${_totalElements == 1 ? "token" : "tokens"}',
+              style: const TextStyle(fontSize: 11, color: AppColors.mutedText),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -68,40 +401,63 @@ class _TokenHistoryScreenState extends State<TokenHistoryScreen> {
     return ListView(
       padding: const EdgeInsets.all(32),
       children: [
-        const SizedBox(height: 60),
-        Icon(Icons.history_toggle_off_rounded, size: 64, color: AppColors.mutedText.withValues(alpha: 0.4)),
+        const SizedBox(height: 48),
+        Icon(
+          _hasActiveFilters ? Icons.filter_alt_off_rounded : Icons.history_toggle_off_rounded,
+          size: 64,
+          color: AppColors.mutedText.withValues(alpha: 0.4),
+        ),
         const SizedBox(height: 16),
-        const Text(
-          'No Queue History',
+        Text(
+          _hasActiveFilters ? 'No Matching Tokens Found' : 'No Queue History',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.mainText),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.mainText),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'When you book tokens and complete your visits, your history will be recorded here.',
+        Text(
+          _hasActiveFilters
+              ? 'Try modifying your search query, status, or date range filter.'
+              : 'When you book tokens and complete your visits, your history will be recorded here.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: AppColors.secondaryText, height: 1.4),
+          style: const TextStyle(fontSize: 14, color: AppColors.secondaryText, height: 1.4),
         ),
+        if (_hasActiveFilters) ...[
+          const SizedBox(height: 20),
+          Center(
+            child: OutlinedButton.icon(
+              onPressed: _resetAllFilters,
+              icon: const Icon(Icons.clear_all_rounded, size: 18),
+              label: const Text('Reset All Filters'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
 
   Widget _buildHistoryCard(dynamic item) {
     final tokenNumber = item['tokenNumber'] ?? '---';
-    final status = item['status'] ?? 'COMPLETED';
+    final status = (item['status'] ?? 'COMPLETED').toString().toUpperCase();
     final office = item['office'];
     final officeName = item['officeName'] ??
-        (office != null && office['user'] != null
-            ? office['user']['name']
-            : 'Office');
-    final category = item['category'] ??
-        (office != null ? office['category'] ?? 'OFFICE' : 'OFFICE');
-    final bookedAt = item['bookedAt'] != null ? item['bookedAt'].toString().split('T').first : '';
+        (office != null && office['user'] != null ? office['user']['name'] : 'Office');
+    final category = item['category'] ?? (office != null ? office['category'] ?? 'OFFICE' : 'OFFICE');
+    final bookedAt = item['bookedAt'] != null
+        ? item['bookedAt'].toString().split('T').first
+        : (item['createdAt'] != null ? item['createdAt'].toString().split('T').first : '');
     final isCompleted = status == 'COMPLETED';
     final servingStartedAt = item['servingStartedAt'] ?? item['calledAt'];
     final completedAt = item['completedAt'];
     final serviceDurationMinutes = item['serviceDurationMinutes'];
     final serviceDurationSeconds = item['serviceDurationSeconds'];
+    final taskDescription = item['taskDescription'] ?? item['reason'];
+    final providerName = item['providerName'] ??
+        (item['provider'] != null ? item['provider']['name'] : null);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -121,6 +477,7 @@ class _TokenHistoryScreenState extends State<TokenHistoryScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -149,18 +506,74 @@ class _TokenHistoryScreenState extends State<TokenHistoryScreen> {
                         fontWeight: FontWeight.bold,
                         color: AppColors.mainText,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '$category • $bookedAt',
                       style: const TextStyle(fontSize: 12, color: AppColors.mutedText),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    if (providerName != null && providerName.toString().trim().isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.person_pin_rounded, size: 13, color: AppColors.primary),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'Served by $providerName',
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primaryDark,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               _buildStatusBadge(status),
             ],
           ),
+
+          // Task description / service request
+          if (taskDescription != null && taskDescription.toString().trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.notes_rounded, size: 14, color: AppColors.mutedText),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      taskDescription.toString().trim(),
+                      style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           if (isCompleted) ...[
             const SizedBox(height: 12),
             Container(
@@ -221,12 +634,15 @@ class _TokenHistoryScreenState extends State<TokenHistoryScreen> {
                             color: AppColors.mainText,
                           ),
                         ),
-                        Text(
-                          _formatTotalServiceTime(serviceDurationMinutes, serviceDurationSeconds),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.success,
+                        Flexible(
+                          child: Text(
+                            _formatTotalServiceTime(serviceDurationMinutes, serviceDurationSeconds),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.success,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -273,6 +689,7 @@ class _TokenHistoryScreenState extends State<TokenHistoryScreen> {
                     fontWeight: FontWeight.w700,
                     color: AppColors.mainText,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -333,6 +750,11 @@ class _TokenHistoryScreenState extends State<TokenHistoryScreen> {
       case 'SKIPPED':
         bg = AppColors.warningSoft;
         fg = AppColors.warning;
+        break;
+      case 'SERVING':
+      case 'CALLED':
+        bg = const Color(0xFFDBEAFE);
+        fg = const Color(0xFF1D4ED8);
         break;
       default:
         bg = AppColors.primarySoft;

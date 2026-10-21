@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:queueless_office/config/api_config.dart';
 import 'package:queueless_office/screens/auth/office_auth_screen.dart';
 import 'package:queueless_office/theme/provider_theme.dart';
+import 'package:queueless_office/screens/provider_dashboard/provider_token_history_screen.dart';
 import 'package:queueless_office/widgets/qr_stand_dialog.dart';
 import 'package:queueless_office/widgets/server_config_dialog.dart';
 
@@ -1139,42 +1140,48 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                 ),
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.qr_code_2_rounded, color: ProviderColors.primary, size: 21),
-              tooltip: 'My Desk QR Stand',
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.settings_outlined, color: ProviderColors.mutedText, size: 22),
+              tooltip: 'Settings',
               padding: const EdgeInsets.all(6),
               constraints: const BoxConstraints(),
-              visualDensity: VisualDensity.compact,
-              onPressed: _showProviderQrDialog,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              color: Colors.white,
+              onSelected: (value) {
+                if (value == 'server_config') {
+                  ServerConfigDialog.show(context);
+                } else if (value == 'logout') {
+                  _handleLogout();
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem<String>(
+                  value: 'server_config',
+                  child: Row(
+                    children: [
+                      Icon(Icons.dns_outlined, size: 18, color: ProviderColors.secondaryText),
+                      SizedBox(width: 10),
+                      Text('Server Configuration', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(height: 1),
+                const PopupMenuItem<String>(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout_rounded, size: 18, color: ProviderColors.error),
+                      SizedBox(width: 10),
+                      Text(
+                        'Sign Out',
+                        style: TextStyle(fontSize: 13, color: ProviderColors.error, fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 2),
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded, color: ProviderColors.mutedText, size: 21),
-              tooltip: 'Refresh Profile',
-              padding: const EdgeInsets.all(6),
-              constraints: const BoxConstraints(),
-              visualDensity: VisualDensity.compact,
-              onPressed: _loadProviderProfile,
-            ),
-            const SizedBox(width: 2),
-            IconButton(
-              icon: const Icon(Icons.settings_outlined, color: ProviderColors.mutedText, size: 21),
-              tooltip: 'Server Settings',
-              padding: const EdgeInsets.all(6),
-              constraints: const BoxConstraints(),
-              visualDensity: VisualDensity.compact,
-              onPressed: () => ServerConfigDialog.show(context),
-            ),
-            const SizedBox(width: 2),
-            IconButton(
-              icon: const Icon(Icons.logout_rounded, color: ProviderColors.error, size: 21),
-              tooltip: 'Sign Out',
-              padding: const EdgeInsets.all(6),
-              constraints: const BoxConstraints(),
-              visualDensity: VisualDensity.compact,
-              onPressed: () => _handleLogout(),
-            ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
           ],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(1),
@@ -1377,6 +1384,10 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
 
                           // Dedicated Quick Action: My Desk QR Stand
                           _buildDeskQrActionCard(),
+                          const SizedBox(height: 14),
+
+                          // Dedicated Quick Action: Token History
+                          _buildTokenHistoryActionCard(),
                           const SizedBox(height: 20),
 
                           // Section: Incoming Priority Requests from Customers (forwarded by Office)
@@ -1527,6 +1538,73 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                   ),
                 ),
               ),
+      ),
+    );
+  }
+
+  Widget _buildTokenHistoryActionCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+        boxShadow: ProviderColors.cardShadow,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ProviderTokenHistoryScreen(),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: ProviderColors.primarySoft,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.history_rounded, color: ProviderColors.primary, size: 26),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        'Completed Token History',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: ProviderColors.mainText,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Search and review tokens served at your desk',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: ProviderColors.secondaryText,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: ProviderColors.mutedText),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

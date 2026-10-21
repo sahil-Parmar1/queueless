@@ -250,29 +250,66 @@ class OfficeService {
     }
   }
 
-  /// Get customer token history
-  Future<List<dynamic>> getMyTokenHistory() async {
+  /// Get customer token history with search, status filters, date range, and pagination
+  Future<Map<String, dynamic>> getMyTokenHistoryPaginated({
+    int page = 0,
+    int size = 20,
+    String? search,
+    String? status,
+    String? date,
+    String? startDate,
+    String? endDate,
+  }) async {
     try {
       final user = await getCurrentUser();
       String? email = user?['email'];
 
-      String url = '$_baseUrl/queue/tokens/my-history';
-      if (email != null && email.isNotEmpty) {
-        url += '?email=${Uri.encodeComponent(email)}';
-      }
+      final queryParams = <String, String>{
+        'page': page.toString(),
+        'size': size.toString(),
+      };
+      if (email != null && email.isNotEmpty) queryParams['email'] = email;
+      if (search != null && search.trim().isNotEmpty) queryParams['search'] = search.trim();
+      if (status != null && status.isNotEmpty && status != 'ALL') queryParams['status'] = status;
+      if (date != null && date.isNotEmpty) queryParams['date'] = date;
+      if (startDate != null && startDate.isNotEmpty) queryParams['startDate'] = startDate;
+      if (endDate != null && endDate.isNotEmpty) queryParams['endDate'] = endDate;
 
-      final uri = Uri.parse(url);
+      final baseUri = Uri.parse('$_baseUrl/queue/tokens/my-history');
+      final uri = baseUri.replace(queryParameters: queryParams);
       final headers = await _getHeaders();
       final response = await http.get(uri, headers: headers);
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body) as List<dynamic>;
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        } else if (decoded is List) {
+          return {
+            'content': decoded,
+            'totalElements': decoded.length,
+            'totalPages': 1,
+            'page': 0,
+            'size': decoded.length,
+            'hasMore': false,
+          };
+        }
       }
-      return [];
+      return {'content': <dynamic>[], 'totalElements': 0, 'totalPages': 0, 'hasMore': false};
     } catch (e) {
       debugPrint('Error fetching token history: $e');
-      return [];
+      return {'content': <dynamic>[], 'totalElements': 0, 'totalPages': 0, 'hasMore': false};
     }
+  }
+
+  /// Get customer token history (List) for backward compatibility
+  Future<List<dynamic>> getMyTokenHistory() async {
+    final res = await getMyTokenHistoryPaginated(page: 0, size: 100);
+    final content = res['content'];
+    if (content is List) {
+      return content;
+    }
+    return [];
   }
 
   /// Cancel an active token

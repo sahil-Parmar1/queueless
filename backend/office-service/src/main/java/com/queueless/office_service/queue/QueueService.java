@@ -27,6 +27,9 @@ public class QueueService {
     private final ProviderRepository providerRepository;
     private final ProviderService providerService;
 
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
+
     private static final int DEFAULT_SERVICE_TIME_MINUTES = 12;
 
     public QueueService(
@@ -1054,6 +1057,251 @@ public class QueueService {
             return tokenRepository.findByCustomerEmailOrderByBookedAtDesc(email.trim());
         }
         return List.of();
+    }
+
+    /**
+     * Get paginated and filterable token history for a specific provider.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getProviderTokenHistory(
+            Long providerId,
+            String search,
+            String status,
+            LocalDate startDate,
+            LocalDate endDate,
+            int page,
+            int size) {
+
+        StringBuilder jpql = new StringBuilder(
+            "SELECT t FROM QueueToken t WHERE (t.provider.id = :providerId OR (t.provider IS NULL AND t.requestedProvider.id = :providerId))"
+        );
+        Map<String, Object> params = new HashMap<>();
+        params.put("providerId", providerId);
+
+        if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status.trim())) {
+            try {
+                TokenStatus ts = TokenStatus.valueOf(status.trim().toUpperCase());
+                jpql.append(" AND t.status = :status");
+                params.put("status", ts);
+            } catch (Exception ignored) {}
+        }
+
+        if (startDate != null) {
+            jpql.append(" AND t.bookedAt >= :startDateTime");
+            params.put("startDateTime", startDate.atStartOfDay());
+        }
+        if (endDate != null) {
+            jpql.append(" AND t.bookedAt <= :endDateTime");
+            params.put("endDateTime", endDate.atTime(LocalTime.MAX));
+        }
+
+        if (search != null && !search.isBlank()) {
+            jpql.append(" AND (LOWER(t.tokenNumber) LIKE :search OR LOWER(t.customerName) LIKE :search OR t.customerPhone LIKE :search OR LOWER(t.taskDescription) LIKE :search)");
+            params.put("search", "%" + search.trim().toLowerCase() + "%");
+        }
+
+        // Count query
+        String countJpql = jpql.toString().replaceFirst("SELECT t FROM", "SELECT COUNT(t) FROM");
+        jakarta.persistence.Query countQuery = entityManager.createQuery(countJpql);
+        params.forEach(countQuery::setParameter);
+        long totalElements = ((Number) countQuery.getSingleResult()).longValue();
+
+        // Data query
+        jpql.append(" ORDER BY t.bookedAt DESC");
+        jakarta.persistence.TypedQuery<QueueToken> query = entityManager.createQuery(jpql.toString(), QueueToken.class);
+        params.forEach(query::setParameter);
+
+        int pageNum = Math.max(0, page);
+        int pageSize = (size > 0 && size <= 100) ? size : 20;
+        query.setFirstResult(pageNum * pageSize);
+        query.setMaxResults(pageSize);
+
+        List<QueueToken> list = query.getResultList();
+        List<Map<String, Object>> content = new ArrayList<>();
+        for (QueueToken t : list) {
+            content.add(mapTokenHistoryItem(t));
+        }
+
+        int totalPages = pageSize > 0 ? (int) Math.ceil((double) totalElements / pageSize) : 0;
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("content", content);
+        res.put("page", pageNum);
+        res.put("size", pageSize);
+        res.put("totalElements", totalElements);
+        res.put("totalPages", totalPages);
+        res.put("hasMore", (pageNum + 1) < totalPages);
+        return res;
+    }
+
+    /**
+     * Get paginated and filterable token history for an office across all providers.
+     */
+    @Transactional(readOnly = true)
+    public Long resolveOfficeProfileId(String officeIdStr) {
+        if (officeIdStr == null || officeIdStr.isBlank()) {
+            return null;
+        }
+        try {
+            Long numericId = Long.parseLong(officeIdStr.trim());
+            if (officeProfileRepository.existsById(numericId)) {
+                return numericId;
+            }
+        } catch (NumberFormatException ignored) {}
+
+        java.util.Optional<com.queueless.office_service.user.OfficeProfile> profile = officeProfileRepository.findByOfficeId(officeIdStr.trim());
+        if (profile.isPresent()) {
+            return profile.get().getId();
+        }
+        profile = officeProfileRepository.findByUserOfficeId(officeIdStr.trim());
+        return profile.map(com.queueless.office_service.user.OfficeProfile::getId).orElse(null);
+    }
+
+    public Long resolveOfficeProfileIdForUser(Long userId) {
+        if (userId == null) return null;
+        return officeProfileRepository.findByUserId(userId)
+                .map(com.queueless.office_service.user.OfficeProfile::getId)
+                .orElse(null);
+    }
+
+    public Map<String, Object> getOfficeTokenHistory(
+            Long officeId,
+            Long providerId,
+            String search,
+            String status,
+            LocalDate startDate,
+            LocalDate endDate,
+            int page,
+            int size) {
+
+        StringBuilder jpql = new StringBuilder("SELECT t FROM QueueToken t WHERE t.office.id = :officeId");
+        Map<String, Object> params = new HashMap<>();
+        params.put("officeId", officeId);
+
+        if (providerId != null) {
+            if (providerId == -1L || providerId == 0L) {
+                // Front Desk Counter (unassigned)
+                jpql.append(" AND t.provider IS NULL");
+            } else {
+                jpql.append(" AND t.provider.id = :providerId");
+                params.put("providerId", providerId);
+            }
+        }
+
+        if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status.trim())) {
+            try {
+                TokenStatus ts = TokenStatus.valueOf(status.trim().toUpperCase());
+                jpql.append(" AND t.status = :status");
+                params.put("status", ts);
+            } catch (Exception ignored) {}
+        }
+
+        if (startDate != null) {
+            jpql.append(" AND t.bookedAt >= :startDateTime");
+            params.put("startDateTime", startDate.atStartOfDay());
+        }
+        if (endDate != null) {
+            jpql.append(" AND t.bookedAt <= :endDateTime");
+            params.put("endDateTime", endDate.atTime(LocalTime.MAX));
+        }
+
+        if (search != null && !search.isBlank()) {
+            jpql.append(" AND (LOWER(t.tokenNumber) LIKE :search OR LOWER(t.customerName) LIKE :search OR t.customerPhone LIKE :search OR LOWER(t.taskDescription) LIKE :search)");
+            params.put("search", "%" + search.trim().toLowerCase() + "%");
+        }
+
+        // Count query
+        String countJpql = jpql.toString().replaceFirst("SELECT t FROM", "SELECT COUNT(t) FROM");
+        jakarta.persistence.Query countQuery = entityManager.createQuery(countJpql);
+        params.forEach(countQuery::setParameter);
+        long totalElements = ((Number) countQuery.getSingleResult()).longValue();
+
+        // Data query
+        jpql.append(" ORDER BY t.bookedAt DESC");
+        jakarta.persistence.TypedQuery<QueueToken> query = entityManager.createQuery(jpql.toString(), QueueToken.class);
+        params.forEach(query::setParameter);
+
+        int pageNum = Math.max(0, page);
+        int pageSize = (size > 0 && size <= 100) ? size : 20;
+        query.setFirstResult(pageNum * pageSize);
+        query.setMaxResults(pageSize);
+
+        List<QueueToken> list = query.getResultList();
+        List<Map<String, Object>> content = new ArrayList<>();
+        for (QueueToken t : list) {
+            content.add(mapTokenHistoryItem(t));
+        }
+
+        int totalPages = pageSize > 0 ? (int) Math.ceil((double) totalElements / pageSize) : 0;
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("content", content);
+        res.put("page", pageNum);
+        res.put("size", pageSize);
+        res.put("totalElements", totalElements);
+        res.put("totalPages", totalPages);
+        res.put("hasMore", (pageNum + 1) < totalPages);
+        return res;
+    }
+
+    private Map<String, Object> mapTokenHistoryItem(QueueToken t) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("id", t.getId());
+        m.put("tokenNumber", t.getTokenNumber());
+        m.put("sequenceNumber", t.getSequenceNumber());
+        m.put("status", t.getStatus().name());
+        m.put("customerName", t.getCustomerName());
+        m.put("customerPhone", t.getCustomerPhone() != null ? t.getCustomerPhone() : "");
+        m.put("customerEmail", t.getCustomerEmail() != null ? t.getCustomerEmail() : "");
+        m.put("taskDescription", t.getTaskDescription() != null ? t.getTaskDescription() : "");
+        m.put("isPriority", Boolean.TRUE.equals(t.getIsPriority()));
+        m.put("priorityStatus", t.getPriorityStatus() != null ? t.getPriorityStatus() : "NONE");
+        m.put("priorityReason", t.getPriorityReason() != null ? t.getPriorityReason() : "");
+        m.put("priorityRequestedAt", t.getPriorityRequestedAt() != null ? t.getPriorityRequestedAt().toString() : null);
+
+        m.put("bookedAt", t.getBookedAt() != null ? t.getBookedAt().toString() : null);
+        m.put("calledAt", t.getCalledAt() != null ? t.getCalledAt().toString() : null);
+        m.put("completedAt", t.getCompletedAt() != null ? t.getCompletedAt().toString() : null);
+
+        LocalDateTime servingStartedAt = t.getServingStartedAt();
+        Long durationSeconds = t.getServiceDurationSeconds();
+        Integer durationMinutes = t.getServiceDurationMinutes();
+
+        if (t.getStatus() == TokenStatus.COMPLETED) {
+            if (servingStartedAt == null) {
+                servingStartedAt = t.getCalledAt() != null ? t.getCalledAt() : t.getBookedAt();
+            }
+            if (durationSeconds == null && t.getCompletedAt() != null && servingStartedAt != null) {
+                durationSeconds = Math.max(0, Duration.between(servingStartedAt, t.getCompletedAt()).getSeconds());
+                durationMinutes = (int) Math.round(durationSeconds / 60.0);
+            }
+        }
+
+        m.put("servingStartedAt", servingStartedAt != null ? servingStartedAt.toString() : null);
+        m.put("serviceDurationSeconds", durationSeconds != null ? durationSeconds : 0L);
+        m.put("serviceDurationMinutes", durationMinutes != null ? durationMinutes : 0);
+
+        if (t.getOffice() != null) {
+            m.put("officeId", t.getOffice().getId());
+            m.put("officeName", t.getOffice().getUser() != null ? t.getOffice().getUser().getName() : "Office");
+            m.put("category", t.getOffice().getCategory() != null ? t.getOffice().getCategory().name() : "OFFICE");
+        }
+
+        if (t.getProvider() != null) {
+            m.put("providerId", t.getProvider().getId());
+            m.put("providerName", t.getProvider().getName());
+            m.put("providerDesignation", t.getProvider().getDesignation());
+        } else if (t.getRequestedProvider() != null) {
+            m.put("providerId", t.getRequestedProvider().getId());
+            m.put("providerName", t.getRequestedProvider().getName());
+            m.put("providerDesignation", t.getRequestedProvider().getDesignation());
+        } else {
+            m.put("providerId", null);
+            m.put("providerName", "Desk Counter");
+            m.put("providerDesignation", "Front Desk");
+        }
+
+        return m;
     }
 
     private void completeToken(QueueToken token) {

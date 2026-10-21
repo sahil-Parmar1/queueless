@@ -8,6 +8,7 @@ import 'package:queueless_office/config/api_config.dart';
 import 'package:queueless_office/screens/auth/office_auth_screen.dart';
 import 'package:queueless_office/screens/dashboad/office_onboarding_screen.dart';
 import 'package:queueless_office/screens/providers/providers_screen.dart';
+import 'package:queueless_office/screens/dashboad/office_token_history_screen.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:queueless_office/widgets/office_location_picker_dialog.dart';
@@ -1161,7 +1162,9 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
           isApproved
               ? (_approvedSelectedTab == 0
                   ? 'Queue Operations'
-                  : (_approvedSelectedTab == 1 ? 'Staff & Providers' : 'Office Details'))
+                  : (_approvedSelectedTab == 1
+                      ? 'Staff & Providers'
+                      : (_approvedSelectedTab == 2 ? 'Office Details' : 'Office Token History')))
               : 'Office Verification Status',
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
         ),
@@ -1227,11 +1230,6 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
               ),
             ),
           IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh',
-            onPressed: _fetchProfile,
-          ),
-          IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Server Settings',
             onPressed: () => ServerConfigDialog.show(context),
@@ -1247,6 +1245,7 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
       bottomNavigationBar: (isApproved && _profileData != null)
           ? BottomNavigationBar(
               currentIndex: _approvedSelectedTab,
+              type: BottomNavigationBarType.fixed,
               selectedItemColor: const Color(0xFF4F46E5),
               unselectedItemColor: const Color(0xFF94A3B8),
               onTap: (index) => setState(() => _approvedSelectedTab = index),
@@ -1262,6 +1261,10 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                 BottomNavigationBarItem(
                   icon: Icon(Icons.business_rounded),
                   label: 'Office Details',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.history_rounded),
+                  label: 'History',
                 ),
               ],
             )
@@ -1365,8 +1368,14 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
         return _buildApprovedDashboardView();
       } else if (_approvedSelectedTab == 1) {
         return ProvidersScreen(officeProfile: _profileData);
-      } else {
+      } else if (_approvedSelectedTab == 2) {
         return _buildDetailsOnlyView(status);
+      } else {
+        final officeId = _profileData?['id'] ?? _profileData?['officeId'] ?? _userData?['officeId'] ?? '';
+        return OfficeTokenHistoryScreen(
+          officeId: officeId,
+          officeProfile: _profileData,
+        );
       }
     }
 
@@ -1673,24 +1682,39 @@ class _OfficeDashboardScreenState extends State<OfficeDashboardScreen> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => setState(() => _approvedSelectedTab = 1),
-                    icon: const Icon(Icons.people_alt_rounded),
-                    label: const Text('Manage Providers'),
+                    icon: const Icon(Icons.people_alt_rounded, size: 16),
+                    label: const Text('Providers', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF4F46E5),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => setState(() => _approvedSelectedTab = 3),
+                    icon: const Icon(Icons.history_rounded, size: 16),
+                    label: const Text('History', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF059669),
+                      side: const BorderSide(color: Color(0xFFA7F3D0)),
+                      backgroundColor: const Color(0xFFECFDF5),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => setState(() => _approvedSelectedTab = 2),
-                    icon: const Icon(Icons.info_outline_rounded),
-                    label: const Text('Office Details'),
+                    icon: const Icon(Icons.info_outline_rounded, size: 16),
+                    label: const Text('Details', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF64748B),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),

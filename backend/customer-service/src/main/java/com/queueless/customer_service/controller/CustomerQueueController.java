@@ -106,6 +106,13 @@ public class CustomerQueueController {
     public ResponseEntity<?> getMyTokenHistory(
             @RequestParam(value = "email", required = false) String email,
             @RequestParam(value = "customerId", required = false) Long customerId,
+            @RequestParam(value = "search", required = false) String search,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "date", required = false) String date,
+            @RequestParam(value = "startDate", required = false) String startDateStr,
+            @RequestParam(value = "endDate", required = false) String endDateStr,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size,
             Authentication authentication) {
 
         if (authentication != null && authentication.getPrincipal() instanceof User user) {
@@ -115,7 +122,44 @@ public class CustomerQueueController {
             email = authentication.getName();
         }
 
-        var result = queueService.getMyTokenHistory(customerId, email);
+        java.time.LocalDate startDate = null;
+        java.time.LocalDate endDate = null;
+
+        if (date != null && !date.isBlank()) {
+            String d = date.trim().toLowerCase();
+            if ("today".equals(d)) {
+                startDate = java.time.LocalDate.now();
+                endDate = startDate;
+            } else if ("yesterday".equals(d)) {
+                startDate = java.time.LocalDate.now().minusDays(1);
+                endDate = startDate;
+            } else if ("7_days".equals(d) || "this_week".equals(d)) {
+                startDate = java.time.LocalDate.now().minusDays(7);
+                endDate = java.time.LocalDate.now();
+            } else if ("this_month".equals(d)) {
+                startDate = java.time.LocalDate.now().withDayOfMonth(1);
+                endDate = java.time.LocalDate.now();
+            } else {
+                try {
+                    startDate = java.time.LocalDate.parse(date.trim());
+                    endDate = startDate;
+                } catch (Exception ignored) {}
+            }
+        }
+        if (startDateStr != null && !startDateStr.isBlank()) {
+            try {
+                startDate = java.time.LocalDate.parse(startDateStr.trim());
+            } catch (Exception ignored) {}
+        }
+        if (endDateStr != null && !endDateStr.isBlank()) {
+            try {
+                endDate = java.time.LocalDate.parse(endDateStr.trim());
+            } catch (Exception ignored) {}
+        }
+
+        Map<String, Object> result = queueService.getCustomerTokenHistory(
+                customerId, email, search, status, startDate, endDate, page, size
+        );
         return ResponseEntity.ok(result);
     }
 
