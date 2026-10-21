@@ -4,6 +4,7 @@ import '../../services/office_service.dart';
 import '../../services/queue_notification_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/server_config_dialog.dart';
+import '../../widgets/ai_assistant_sheet.dart';
 import '../auth/customer_login_screen.dart';
 import '../search/office_search_screen.dart';
 import '../queue/active_token_screen.dart';
@@ -416,6 +417,56 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
                 ),
               ),
             ),
+      floatingActionButton: _buildAiAssistantFab(),
+    );
+  }
+
+  Widget _buildAiAssistantFab() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4F46E5).withValues(alpha: 0.38),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(30),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(30),
+          onTap: () {
+            AiAssistantSheet.show(context, activeToken: _activeTokenData);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Ask AI',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

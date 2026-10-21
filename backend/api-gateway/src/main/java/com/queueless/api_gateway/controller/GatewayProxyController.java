@@ -144,7 +144,7 @@ public class GatewayProxyController {
             return officeServiceUrl;
         } else if (uri.startsWith("/api/queue/office/")) {
             return officeServiceUrl;
-        } else if (uri.startsWith("/api/queue/") || uri.startsWith("/api/offices/")) {
+        } else if (uri.startsWith("/api/queue/") || uri.startsWith("/api/offices/") || uri.startsWith("/api/ai/")) {
             return customerServiceUrl;
         }
         return null;

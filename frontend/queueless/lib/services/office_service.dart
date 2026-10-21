@@ -523,4 +523,39 @@ class OfficeService {
       await _storage.delete(key: _keyFavoriteIds);
     } catch (_) {}
   }
+
+  /// Query the In-App AI Assistant
+  Future<Map<String, dynamic>> askAiAssistant({
+    required String message,
+    List<Map<String, String>>? history,
+  }) async {
+    try {
+      final user = await getCurrentUser();
+      final uri = Uri.parse('$_baseUrl/queue/ai/chat');
+      final headers = await _getHeaders();
+      final Map<String, dynamic> bodyMap = {
+        'message': message.trim(),
+        'history': history ?? [],
+      };
+      if (user != null && user['email'] != null) {
+        bodyMap['email'] = user['email'];
+      }
+
+      final response = await http.post(uri, headers: headers, body: jsonEncode(bodyMap));
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        return {
+          'reply': 'I could not connect to the queue brain right now. Please try again.',
+          'suggestedActions': <dynamic>[],
+        };
+      }
+    } catch (e) {
+      debugPrint('Error communicating with AI assistant: $e');
+      return {
+        'reply': 'Network connection error. Please check your internet and try again.',
+        'suggestedActions': <dynamic>[],
+      };
+    }
+  }
 }
